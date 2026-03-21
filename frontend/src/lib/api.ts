@@ -1,5 +1,5 @@
 /**
- * DriftLens API client.
+ * FaithTrace API client.
  *
  * Thin wrapper around fetch/axios for type-safe calls to the FastAPI backend.
  */

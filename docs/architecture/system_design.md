@@ -1,4 +1,4 @@
-# DriftLens — System Design
+# FaithTrace — System Design
 
 ## Component Overview
 

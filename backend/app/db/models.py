@@ -75,7 +75,7 @@ class RunMetrics(Base):
     avg_token_usage: Mapped[float | None] = mapped_column(Float, nullable=True)
     avg_cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    # DriftLens custom metrics
+    # FaithTrace custom metrics
     freshness_validity: Mapped[float | None] = mapped_column(Float, nullable=True)
     temporal_citation_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
     multimodal_grounding_rate: Mapped[float | None] = mapped_column(Float, nullable=True)

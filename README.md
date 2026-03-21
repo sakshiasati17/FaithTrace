@@ -1,4 +1,4 @@
-# DriftLens
+# FaithTrace
 
 **Temporal + Multimodal RAG Diagnostics Platform for Enterprise Knowledge Systems**
 
@@ -12,14 +12,14 @@
 
 ## Overview
 
-DriftLens is a diagnostics and benchmarking platform for enterprise RAG (Retrieval-Augmented Generation) systems. It goes beyond standard quality metrics by targeting two critical gaps that existing tools largely ignore:
+FaithTrace is a diagnostics and benchmarking platform for enterprise RAG (Retrieval-Augmented Generation) systems. It goes beyond standard quality metrics by targeting two critical gaps that existing tools largely ignore:
 
 1. **Temporal drift** — answers that become wrong because the underlying knowledge base changed over time
 2. **Multimodal retrieval failures** — breakdowns caused by evidence that lives in tables, charts, spreadsheets, or visually structured PDFs rather than plain text
 
 Enterprise corpora are not static and not purely textual. Policies get revised, SOPs are updated, manuals contain diagrams, reports embed tables, and spreadsheets encode operational logic. Standard RAG evaluation pipelines measure answer quality in a snapshot, but they rarely tell you *why* a pipeline failed or whether the failure was caused by stale knowledge, a document-version mismatch, or a retriever that cannot read a table.
 
-DriftLens fills this gap with a structured experiment engine, a root-cause diagnostics module, and a configuration recommendation system tuned for time-sensitive, multimodal enterprise knowledge.
+FaithTrace fills this gap with a structured experiment engine, a root-cause diagnostics module, and a configuration recommendation system tuned for time-sensitive, multimodal enterprise knowledge.
 
 ---
 
@@ -44,7 +44,7 @@ Organizations build RAG systems over internal knowledge bases, but enterprise co
 - **Non-textual evidence**: Critical answers often live in a table row, a chart value, or a spreadsheet cell — content that text-only chunking strategies routinely lose or misrepresent
 - **Opaque failures**: Current tooling surfaces that a pipeline scored 0.62 on faithfulness, but not *why* — was it a ranking problem, a chunking boundary, a stale document, or a missing table?
 
-DriftLens treats each of these as a measurable, diagnosable, and improvable system property.
+FaithTrace treats each of these as a measurable, diagnosable, and improvable system property.
 
 ---
 
@@ -52,7 +52,7 @@ DriftLens treats each of these as a measurable, diagnosable, and improvable syst
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                          DriftLens Platform                         │
+│                          FaithTrace Platform                         │
 │                                                                     │
 │  ┌──────────────┐      ┌──────────────────────────────────────────┐ │
 │  │   Frontend   │      │               Backend (FastAPI)          │ │
@@ -117,7 +117,7 @@ DriftLens treats each of these as a measurable, diagnosable, and improvable syst
 | Cost per Query | Estimated cost based on model pricing |
 | Reranker Overhead | Latency delta introduced by reranking step |
 
-### DriftLens Custom Metrics
+### FaithTrace Custom Metrics
 | Metric | Description |
 |---|---|
 | **Freshness Validity** | Did the answer draw from the document version valid at query time? |
@@ -144,7 +144,7 @@ The diagnostics engine classifies each retrieval or generation failure into one 
 
 ## Pipeline Variants
 
-DriftLens benchmarks combinations of the following configuration axes:
+FaithTrace benchmarks combinations of the following configuration axes:
 
 ### Retrieval Strategy
 - `vector_only` — dense embedding search

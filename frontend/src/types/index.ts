@@ -65,7 +65,7 @@ export interface RunMetrics {
   avg_token_usage: number | null;
   avg_cost_usd: number | null;
 
-  // DriftLens custom
+  // FaithTrace custom
   freshness_validity: number | null;
   temporal_citation_accuracy: number | null;
   multimodal_grounding_rate: number | null;

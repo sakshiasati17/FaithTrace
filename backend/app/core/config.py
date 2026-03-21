@@ -8,11 +8,11 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/driftlens"
+    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/faithtrace"
 
     # Vector DB
     QDRANT_URL: str = "http://localhost:6333"
-    QDRANT_COLLECTION: str = "driftlens_chunks"
+    QDRANT_COLLECTION: str = "faithtrace_chunks"
 
     # LLM
     OPENAI_API_KEY: str = ""
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     # LangSmith (optional tracing)
     LANGCHAIN_TRACING_V2: bool = False
     LANGCHAIN_API_KEY: str = ""
-    LANGCHAIN_PROJECT: str = "driftlens"
+    LANGCHAIN_PROJECT: str = "faithtrace"
 
     class Config:
         env_file = ".env"

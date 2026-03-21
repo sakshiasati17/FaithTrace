@@ -1,4 +1,4 @@
-# DriftLens — Evaluation Set Schema
+# FaithTrace — Evaluation Set Schema
 
 ## Question Item Format
 

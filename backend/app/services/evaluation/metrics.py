@@ -1,7 +1,7 @@
 """
 Metric computation module.
 
-Computes standard Ragas metrics, operational metrics, and DriftLens custom metrics
+Computes standard Ragas metrics, operational metrics, and FaithTrace custom metrics
 for a completed pipeline run.
 """
 
@@ -25,7 +25,7 @@ class RunMetrics:
     avg_token_usage: float
     avg_cost_usd: float
 
-    # DriftLens custom metrics
+    # FaithTrace custom metrics
     freshness_validity: float          # fraction of answers using version-correct knowledge
     temporal_citation_accuracy: float  # fraction of citations that are time-correct
     multimodal_grounding_rate: float   # for table/chart questions, fraction with correct non-text grounding

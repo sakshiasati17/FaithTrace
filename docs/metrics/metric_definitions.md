@@ -1,4 +1,4 @@
-# DriftLens — Metric Definitions
+# FaithTrace — Metric Definitions
 
 ## Standard RAG Metrics (via Ragas)
 
@@ -50,7 +50,7 @@ Computed as mean(latency with reranker) − mean(latency without reranker) for m
 
 ---
 
-## DriftLens Custom Metrics
+## FaithTrace Custom Metrics
 
 ### Freshness Validity
 **Definition**: The fraction of answers that drew from the document version valid at query time.

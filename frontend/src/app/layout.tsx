@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DriftLens",
+  title: "FaithTrace",
   description: "Temporal + Multimodal RAG Diagnostics Platform",
 };
 

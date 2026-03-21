@@ -5,7 +5,7 @@ from app.api.v1 import router as api_v1_router
 from app.core.config import settings
 
 app = FastAPI(
-    title="DriftLens API",
+    title="FaithTrace API",
     description="Temporal + Multimodal RAG Diagnostics Platform",
     version="0.1.0",
     docs_url="/docs",
@@ -25,4 +25,4 @@ app.include_router(api_v1_router, prefix="/api/v1")
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "service": "driftlens-api"}
+    return {"status": "ok", "service": "faithtrace-api"}

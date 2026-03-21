@@ -7,15 +7,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: driftlens
-      POSTGRES_PASSWORD: driftlens
-      POSTGRES_DB: driftlens
+      POSTGRES_USER: faithtrace
+      POSTGRES_PASSWORD: faithtrace
+      POSTGRES_DB: faithtrace
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U driftlens"]
+      test: ["CMD-SHELL", "pg_isready -U faithtrace"]
       interval: 10s
       timeout: 5s
       retries: 5
