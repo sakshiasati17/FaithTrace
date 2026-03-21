@@ -1,0 +1,62 @@
+[
+  {
+    "id": "q_001",
+    "question": "What is the maximum order exception threshold effective after July 2024?",
+    "ground_truth": "The threshold is $15,000 per order as revised in the procurement policy effective July 1, 2024.",
+    "source_docs": ["procurement_policy_v2.pdf"],
+    "valid_from": "2024-07-01",
+    "valid_to": "2024-12-31",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null
+  },
+  {
+    "id": "q_002",
+    "question": "What were the Q1 2025 inventory exception counts by category?",
+    "ground_truth": "Category A: 12, Category B: 7, Category C: 3 as reported in the January 2025 monthly report.",
+    "source_docs": ["monthly_report_jan2025.pdf"],
+    "valid_from": "2025-01-01",
+    "valid_to": "2025-01-31",
+    "modality": "table",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS"
+  },
+  {
+    "id": "q_003",
+    "question": "What is the current exception handling procedure for orders over $50,000?",
+    "ground_truth": "Orders over $50,000 require dual approval from the procurement lead and CFO per SOP v2.",
+    "source_docs": ["exception_handling_v2.docx"],
+    "valid_from": "2024-06-01",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null
+  },
+  {
+    "id": "q_004",
+    "question": "What was the minimum reorder threshold for SKU-7821 in the January 2025 inventory spreadsheet?",
+    "ground_truth": "The minimum reorder threshold for SKU-7821 was 250 units.",
+    "source_docs": ["inventory_thresholds.xlsx"],
+    "valid_from": "2025-01-01",
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS"
+  },
+  {
+    "id": "q_005",
+    "question": "What was the exception handling rule for orders over $50,000 before the June 2024 SOP update?",
+    "ground_truth": "Before June 2024, orders over $50,000 required only the procurement lead approval per SOP v1.",
+    "source_docs": ["exception_handling_v1.docx"],
+    "valid_from": "2023-01-01",
+    "valid_to": "2024-05-31",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "STALE_ANSWER"
+  }
+]

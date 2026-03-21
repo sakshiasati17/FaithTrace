@@ -1,0 +1,42 @@
+# Web framework
+fastapi==0.111.1
+uvicorn[standard]==0.30.1
+pydantic==2.7.4
+pydantic-settings==2.3.4
+
+# Database
+sqlalchemy==2.0.31
+asyncpg==0.29.0
+alembic==1.13.2
+
+# Task queue
+celery==5.4.0
+redis==5.0.7
+
+# LLM / RAG
+langchain==0.2.12
+langchain-openai==0.1.20
+langchain-community==0.2.11
+langgraph==0.1.19
+openai==1.37.1
+
+# Evaluation
+ragas==0.1.14
+datasets==2.20.0
+
+# Vector DB
+qdrant-client==1.10.1
+
+# Document parsing
+pymupdf==1.24.7
+pdfplumber==0.11.2
+unstructured[pdf,docx]==0.15.0
+python-docx==1.1.2
+openpyxl==3.1.5
+camelot-py[cv]==0.11.0
+
+# Utilities
+httpx==0.27.0
+python-multipart==0.0.9
+structlog==24.4.0
+tenacity==8.4.2

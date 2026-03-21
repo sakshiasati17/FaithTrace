@@ -1,0 +1,101 @@
+version: "3.9"
+
+services:
+
+  # ─── Databases ──────────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: driftlens
+      POSTGRES_PASSWORD: driftlens
+      POSTGRES_DB: driftlens
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U driftlens"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:v1.10.1
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  # ─── Backend ────────────────────────────────────────────────────────────────
+
+  api:
+    build:
+      context: ./backend
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+      - storage_data:/app/storage
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker-ingestion:
+    build:
+      context: ./backend
+    env_file: .env
+    depends_on:
+      - redis
+      - postgres
+      - qdrant
+    volumes:
+      - ./backend:/app
+      - storage_data:/app/storage
+    command: celery -A app.workers.tasks.celery_app worker -Q ingestion -c 4 --loglevel=info
+
+  worker-experiments:
+    build:
+      context: ./backend
+    env_file: .env
+    depends_on:
+      - redis
+      - postgres
+      - qdrant
+    volumes:
+      - ./backend:/app
+      - storage_data:/app/storage
+    command: celery -A app.workers.tasks.celery_app worker -Q experiments,evaluation,diagnostics -c 2 --loglevel=info
+
+  # ─── Frontend ───────────────────────────────────────────────────────────────
+
+  frontend:
+    build:
+      context: ./frontend
+    env_file: frontend/.env.local
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  storage_data:
