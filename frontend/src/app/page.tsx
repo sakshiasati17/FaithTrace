@@ -16,6 +16,7 @@ import {
   TrendingUp,
   CheckCircle2,
 } from "lucide-react";
+import type { Document, Experiment, Run } from "@/types";
 
 function StatCard({ label, value, sub, icon: Icon, color }: {
   label: string;
@@ -57,16 +58,16 @@ function FeatureCard({ icon: Icon, title, description }: {
 }
 
 export default function HomePage() {
-  const { data: docs } = useQuery({ queryKey: ["corpus"], queryFn: corpusApi.list });
-  const { data: experiments } = useQuery({ queryKey: ["experiments"], queryFn: experimentsApi.list });
-  const { data: leaderboard } = useQuery({
+  const { data: docs = [] as Document[] } = useQuery<Document[]>({ queryKey: ["corpus"], queryFn: corpusApi.list });
+  const { data: experiments = [] as Experiment[] } = useQuery<Experiment[]>({ queryKey: ["experiments"], queryFn: experimentsApi.list });
+  const { data: leaderboard = [] as any[] } = useQuery<any[]>({
     queryKey: ["leaderboard"],
     queryFn: () => evaluationApi.getLeaderboard(),
   });
 
-  const docCount = docs?.length ?? 0;
-  const expCount = experiments?.length ?? 0;
-  const completedRuns = experiments?.flatMap((e) => e.runs).filter((r) => r.status === "done").length ?? 0;
+  const docCount = (docs as Document[]).length;
+  const expCount = (experiments as Experiment[]).length;
+  const completedRuns = (experiments as Experiment[]).flatMap((e) => e.runs || []).filter((r) => r.status === "done").length;
   const bestRun = leaderboard?.[0];
 
   return (
@@ -115,14 +116,14 @@ export default function HomePage() {
           <StatCard
             label="Documents"
             value={docCount}
-            sub={`${docs?.filter((d) => d.parse_status === "done").length ?? 0} indexed`}
+            sub={`${(docs as Document[]).filter((d) => d.parse_status === "done").length} indexed`}
             icon={Database}
             color="bg-blue-600"
           />
           <StatCard
             label="Experiments"
             value={expCount}
-            sub={`${experiments?.filter((e) => e.status === "done").length ?? 0} completed`}
+            sub={`${(experiments as Experiment[]).filter((e) => e.status === "done").length} completed`}
             icon={FlaskConical}
             color="bg-violet-600"
           />

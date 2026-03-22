@@ -6,6 +6,7 @@ import Link from "next/link";
 import { experimentsApi } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FlaskConical, Plus, X, ChevronRight, Clock } from "lucide-react";
+import type { Experiment } from "@/types";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -117,13 +118,13 @@ function NewExperimentModal({ onClose }: { onClose: () => void }) {
 export default function ExperimentsPage() {
   const [showModal, setShowModal] = useState(false);
 
-  const { data: experiments = [], isLoading } = useQuery({
+  const { data: experiments = [] as Experiment[], isLoading } = useQuery<Experiment[]>({
     queryKey: ["experiments"],
     queryFn: experimentsApi.list,
     refetchInterval: (query) => {
       const data = query.state.data;
       if (!data) return false;
-      return (data as typeof experiments).some(
+      return (data as Experiment[]).some(
         (e) => e.status === "running" || e.status === "pending"
       )
         ? 5000
@@ -165,7 +166,7 @@ export default function ExperimentsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {experiments.map((exp) => {
+          {(experiments as Experiment[]).map((exp: Experiment) => {
             const totalRuns = exp.runs?.length ?? 0;
             const doneRuns = exp.runs?.filter((r) => r.status === "done").length ?? 0;
             const failedRuns = exp.runs?.filter((r) => r.status === "failed").length ?? 0;

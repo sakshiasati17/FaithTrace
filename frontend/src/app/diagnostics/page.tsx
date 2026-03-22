@@ -6,6 +6,7 @@ import { experimentsApi, diagnosticsApi } from "@/lib/api";
 import { Stethoscope, AlertCircle } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { clsx } from "clsx";
+import type { Experiment } from "@/types";
 
 const FAILURE_COLORS: Record<string, string> = {
   NO_FAILURE: "#10b981",
@@ -34,12 +35,12 @@ const FAILURE_DESCRIPTIONS: Record<string, string> = {
 export default function DiagnosticsPage() {
   const [selectedExperiment, setSelectedExperiment] = useState<string>("");
 
-  const { data: experiments = [] } = useQuery({
+  const { data: experiments = [] as Experiment[] } = useQuery<Experiment[]>({
     queryKey: ["experiments"],
     queryFn: experimentsApi.list,
   });
 
-  const completedExps = experiments.filter((e) => e.status === "done");
+  const completedExps = (experiments as Experiment[]).filter((e) => e.status === "done");
 
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ["failure-summary", selectedExperiment],
