@@ -97,7 +97,7 @@ async def upload_document(
         doc_metadata={"original_filename": file.filename, "strategy": strategy},
     )
     db.add(doc)
-    await db.flush()
+    await db.commit()  # commit before dispatching so the worker can read the row
 
     # Enqueue ingestion task
     from app.workers.tasks import ingest_document
