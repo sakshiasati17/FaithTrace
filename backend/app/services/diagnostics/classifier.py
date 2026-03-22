@@ -3,10 +3,13 @@ Root-cause failure classifier.
 
 Classifies each failed query into one or more failure categories based on
 retrieval context, metric scores, document metadata, and modality labels.
+Phase 1: Heuristic-only classification with fixed confidence = 0.7.
 """
 
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
+
 from app.services.experiment.runner import QueryResult
 
 
@@ -26,9 +29,38 @@ class FailureCategory(str, Enum):
 class DiagnosisResult:
     query_id: str
     primary_failure: FailureCategory
-    secondary_failures: list[FailureCategory]
-    confidence: float
-    evidence: dict   # supporting signals used to reach the diagnosis
+    secondary_failures: list[FailureCategory] = field(default_factory=list)
+    confidence: float = 0.7
+    evidence: dict = field(default_factory=dict)
+
+
+def _has_temporal_violation(result: QueryResult, eval_item: dict) -> bool:
+    """Check if retrieved chunks contain temporally invalid content."""
+    valid_from_str = eval_item.get("valid_from")
+    if not valid_from_str:
+        return False
+    try:
+        query_epoch = int(datetime.fromisoformat(valid_from_str).timestamp())
+    except (ValueError, TypeError):
+        return False
+
+    for chunk in result.retrieved_chunks:
+        eff_from = chunk.get("effective_from")
+        if eff_from is None:
+            continue
+        eff_to = chunk.get("effective_to")
+        from_ok = eff_from <= query_epoch
+        to_ok = (eff_to is None) or (eff_to >= query_epoch)
+        if not (from_ok and to_ok):
+            return True
+    return False
+
+
+def _has_nontext_chunk(result: QueryResult) -> bool:
+    return any(
+        c.get("chunk_type", "text") in ("table", "spreadsheet_cell", "image")
+        for c in result.retrieved_chunks
+    )
 
 
 def diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisResult:
@@ -38,15 +70,75 @@ def diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisRe
     Args:
         result: The pipeline's QueryResult for this query
         eval_item: The ground-truth evaluation item including modality, valid dates
-        metrics: Per-query metric scores
+        metrics: Per-query metric scores from Ragas
 
     Returns:
         DiagnosisResult with primary and secondary failure categories
     """
-    raise NotImplementedError
+    faithfulness = metrics.get("faithfulness", 1.0)
+    context_recall = metrics.get("context_recall", 1.0)
+    context_precision = metrics.get("context_precision", 1.0)
+    answer_correctness = metrics.get("answer_correctness", 1.0)
+    modality = eval_item.get("modality", "text")
+
+    primary = FailureCategory.NO_FAILURE
+    secondary = []
+    evidence = {
+        "faithfulness": faithfulness,
+        "context_recall": context_recall,
+        "context_precision": context_precision,
+        "answer_correctness": answer_correctness,
+        "modality": modality,
+    }
+
+    temporal_violation = _has_temporal_violation(result, eval_item)
+    has_nontext = _has_nontext_chunk(result)
+    needs_nontext = modality in ("table", "chart", "spreadsheet", "mixed")
+
+    # Priority order: temporal > modality > recall > precision/synthesis
+
+    if temporal_violation and eval_item.get("valid_from"):
+        primary = FailureCategory.STALE_ANSWER
+        evidence["temporal_violation"] = True
+
+    elif needs_nontext and not has_nontext:
+        primary = FailureCategory.TABLE_RETRIEVAL_MISS
+        evidence["no_nontext_chunk_retrieved"] = True
+
+    elif context_recall < 0.3:
+        primary = FailureCategory.LOW_RECALL_RETRIEVAL
+        if faithfulness < 0.4:
+            secondary.append(FailureCategory.UNSUPPORTED_SYNTHESIS)
+
+    elif faithfulness < 0.4:
+        primary = FailureCategory.UNSUPPORTED_SYNTHESIS
+        if context_precision < 0.3:
+            secondary.append(FailureCategory.IRRELEVANT_CONTEXT_POLLUTION)
+
+    elif context_precision < 0.3 and faithfulness > 0.5:
+        primary = FailureCategory.IRRELEVANT_CONTEXT_POLLUTION
+
+    elif answer_correctness < 0.4 and context_recall > 0.5:
+        # Content was retrieved but answer is wrong → likely boundary/synthesis issue
+        primary = FailureCategory.CHUNKING_BOUNDARY_ERROR
+
+    evidence["chunks_retrieved"] = len(result.retrieved_chunks)
+    evidence["has_nontext_chunk"] = has_nontext
+
+    return DiagnosisResult(
+        query_id=result.query_id,
+        primary_failure=primary,
+        secondary_failures=secondary,
+        confidence=0.7,
+        evidence=evidence,
+    )
 
 
-def diagnose_run(results: list[QueryResult], eval_set: list[dict], run_metrics: list[dict]) -> list[DiagnosisResult]:
+def diagnose_run(
+    results: list[QueryResult],
+    eval_set: list[dict],
+    run_metrics: list[dict],
+) -> list[DiagnosisResult]:
     """Diagnose all queries in a run."""
     return [
         diagnose(result, eval_item, metric)

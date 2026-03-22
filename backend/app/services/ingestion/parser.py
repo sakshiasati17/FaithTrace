@@ -27,7 +27,7 @@ def parse_document(file_path: Path, strategy: str = "text_only") -> list[dict]:
     Strategies:
         text_only           Plain text extraction
         text_table          Text + structured table extraction
-        text_table_vision   Text + tables + vision page understanding
+        text_table_vision   Text + tables + vision page understanding (Phase 3)
         spreadsheet_aware   Workbook-level cell and sheet extraction
 
     Returns:
@@ -49,16 +49,225 @@ def parse_document(file_path: Path, strategy: str = "text_only") -> list[dict]:
 
 
 def _parse_pdf(path: Path, strategy: str) -> list[dict]:
-    raise NotImplementedError
+    if strategy == "text_table_vision":
+        raise NotImplementedError("Vision parsing deferred to Phase 3")
+
+    import fitz  # PyMuPDF
+
+    doc = fitz.open(str(path))
+    chunks = []
+    filename = path.name
+    page_count = len(doc)
+
+    if strategy in ("text_only", "text_table", "spreadsheet_aware"):
+        # Extract text from every page
+        for page_num, page in enumerate(doc):
+            text = page.get_text("text").strip()
+            if text:
+                chunks.append({
+                    "content": text,
+                    "chunk_type": "text",
+                    "page": page_num + 1,
+                    "table_id": None,
+                    "metadata": {
+                        "filename": filename,
+                        "page_count": page_count,
+                        "strategy": strategy,
+                    },
+                })
+
+    if strategy == "text_table":
+        # Also extract tables using pdfplumber
+        try:
+            import pdfplumber
+            with pdfplumber.open(str(path)) as pdf_doc:
+                for page_num, page in enumerate(pdf_doc.pages):
+                    tables = page.extract_tables()
+                    for table_idx, table in enumerate(tables):
+                        if not table:
+                            continue
+                        # Serialize table as markdown
+                        md_rows = []
+                        for row in table:
+                            cells = [str(cell or "").strip() for cell in row]
+                            md_rows.append("| " + " | ".join(cells) + " |")
+                        if len(md_rows) > 1:
+                            # Insert separator after header
+                            separator = "| " + " | ".join(["---"] * len(table[0])) + " |"
+                            md_rows.insert(1, separator)
+                        md_content = "\n".join(md_rows)
+                        table_id = f"table_{page_num + 1}_{table_idx}"
+                        chunks.append({
+                            "content": md_content,
+                            "chunk_type": "table",
+                            "page": page_num + 1,
+                            "table_id": table_id,
+                            "metadata": {
+                                "filename": filename,
+                                "page_count": page_count,
+                                "strategy": strategy,
+                                "table_index": table_idx,
+                            },
+                        })
+        except Exception:
+            pass  # pdfplumber failure is non-fatal; text chunks still returned
+
+    doc.close()
+    return chunks
 
 
 def _parse_docx(path: Path, strategy: str) -> list[dict]:
-    raise NotImplementedError
+    from docx import Document
+
+    doc = Document(str(path))
+    filename = path.name
+    chunks = []
+
+    # Extract paragraphs
+    for para_idx, para in enumerate(doc.paragraphs):
+        text = para.text.strip()
+        if not text:
+            continue
+        meta: dict = {"filename": filename, "strategy": strategy, "para_index": para_idx}
+        if para.style and para.style.name and para.style.name.startswith("Heading"):
+            meta["heading_level"] = para.style.name
+        chunks.append({
+            "content": text,
+            "chunk_type": "text",
+            "page": None,
+            "table_id": None,
+            "metadata": meta,
+        })
+
+    if strategy == "text_table":
+        for table_idx, table in enumerate(doc.tables):
+            md_rows = []
+            for row in table.rows:
+                cells = [cell.text.strip() for cell in row.cells]
+                md_rows.append("| " + " | ".join(cells) + " |")
+            if len(md_rows) > 1:
+                separator = "| " + " | ".join(["---"] * len(table.rows[0].cells)) + " |"
+                md_rows.insert(1, separator)
+            md_content = "\n".join(md_rows)
+            if md_content.strip():
+                chunks.append({
+                    "content": md_content,
+                    "chunk_type": "table",
+                    "page": None,
+                    "table_id": f"table_{table_idx}",
+                    "metadata": {"filename": filename, "strategy": strategy},
+                })
+
+    return chunks
 
 
 def _parse_spreadsheet(path: Path) -> list[dict]:
-    raise NotImplementedError
+    filename = path.name
+    chunks = []
+
+    if path.suffix.lower() == ".csv":
+        import csv
+        with open(str(path), newline="", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            headers = reader.fieldnames or []
+            for row_idx, row in enumerate(reader):
+                content = "Row {}: {}".format(
+                    row_idx + 1,
+                    ", ".join(f"{k}={v}" for k, v in row.items() if v),
+                )
+                chunks.append({
+                    "content": content,
+                    "chunk_type": "spreadsheet_cell",
+                    "page": 0,
+                    "table_id": "sheet_0",
+                    "metadata": {"filename": filename, "headers": headers},
+                })
+        return chunks
+
+    # XLSX
+    import openpyxl
+    wb = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
+    for sheet_idx, sheet_name in enumerate(wb.sheetnames):
+        ws = wb[sheet_name]
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            continue
+
+        headers = [str(h or "").strip() for h in rows[0]]
+        # Sheet summary chunk
+        chunks.append({
+            "content": f"Sheet: {sheet_name} | Columns: {', '.join(h for h in headers if h)}",
+            "chunk_type": "text",
+            "page": sheet_idx,
+            "table_id": sheet_name,
+            "metadata": {"filename": filename, "sheet_name": sheet_name},
+        })
+
+        # Row-level chunks
+        for row_idx, row in enumerate(rows[1:], start=2):
+            parts = []
+            for header, val in zip(headers, row):
+                if val is not None and str(val).strip():
+                    parts.append(f"{header}={val}")
+            if parts:
+                content = f"{sheet_name} | row {row_idx}: " + ", ".join(parts)
+                chunks.append({
+                    "content": content,
+                    "chunk_type": "spreadsheet_cell",
+                    "page": sheet_idx,
+                    "table_id": sheet_name,
+                    "metadata": {"filename": filename, "sheet_name": sheet_name, "row": row_idx},
+                })
+
+    wb.close()
+    return chunks
 
 
 def _parse_html(path: Path) -> list[dict]:
-    raise NotImplementedError
+    filename = path.name
+    chunks = []
+
+    try:
+        from unstructured.partition.html import partition_html
+        elements = partition_html(filename=str(path))
+        for elem_idx, elem in enumerate(elements):
+            text = str(elem).strip()
+            if text:
+                chunk_type = "table" if "Table" in type(elem).__name__ else "text"
+                chunks.append({
+                    "content": text,
+                    "chunk_type": chunk_type,
+                    "page": None,
+                    "table_id": f"table_{elem_idx}" if chunk_type == "table" else None,
+                    "metadata": {"filename": filename, "element_type": type(elem).__name__},
+                })
+    except Exception:
+        # Fallback: basic HTML strip
+        from html.parser import HTMLParser
+
+        class _Stripper(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self._parts = []
+
+            def handle_data(self, data):
+                stripped = data.strip()
+                if stripped:
+                    self._parts.append(stripped)
+
+        with open(str(path), encoding="utf-8", errors="replace") as f:
+            content = f.read()
+
+        stripper = _Stripper()
+        stripper.feed(content)
+        full_text = "\n".join(stripper._parts)
+        if full_text:
+            chunks.append({
+                "content": full_text,
+                "chunk_type": "text",
+                "page": None,
+                "table_id": None,
+                "metadata": {"filename": filename},
+            })
+
+    return chunks
