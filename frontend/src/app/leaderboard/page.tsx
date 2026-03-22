@@ -6,7 +6,6 @@ import Link from "next/link";
 import { evaluationApi } from "@/lib/api";
 import { BarChart3, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 import { clsx } from "clsx";
-import type { Experiment, Run } from "@/types";
 
 const METRIC_COLS = [
   { key: "faithfulness", label: "Faithfulness", lowerBetter: false },
@@ -20,9 +19,16 @@ const METRIC_COLS = [
   { key: "avg_cost_usd", label: "Cost/q", lowerBetter: true, unit: "$" },
 ];
 
-function metricColor(value: number | null | undefined, lowerBetter: boolean): string {
+function metricColor(value: number | null | undefined, lowerBetter: boolean, unit?: string): string {
   if (value == null) return "text-zinc-600";
-  const v = lowerBetter ? 1 - Math.min(value / 5000, 1) : value;
+  let v: number;
+  if (lowerBetter) {
+    if (unit === "ms") v = 1 - Math.min(value / 5000, 1);
+    else if (unit === "$") v = 1 - Math.min(value / 0.05, 1); // $0.05 = worst
+    else v = 1 - Math.min(value, 1);
+  } else {
+    v = value;
+  }
   if (v >= 0.7) return "text-emerald-400";
   if (v >= 0.4) return "text-amber-400";
   return "text-red-400";
@@ -160,7 +166,7 @@ export default function LeaderboardPage() {
                       const value = (entry.metrics as any)?.[col.key];
                       return (
                         <td key={col.key} className="px-3 py-3 text-right">
-                          <span className={clsx("font-mono text-xs", metricColor(value, col.lowerBetter))}>
+                          <span className={clsx("font-mono text-xs", metricColor(value, col.lowerBetter, col.unit))}>
                             {formatMetric(value, col.unit)}
                           </span>
                         </td>

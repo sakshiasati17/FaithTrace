@@ -10,6 +10,8 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: [
+          "var(--font-inter)",
+          "Inter",
           "-apple-system",
           "BlinkMacSystemFont",
           '"Segoe UI"',
@@ -25,6 +27,30 @@ module.exports = {
           '"Roboto Mono"',
           "monospace",
         ],
+      },
+      animation: {
+        "glow-pulse": "glowPulse 4s ease-in-out infinite",
+        "fade-in": "fadeIn 0.4s ease-out",
+        "slide-up": "slideUp 0.4s ease-out",
+      },
+      keyframes: {
+        glowPulse: {
+          "0%, 100%": { opacity: "0.3" },
+          "50%": { opacity: "0.7" },
+        },
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        slideUp: {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      boxShadow: {
+        "glow-sm": "0 0 20px rgba(124,58,237,0.18)",
+        "glow-md": "0 0 40px rgba(124,58,237,0.25)",
+        "glow-lg": "0 0 80px rgba(124,58,237,0.3)",
       },
     },
   },
