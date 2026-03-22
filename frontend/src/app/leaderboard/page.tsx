@@ -6,6 +6,7 @@ import Link from "next/link";
 import { evaluationApi } from "@/lib/api";
 import { BarChart3, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 import { clsx } from "clsx";
+import type { Experiment, Run } from "@/types";
 
 const METRIC_COLS = [
   { key: "faithfulness", label: "Faithfulness", lowerBetter: false },
@@ -38,14 +39,15 @@ export default function LeaderboardPage() {
   const [sortBy, setSortBy] = useState("faithfulness");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const { data: entries = [], isLoading } = useQuery({
+  const { data: entries = [] as any[], isLoading } = useQuery<any[]>({
     queryKey: ["leaderboard", sortBy],
     queryFn: () => evaluationApi.getLeaderboard(undefined),
   });
 
   const col = METRIC_COLS.find((c) => c.key === sortBy);
+  const entriesArray = (entries || []) as any[];
 
-  const sorted = [...entries].sort((a, b) => {
+  const sorted = [...entriesArray].sort((a, b) => {
     const av = (a.metrics as any)?.[sortBy] ?? null;
     const bv = (b.metrics as any)?.[sortBy] ?? null;
     if (av == null && bv == null) return 0;
@@ -75,7 +77,7 @@ export default function LeaderboardPage() {
 
       {isLoading ? (
         <div className="py-20 text-center text-sm text-zinc-600">Loading leaderboard…</div>
-      ) : entries.length === 0 ? (
+      ) : entriesArray.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl py-20 text-center">
           <BarChart3 className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
           <p className="text-sm font-medium text-zinc-500 mb-1">No results yet</p>

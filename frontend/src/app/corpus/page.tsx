@@ -6,6 +6,7 @@ import { corpusApi } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Upload, Trash2, FileText, File, RefreshCw, X, Database } from "lucide-react";
 import { clsx } from "clsx";
+import type { Document } from "@/types";
 
 const FILE_ICONS: Record<string, React.ElementType> = {
   pdf: FileText,
@@ -30,13 +31,13 @@ export default function CorpusPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [form, setForm] = useState({ version_label: "v1", effective_from: "", effective_to: "" });
 
-  const { data: docs = [], isLoading } = useQuery({
+  const { data: docs = [] as Document[], isLoading } = useQuery<Document[]>({
     queryKey: ["corpus"],
     queryFn: corpusApi.list,
     refetchInterval: (query) => {
       const data = query.state.data;
       if (!data) return false;
-      return (data as typeof docs).some((d) => d.parse_status === "running" || d.index_status === "running")
+      return (data as Document[]).some((d) => d.parse_status === "running" || d.index_status === "running")
         ? 3000
         : false;
     },

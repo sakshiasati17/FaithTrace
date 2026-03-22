@@ -2,12 +2,12 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { use } from "react";
 import { experimentsApi, evaluationApi } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { ArrowLeft, ChevronRight, Clock } from "lucide-react";
 import { clsx } from "clsx";
+import type { Experiment, Run } from "@/types";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -21,10 +21,10 @@ function ConfigPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function ExperimentDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function ExperimentDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
 
-  const { data: exp, isLoading } = useQuery({
+  const { data: exp, isLoading } = useQuery<Experiment>({
     queryKey: ["experiment", id],
     queryFn: () => experimentsApi.get(id),
     refetchInterval: (query) => {
@@ -56,7 +56,7 @@ export default function ExperimentDetailPage({ params }: { params: Promise<{ id:
     );
   }
 
-  const runs = exp.runs ?? [];
+  const runs = (exp?.runs ?? []) as Run[];
   const doneRuns = runs.filter((r) => r.status === "done").length;
 
   return (
@@ -121,7 +121,7 @@ export default function ExperimentDetailPage({ params }: { params: Promise<{ id:
           <tbody>
             {runs.map((run, i) => {
               const m = run.metrics;
-              const lbEntry = leaderboard?.find((e) => e.run_id === run.id);
+              const lbEntry = leaderboard?.find((e) => e.id === run.id);
               const metrics = m || lbEntry?.metrics;
               const cfg = run.config;
 

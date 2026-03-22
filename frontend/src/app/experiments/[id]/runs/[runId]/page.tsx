@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { use } from "react";
 import { experimentsApi, diagnosticsApi } from "@/lib/api";
 import { ArrowLeft, ChevronRight, ChevronDown, FileText, Table2, Sheet, AlertCircle } from "lucide-react";
 import { clsx } from "clsx";
+import type { QueryDiagnosis } from "@/types";
 
 const FAILURE_COLORS: Record<string, string> = {
   NO_FAILURE: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
@@ -42,16 +42,16 @@ function ChunkBadge({ chunkType }: { chunkType: string }) {
   );
 }
 
-export default function RunTracePage({ params }: { params: Promise<{ id: string; runId: string }> }) {
-  const { id, runId } = use(params);
+export default function RunTracePage({ params }: { params: { id: string; runId: string } }) {
+  const { id, runId } = params;
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-  const { data: trace = [], isLoading: traceLoading } = useQuery({
+  const { data: trace = [] as any[], isLoading: traceLoading } = useQuery<any[]>({
     queryKey: ["run-trace", id, runId],
     queryFn: () => experimentsApi.getRunTrace(id, runId),
   });
 
-  const { data: diagnostics = [] } = useQuery({
+  const { data: diagnostics = [] as QueryDiagnosis[] } = useQuery<QueryDiagnosis[]>({
     queryKey: ["run-diagnostics", runId],
     queryFn: () => diagnosticsApi.getRunDiagnostics(runId),
   });
