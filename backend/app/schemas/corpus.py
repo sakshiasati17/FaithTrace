@@ -12,7 +12,6 @@ class DocumentResponse(BaseModel):
     version_label: str
     effective_from: Optional[datetime] = None
     effective_to: Optional[datetime] = None
-    storage_path: str
     parse_status: str
     index_status: str
     created_at: datetime

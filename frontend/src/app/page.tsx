@@ -49,7 +49,7 @@ function FeatureCard({ icon: Icon, title, description }: {
   return (
     <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors">
       <div className="w-9 h-9 rounded-lg bg-violet-600/20 flex items-center justify-center mb-3">
-        <Icon className="w-4.5 h-4.5 text-violet-400" />
+        <Icon className="w-4 h-4 text-violet-400" />
       </div>
       <h3 className="text-sm font-semibold text-white mb-1.5">{title}</h3>
       <p className="text-xs text-zinc-500 leading-relaxed">{description}</p>
