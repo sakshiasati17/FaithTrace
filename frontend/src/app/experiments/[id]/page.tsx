@@ -121,7 +121,7 @@ export default function ExperimentDetailPage({ params }: { params: { id: string 
           <tbody>
             {runs.map((run, i) => {
               const m = run.metrics;
-              const lbEntry = leaderboard?.find((e) => e.id === run.id);
+              const lbEntry = leaderboard?.find((e) => e.run_id === run.id);
               const metrics = m || lbEntry?.metrics;
               const cfg = run.config;
 

@@ -50,7 +50,8 @@ def build_matrix(
 
 def build_mvp_matrix(embedding_model: str = "text-embedding-3-small", llm_model: str = "gpt-4o") -> list[PipelineConfig]:
     """
-    Curated 6-config MVP matrix covering the most informative combinations.
+    Curated MVP matrix: 3 retrieval × 2 chunking × 2 parsing × 2 freshness = 24 configs.
+    Covers the most informative combinations for Phase 1 benchmarking.
     """
     return build_matrix(
         retrieval=["vector_only", "hybrid", "hybrid_reranker"],

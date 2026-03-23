@@ -31,6 +31,7 @@ export interface PipelineConfig {
 
 export interface Run {
   id: string;
+  run_id?: string;
   experiment_id: string;
   config: PipelineConfig;
   status: ExperimentStatus;
