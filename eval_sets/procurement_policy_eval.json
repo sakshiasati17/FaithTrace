@@ -1,0 +1,122 @@
+[
+  {
+    "id": "q_001",
+    "question": "What is the maximum cost for direct purchasing by User Departments without competitive tendering?",
+    "ground_truth": "All purchase orders for goods and services estimated to cost less than $10,000 at initial award can be issued directly by User Departments.",
+    "source_docs": ["corporate_procurement_policy.pdf"],
+    "valid_from": "2016-01-01",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null
+  },
+  {
+    "id": "q_002",
+    "question": "What is the threshold above which formal open competitive tendering with public advertisement is required?",
+    "ground_truth": "For purchase orders and contracts estimated to cost $200,000 or more, formal open competitive tender with reasonable time for public advertisement including mandatory posting on AIIB's website shall apply.",
+    "source_docs": ["corporate_procurement_policy.pdf"],
+    "valid_from": "2016-01-01",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null
+  },
+  {
+    "id": "q_003",
+    "question": "How many competitive offers are required for purchase orders estimated to cost between $70,000 and $200,000?",
+    "ground_truth": "For purchase orders and contracts estimated to cost $70,000 or more but less than $200,000 there must be a minimum of three competitive offers requested and evaluated by the User Department and approved on a no-objection basis by the CPD.",
+    "source_docs": ["corporate_procurement_policy.pdf"],
+    "valid_from": "2016-01-01",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null
+  },
+  {
+    "id": "q_004",
+    "question": "What does CPD stand for and what is its role?",
+    "ground_truth": "CPD stands for Corporate Procurement Division. It is the division within the Bank responsible for managing Corporate Procurement, with exclusive authority to conduct and monitor Corporate Procurement activity for the Bank.",
+    "source_docs": ["corporate_procurement_policy.pdf"],
+    "valid_from": "2016-01-01",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null
+  },
+  {
+    "id": "q_005",
+    "question": "What are the conditions under which exceptions to competitive tendering may be approved?",
+    "ground_truth": "Exceptions may be considered for: standardization of supplies making further competition impractical; proprietary goods from limited sources; specialized services from uniquely suitable suppliers; extreme urgency or emergency; purchase on particularly advantageous terms from winding-up suppliers; essential goods for crisis response; and supplier continuity from early project phases.",
+    "source_docs": ["corporate_procurement_policy.pdf"],
+    "valid_from": "2016-01-01",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": null
+  },
+  {
+    "id": "q_006",
+    "question": "What does Value for Money (VfM) mean in the context of the Bank's corporate procurement?",
+    "ground_truth": "Value for Money means obtaining maximum operational benefits with the resources utilized. This may include not only the initial costs but also costs over the economic life of the procured item, the quality of output, and timeliness.",
+    "source_docs": ["corporate_procurement_policy.pdf"],
+    "valid_from": "2016-01-01",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null
+  },
+  {
+    "id": "q_007",
+    "question": "Who must approve purchase orders and contracts of $200,000 or more before signing?",
+    "ground_truth": "Prior to signing any purchase orders and contracts of $200,000 or more, Director General, Facilities and Administrative Services must approve these purchase orders and contracts as recommended by Manager of the CPD.",
+    "source_docs": ["corporate_procurement_policy.pdf"],
+    "valid_from": "2016-01-01",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null
+  },
+  {
+    "id": "q_008",
+    "question": "What is a retroactive contract and when is it justifiable?",
+    "ground_truth": "Retroactive contracts are those contracts and/or purchase orders in which goods, services and works have already been delivered or performed prior to obtaining CPD advice or completing approval steps. They are justifiable only when: operations would be seriously jeopardized, the Crisis Management Team determines swift execution is essential, or the matter is beyond reasonable control of the User Department.",
+    "source_docs": ["corporate_procurement_policy.pdf"],
+    "valid_from": "2016-01-01",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": null
+  },
+  {
+    "id": "q_009",
+    "question": "Which departments are granted exemptions from the Corporate Procurement Policy?",
+    "ground_truth": "The Treasury department is exempt for treasury related goods and services such as selection of brokers for sale of investments, and the Office of General Counsel is exempt for external legal services required by the Bank.",
+    "source_docs": ["corporate_procurement_policy.pdf"],
+    "valid_from": "2016-01-01",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null
+  },
+  {
+    "id": "q_010",
+    "question": "What is the minimum threshold at which a Technical Evaluation Committee must be set up?",
+    "ground_truth": "For all purchase orders and contracts with the initial award of $70,000 or more and where a tender evaluation is required, a technical evaluation committee is required to be set up to evaluate the technical proposals.",
+    "source_docs": ["corporate_procurement_policy.pdf"],
+    "valid_from": "2016-01-01",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null
+  }
+]

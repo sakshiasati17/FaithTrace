@@ -63,14 +63,15 @@ def compute_metrics(results: list[QueryResult], eval_set: list[dict]) -> RunMetr
 
     # Aggregate Ragas scores
     def _mean(scores: list[float]) -> float:
-        valid = [s for s in scores if s is not None]
+        import math
+        valid = [s for s in scores if s is not None and math.isfinite(float(s))]
         return float(np.mean(valid)) if valid else 0.0
 
     ragas_agg = {
         "faithfulness": _mean([s.get("faithfulness", 0.0) for s in per_query_scores]),
         "context_precision": _mean([s.get("context_precision", 0.0) for s in per_query_scores]),
         "context_recall": _mean([s.get("context_recall", 0.0) for s in per_query_scores]),
-        "answer_relevance": _mean([s.get("answer_relevance", 0.0) for s in per_query_scores]),
+        "answer_relevance": _mean([s.get("answer_relevancy", 0.0) for s in per_query_scores]),
         "answer_correctness": _mean([s.get("answer_correctness", 0.0) for s in per_query_scores]),
     }
 

@@ -82,6 +82,7 @@ services:
     volumes:
       - ./backend:/app
       - storage_data:/app/storage
+      - ./eval_sets:/app/eval_sets
     command: celery -A app.workers.tasks.celery_app worker -Q experiments,evaluation,diagnostics -c 2 --loglevel=info
 
   # ─── Frontend ───────────────────────────────────────────────────────────────

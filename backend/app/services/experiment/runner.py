@@ -86,6 +86,7 @@ def _build_vector_retriever(embedding_model: str, top_k: int, qdrant_filter=None
         client=client,
         collection_name=settings.QDRANT_COLLECTION,
         embeddings=embeddings,
+        content_payload_key="content",
     )
     search_kwargs = {"k": top_k}
     if qdrant_filter:
@@ -104,7 +105,7 @@ def _build_bm25_retriever(top_k: int):
 
     docs = [
         LCDoc(
-            page_content=c.get("content", ""),
+            page_content=str(c.get("content", "") or ""),
             metadata={k: v for k, v in c.items() if k != "content"},
         )
         for c in all_chunks
@@ -262,10 +263,13 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
                 )
                 lc_docs = retriever.invoke(question)
 
+            # Filter out any docs with None page_content (LangChain validation issue)
+            lc_docs = [d for d in lc_docs if getattr(d, 'page_content', None) is not None]
+
             # Convert LangChain docs to chunk dicts
             retrieved_chunks = []
             for doc in lc_docs:
-                chunk = {"content": doc.page_content}
+                chunk = {"content": doc.page_content or ""}
                 chunk.update(doc.metadata)
                 retrieved_chunks.append(chunk)
 

@@ -6,7 +6,18 @@ answer relevance, answer correctness) into a callable interface that
 takes FaithTrace QueryResult objects and returns per-query scores.
 """
 
+import math
+
 from app.services.experiment.runner import QueryResult
+
+
+def _sanitize_float(val) -> float:
+    """Convert NaN/inf to 0.0 so Postgres JSON columns don't choke."""
+    try:
+        f = float(val or 0.0)
+        return f if math.isfinite(f) else 0.0
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def build_ragas_dataset(results: list[QueryResult], eval_set: list[dict]) -> dict:
@@ -51,7 +62,7 @@ def run_ragas_evaluation(results: list[QueryResult], eval_set: list[dict]) -> li
         faithfulness,
         context_precision,
         context_recall,
-        answer_relevance,
+        answer_relevancy,
         answer_correctness,
     )
     from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -80,7 +91,7 @@ def run_ragas_evaluation(results: list[QueryResult], eval_set: list[dict]) -> li
                 faithfulness,
                 context_precision,
                 context_recall,
-                answer_relevance,
+                answer_relevancy,
                 answer_correctness,
             ],
             llm=llm,
@@ -95,11 +106,11 @@ def run_ragas_evaluation(results: list[QueryResult], eval_set: list[dict]) -> li
         # Ensure each score dict has all metric keys
         metric_keys = [
             "faithfulness", "context_precision", "context_recall",
-            "answer_relevance", "answer_correctness"
+            "answer_relevancy", "answer_correctness"
         ]
         cleaned = []
         for row in per_query_scores:
-            cleaned.append({k: float(row.get(k, 0.0) or 0.0) for k in metric_keys})
+            cleaned.append({k: _sanitize_float(row.get(k, 0.0)) for k in metric_keys})
         return cleaned
 
     except Exception as e:
@@ -108,7 +119,8 @@ def run_ragas_evaluation(results: list[QueryResult], eval_set: list[dict]) -> li
             "faithfulness": 0.0,
             "context_precision": 0.0,
             "context_recall": 0.0,
-            "answer_relevance": 0.0,
+            "answer_relevancy": 0.0,
             "answer_correctness": 0.0,
         }
         return [zero_scores.copy() for _ in results]
+

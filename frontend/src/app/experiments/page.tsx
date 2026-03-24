@@ -17,7 +17,7 @@ function NewExperimentModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState({
     name: "",
     description: "",
-    eval_set_path: "eval_sets/sample_eval_set.json",
+    eval_set_path: "eval_sets/procurement_policy_eval.json",
     config_preset: "mvp",
   });
   const [error, setError] = useState<string | null>(null);
