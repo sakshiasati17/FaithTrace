@@ -114,7 +114,17 @@ def run_ragas_evaluation(results: list[QueryResult], eval_set: list[dict]) -> li
         return cleaned
 
     except Exception as e:
-        # Return zero scores on evaluation failure
+        # Re-raise rate limit errors so the Celery task can retry with backoff
+        # instead of silently storing zero scores that look like real results.
+        try:
+            from openai import RateLimitError
+            if isinstance(e, RateLimitError):
+                raise
+        except ImportError:
+            pass
+
+        # Return zero scores for all other evaluation failures (import errors,
+        # dataset format issues, etc.) so the pipeline doesn't hard-crash.
         zero_scores = {
             "faithfulness": 0.0,
             "context_precision": 0.0,
