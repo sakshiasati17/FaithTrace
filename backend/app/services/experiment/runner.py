@@ -11,7 +11,18 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
 from app.core.config import settings
+
+# Build the rate-limit retry predicate once at module load time.
+try:
+    from openai import RateLimitError as _OAIRateLimitError
+    _retry_on_rate_limit = retry_if_exception_type(_OAIRateLimitError)
+except ImportError:
+    # openai not installed — define a predicate that never fires so the
+    # decorator becomes a no-op instead of incorrectly retrying everything.
+    _retry_on_rate_limit = retry_if_exception_type(type(None))
 
 
 @dataclass
@@ -324,15 +335,8 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
 
             prompt = _DEFAULT_PROMPT.format(context=context_text, question=question)
 
-            # Retry the LLM call on rate limits (tenacity: 3 attempts, exp backoff 30→120s)
-            from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-            try:
-                from openai import RateLimitError as _OAIRateLimit
-                _retry_on_rate_limit = retry_if_exception_type(_OAIRateLimit)
-            except ImportError:
-                from tenacity import retry_if_exception_type as _r
-                _retry_on_rate_limit = _r(Exception)  # fallback: never matches
-
+            # Retry only on RateLimitError (3 attempts, 30→120s backoff).
+            # _retry_on_rate_limit is defined at module level to avoid per-query import cost.
             @retry(
                 retry=_retry_on_rate_limit,
                 stop=stop_after_attempt(3),

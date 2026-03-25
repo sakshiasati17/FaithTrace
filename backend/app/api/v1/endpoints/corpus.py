@@ -183,3 +183,4 @@ async def delete_document(document_id: str, db: AsyncSession = Depends(get_db)):
         pass
 
     await db.delete(doc)
+    await db.commit()

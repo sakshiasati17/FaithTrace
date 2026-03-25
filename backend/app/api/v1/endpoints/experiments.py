@@ -41,7 +41,7 @@ async def create_experiment(
     await db.flush()
 
     # Build configs
-    configs = build_mvp_matrix() if payload.config_preset == "mvp" else build_mvp_matrix()
+    configs = build_mvp_matrix() if payload.config_preset == "mvp" else build_matrix()
 
     runs = []
     for config in configs:

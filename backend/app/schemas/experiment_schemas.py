@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Optional, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RunMetricsResponse(BaseModel):
@@ -37,7 +37,7 @@ class QueryResultResponse(BaseModel):
     output_tokens: int
     cost_usd: float
     failure_category: Optional[str] = None
-    diagnosis_evidence: dict = {}
+    diagnosis_evidence: dict = Field(default_factory=dict)
 
     class Config:
         from_attributes = True
