@@ -124,6 +124,40 @@ async def get_document(document_id: str, db: AsyncSession = Depends(get_db)):
     return DocumentResponse.model_validate(doc)
 
 
+@router.post("/{document_id}/reindex", response_model=DocumentResponse)
+async def reindex_document(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Re-ingest an already-uploaded document, deleting old chunks and re-indexing from disk."""
+    result = await db.execute(select(Document).where(Document.id == document_id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    file_path = Path(doc.storage_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Original file no longer on disk")
+
+    # Delete existing Qdrant chunks for this document
+    try:
+        from app.services.ingestion.indexer import delete_doc_chunks
+        delete_doc_chunks(document_id)
+    except Exception:
+        pass
+
+    strategy = _default_strategy(doc.file_type)
+    doc.parse_status = "pending"
+    doc.index_status = "pending"
+    doc.doc_metadata = {**doc.doc_metadata, "strategy": strategy}
+    await db.commit()
+
+    from app.workers.tasks import ingest_document
+    ingest_document.delay(document_id, strategy)
+
+    return DocumentResponse.model_validate(doc)
+
+
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(document_id: str, db: AsyncSession = Depends(get_db)):
     """Remove a document and its associated chunks from the index."""
