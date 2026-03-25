@@ -72,7 +72,38 @@ Answer:"""
 
 # ─── Retriever builders ───────────────────────────────────────────────────────
 
-def _build_vector_retriever(embedding_model: str, top_k: int, qdrant_filter=None):
+def _build_chunk_type_filter(parsing_strategy: str, existing_filter=None):
+    """
+    Build a Qdrant chunk_type filter based on parsing_strategy.
+
+    - text_only          → only "text" chunks (no tables)
+    - text_table         → text + table chunks (no filter needed, return both)
+    - text_table_vision  → text + table + vision chunks (no filter needed)
+    - spreadsheet_aware  → spreadsheet chunks only
+    """
+    from qdrant_client.models import Filter, FieldCondition, MatchValue, MatchAny
+
+    if parsing_strategy == "text_only":
+        chunk_filter = Filter(
+            must=[FieldCondition(key="chunk_type", match=MatchValue(value="text"))]
+        )
+    elif parsing_strategy == "spreadsheet_aware":
+        chunk_filter = Filter(
+            must=[FieldCondition(key="chunk_type", match=MatchAny(any=["spreadsheet", "text"]))]
+        )
+    else:
+        # text_table / text_table_vision: retrieve all chunk types
+        chunk_filter = None
+
+    if chunk_filter is None:
+        return existing_filter
+    if existing_filter is None:
+        return chunk_filter
+    # Merge: both filters must hold
+    return Filter(must=list(existing_filter.must or []) + list(chunk_filter.must or []))
+
+
+def _build_vector_retriever(embedding_model: str, top_k: int, qdrant_filter=None, parsing_strategy: str = "text_table"):
     from langchain_community.vectorstores import Qdrant as LCQdrant
     from langchain_openai import OpenAIEmbeddings
     from qdrant_client import QdrantClient
@@ -88,9 +119,10 @@ def _build_vector_retriever(embedding_model: str, top_k: int, qdrant_filter=None
         embeddings=embeddings,
         content_payload_key="content",
     )
+    combined_filter = _build_chunk_type_filter(parsing_strategy, qdrant_filter)
     search_kwargs = {"k": top_k}
-    if qdrant_filter:
-        search_kwargs["filter"] = qdrant_filter
+    if combined_filter:
+        search_kwargs["filter"] = combined_filter
     return vectorstore.as_retriever(search_kwargs=search_kwargs)
 
 
@@ -215,7 +247,8 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
             # Build retriever
             if config.retrieval_strategy == "vector_only":
                 retriever = _build_vector_retriever(
-                    config.embedding_model, config.top_k, qdrant_filter
+                    config.embedding_model, config.top_k, qdrant_filter,
+                    parsing_strategy=config.parsing_strategy,
                 )
                 lc_docs = retriever.invoke(question)
 
@@ -230,7 +263,8 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
                 from langchain.retrievers import EnsembleRetriever
 
                 vector_ret = _build_vector_retriever(
-                    config.embedding_model, config.top_k, qdrant_filter
+                    config.embedding_model, config.top_k, qdrant_filter,
+                    parsing_strategy=config.parsing_strategy,
                 )
                 bm25_ret = _build_bm25_retriever(config.top_k)
 
@@ -259,7 +293,8 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
 
             else:
                 retriever = _build_vector_retriever(
-                    config.embedding_model, config.top_k, qdrant_filter
+                    config.embedding_model, config.top_k, qdrant_filter,
+                    parsing_strategy=config.parsing_strategy,
                 )
                 lc_docs = retriever.invoke(question)
 
