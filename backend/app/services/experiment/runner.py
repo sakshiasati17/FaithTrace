@@ -70,8 +70,11 @@ def _compute_cost(model: str, input_tokens: int, output_tokens: int) -> float:
 # ─── RAG Prompt ───────────────────────────────────────────────────────────────
 
 _DEFAULT_PROMPT = """You are an expert assistant for enterprise document analysis.
-Use ONLY the context below to answer the question. If the context does not contain
-the answer, say "I cannot find this information in the provided documents."
+Answer the question using the context below. Extract specific values, thresholds,
+names, and dates directly from the text — including inferences like deriving a
+maximum from a "less than X" statement. Be concise and precise.
+Only say "I cannot find this information in the provided documents." if the context
+genuinely contains no relevant information at all.
 
 Context:
 {context}
@@ -138,7 +141,11 @@ def _build_vector_retriever(embedding_model: str, top_k: int, qdrant_filter=None
 
 
 def _build_bm25_retriever(top_k: int):
-    from langchain_community.retrievers import BM25Retriever
+    try:
+        from langchain_community.retrievers import BM25Retriever
+    except ImportError:
+        # rank-bm25 not installed — hybrid falls back to vector-only
+        return None
     from langchain.schema import Document as LCDoc
     from app.services.ingestion.indexer import fetch_all_chunks
 
