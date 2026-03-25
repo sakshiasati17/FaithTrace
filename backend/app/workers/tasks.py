@@ -229,6 +229,13 @@ def run_experiment(self, experiment_id: str, eval_set_path: str = "eval_sets/sam
                 db.commit()
         except Exception:
             pass
+        # Rate limit errors need longer recovery time (60s base, doubles each retry)
+        try:
+            from openai import RateLimitError
+            if isinstance(exc, RateLimitError):
+                raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        except ImportError:
+            pass
         raise self.retry(exc=exc, countdown=5)
     finally:
         db.close()
@@ -310,6 +317,13 @@ def evaluate_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         return {"run_id": run_id, "faithfulness": metrics.faithfulness}
 
     except Exception as exc:
+        # Rate limit errors need longer recovery time (60s base, doubles each retry)
+        try:
+            from openai import RateLimitError
+            if isinstance(exc, RateLimitError):
+                raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        except ImportError:
+            pass
         raise self.retry(exc=exc, countdown=10)
     finally:
         db.close()

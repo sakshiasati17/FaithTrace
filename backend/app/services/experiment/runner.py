@@ -323,8 +323,26 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
             )
 
             prompt = _DEFAULT_PROMPT.format(context=context_text, question=question)
-            response = llm.invoke([HumanMessage(content=prompt)])
 
+            # Retry the LLM call on rate limits (tenacity: 3 attempts, exp backoff 30→120s)
+            from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+            try:
+                from openai import RateLimitError as _OAIRateLimit
+                _retry_on_rate_limit = retry_if_exception_type(_OAIRateLimit)
+            except ImportError:
+                from tenacity import retry_if_exception_type as _r
+                _retry_on_rate_limit = _r(Exception)  # fallback: never matches
+
+            @retry(
+                retry=_retry_on_rate_limit,
+                stop=stop_after_attempt(3),
+                wait=wait_exponential(multiplier=1, min=30, max=120),
+                reraise=True,
+            )
+            def _invoke_with_retry():
+                return llm.invoke([HumanMessage(content=prompt)])
+
+            response = _invoke_with_retry()
             generated_answer = response.content or ""
             input_tokens = getattr(response, "usage_metadata", {}).get("input_tokens", 0) if hasattr(response, "usage_metadata") else 0
             output_tokens = getattr(response, "usage_metadata", {}).get("output_tokens", 0) if hasattr(response, "usage_metadata") else 0
