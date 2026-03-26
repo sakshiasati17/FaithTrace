@@ -70,6 +70,7 @@ export interface RunMetrics {
   freshness_validity: number | null;
   temporal_citation_accuracy: number | null;
   multimodal_grounding_rate: number | null;
+  root_cause_diagnostic_accuracy: number | null;
 }
 
 // ─── Diagnostics ──────────────────────────────────────────────────────────────

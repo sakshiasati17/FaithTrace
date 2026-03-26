@@ -310,6 +310,7 @@ def evaluate_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         rm.freshness_validity = metrics.freshness_validity
         rm.temporal_citation_accuracy = metrics.temporal_citation_accuracy
         rm.multimodal_grounding_rate = metrics.multimodal_grounding_rate
+        rm.root_cause_diagnostic_accuracy = metrics.root_cause_diagnostic_accuracy
         db.commit()
 
         # Enqueue diagnostics

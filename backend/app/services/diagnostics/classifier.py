@@ -63,6 +63,26 @@ def _has_nontext_chunk(result: QueryResult) -> bool:
     )
 
 
+def _has_vision_chunk(result: QueryResult) -> bool:
+    """Check if any retrieved chunk came from GPT-4o vision (charts/diagrams)."""
+    return any(
+        c.get("chunk_type") == "image" or c.get("metadata", {}).get("source") == "gpt4o_vision"
+        for c in result.retrieved_chunks
+    )
+
+
+def _has_version_mismatch(result: QueryResult, eval_item: dict) -> bool:
+    """Check if retrieved chunks are from a different document version than expected."""
+    expected_version = eval_item.get("expected_version")
+    if not expected_version:
+        return False
+    for chunk in result.retrieved_chunks:
+        chunk_version = chunk.get("doc_version")
+        if chunk_version and chunk_version != expected_version:
+            return True
+    return False
+
+
 def diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisResult:
     """
     Classify the root cause of a failed or low-quality query result.
@@ -92,14 +112,25 @@ def diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisRe
     }
 
     temporal_violation = _has_temporal_violation(result, eval_item)
+    version_mismatch = _has_version_mismatch(result, eval_item)
     has_nontext = _has_nontext_chunk(result)
+    has_vision = _has_vision_chunk(result)
     needs_nontext = modality in ("table", "chart", "spreadsheet", "mixed")
+    needs_vision = modality == "chart"
 
-    # Priority order: temporal > modality > recall > precision/synthesis
+    # Priority order: temporal > version > modality > recall > precision/synthesis
 
     if temporal_violation and eval_item.get("valid_from"):
         primary = FailureCategory.STALE_ANSWER
         evidence["temporal_violation"] = True
+
+    elif version_mismatch:
+        primary = FailureCategory.WRONG_VERSION
+        evidence["version_mismatch"] = True
+
+    elif needs_vision and not has_vision:
+        primary = FailureCategory.CHART_LAYOUT_BLINDNESS
+        evidence["no_vision_chunk_retrieved"] = True
 
     elif needs_nontext and not has_nontext:
         primary = FailureCategory.TABLE_RETRIEVAL_MISS
@@ -124,6 +155,7 @@ def diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisRe
 
     evidence["chunks_retrieved"] = len(result.retrieved_chunks)
     evidence["has_nontext_chunk"] = has_nontext
+    evidence["has_vision_chunk"] = has_vision
 
     return DiagnosisResult(
         query_id=result.query_id,
