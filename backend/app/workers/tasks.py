@@ -134,7 +134,6 @@ def ingest_document(self, document_id: str, strategy: str):
                 db.commit()
         except Exception:
             pass
-        db.close()
         raise self.retry(exc=exc, countdown=2 ** self.request.retries)
     finally:
         db.close()
@@ -259,6 +258,8 @@ def evaluate_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
             return {"error": f"Run {run_id} not found"}
 
         eval_set = _load_eval_set(eval_set_path)
+        if not eval_set:
+            return {"error": f"Eval set not found or empty: {eval_set_path}"}
 
         # Load query results from DB
         qr_rows = db.execute(
@@ -309,6 +310,7 @@ def evaluate_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         rm.freshness_validity = metrics.freshness_validity
         rm.temporal_citation_accuracy = metrics.temporal_citation_accuracy
         rm.multimodal_grounding_rate = metrics.multimodal_grounding_rate
+        rm.root_cause_diagnostic_accuracy = metrics.root_cause_diagnostic_accuracy
         db.commit()
 
         # Enqueue diagnostics
@@ -348,6 +350,8 @@ def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
             return {"error": f"Run {run_id} not found"}
 
         eval_set = _load_eval_set(eval_set_path)
+        if not eval_set:
+            return {"error": f"Eval set not found or empty: {eval_set_path}"}
 
         # Load query results
         qr_rows = db.execute(

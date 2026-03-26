@@ -79,6 +79,7 @@ class RunMetrics(Base):
     freshness_validity: Mapped[float | None] = mapped_column(Float, nullable=True)
     temporal_citation_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
     multimodal_grounding_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    root_cause_diagnostic_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     run: Mapped["Run"] = relationship("Run", back_populates="metrics")
 

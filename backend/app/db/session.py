@@ -44,11 +44,6 @@ async def get_db() -> AsyncSession:
 
 # ─── Sync engine + session (for Celery workers) ───────────────────────────────
 
-_sync_db_url = settings.DATABASE_URL.replace(
-    "postgresql+asyncpg://", "postgresql+psycopg2://"
-).replace("postgresql+asyncpg:", "postgresql:")
-
-# Fallback: if the URL uses asyncpg scheme, replace it
 if "+asyncpg" in settings.DATABASE_URL:
     _sync_db_url = settings.DATABASE_URL.replace("+asyncpg", "+psycopg2")
 else:

@@ -65,7 +65,7 @@ def _recursive_chunk(text: str, chunk_size: int = 512, overlap: int = 64) -> lis
     if not text:
         return []
 
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
@@ -96,7 +96,93 @@ def _recursive_chunk(text: str, chunk_size: int = 512, overlap: int = 64) -> lis
 
 
 def _semantic_chunk(text: str, threshold: float = 0.85) -> list[dict]:
-    raise NotImplementedError("Semantic chunking deferred to Phase 2")
+    """
+    Embedding-similarity boundary detection chunking.
+
+    Splits text into sentences, embeds each one, then places chunk boundaries
+    where cosine similarity between consecutive sentence groups drops below
+    the threshold. Groups of semantically similar sentences stay together.
+    """
+    if not text:
+        return []
+
+    import re
+    import numpy as np
+    from langchain_openai import OpenAIEmbeddings
+    from app.core.config import settings
+
+    # Split text into sentences
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    sentences = [s.strip() for s in sentences if s.strip()]
+
+    if len(sentences) <= 3:
+        # Too few sentences — return as a single chunk
+        return [{
+            "content": text,
+            "start_index": 0,
+            "end_index": len(text),
+            "metadata": {"strategy": "semantic", "threshold": threshold},
+        }]
+
+    # Embed all sentences
+    embeddings_model = OpenAIEmbeddings(
+        model=settings.EMBEDDING_MODEL,
+        openai_api_key=settings.OPENAI_API_KEY,
+    )
+    vectors = embeddings_model.embed_documents(sentences)
+    vectors_np = np.array(vectors)
+
+    # Compute cosine similarity between consecutive sentences
+    def _cosine_sim(a, b):
+        dot = np.dot(a, b)
+        norm = np.linalg.norm(a) * np.linalg.norm(b)
+        return dot / norm if norm > 0 else 0.0
+
+    similarities = [
+        _cosine_sim(vectors_np[i], vectors_np[i + 1])
+        for i in range(len(vectors_np) - 1)
+    ]
+
+    # Find chunk boundaries where similarity drops below threshold
+    boundaries = [0]
+    for i, sim in enumerate(similarities):
+        if sim < threshold:
+            boundaries.append(i + 1)
+    boundaries.append(len(sentences))
+
+    # Build chunks from sentence groups
+    chunks = []
+    cursor = 0
+    for i in range(len(boundaries) - 1):
+        start_sent = boundaries[i]
+        end_sent = boundaries[i + 1]
+        chunk_text = " ".join(sentences[start_sent:end_sent])
+        if not chunk_text.strip():
+            continue
+
+        start_idx = text.find(sentences[start_sent], cursor)
+        if start_idx == -1:
+            start_idx = cursor
+        last_sent = sentences[end_sent - 1]
+        end_idx = text.find(last_sent, start_idx)
+        if end_idx != -1:
+            end_idx += len(last_sent)
+        else:
+            end_idx = start_idx + len(chunk_text)
+
+        chunks.append({
+            "content": chunk_text,
+            "start_index": start_idx,
+            "end_index": end_idx,
+            "metadata": {
+                "strategy": "semantic",
+                "threshold": threshold,
+                "sentence_count": end_sent - start_sent,
+            },
+        })
+        cursor = max(cursor, start_idx)
+
+    return chunks
 
 
 def _structure_aware_chunk(text: str) -> list[dict]:

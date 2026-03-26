@@ -12,6 +12,7 @@ import {
   Home,
   ChevronRight,
   Zap,
+  Lightbulb,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/experiments", label: "Experiments", icon: FlaskConical },
   { href: "/leaderboard", label: "Leaderboard", icon: BarChart3 },
   { href: "/diagnostics", label: "Diagnostics", icon: Stethoscope },
+  { href: "/recommendations", label: "Recommendations", icon: Lightbulb },
 ];
 
 function Sidebar() {
