@@ -17,6 +17,7 @@ redis==5.0.7
 langchain==0.2.12
 langchain-openai==0.1.20
 langchain-community==0.2.11
+langchain-text-splitters==0.2.4
 langgraph==0.1.19
 openai==1.37.1
 rank-bm25==0.2.2
