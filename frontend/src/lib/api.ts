@@ -12,6 +12,8 @@ import type {
   RunMetrics,
   QueryDiagnosis,
   Recommendation,
+  QueryFeedback,
+  FeedbackSummary,
 } from "@/types";
 
 const client = axios.create({
@@ -79,6 +81,19 @@ export const diagnosticsApi = {
   getFailureSummary: (experimentId: string) =>
     client.get("/diagnostics/summary", { params: { experiment_id: experimentId } })
       .then((r) => r.data),
+};
+
+// ─── Feedback ─────────────────────────────────────────────────────────────────
+
+export const feedbackApi = {
+  submit: (queryResultId: string, payload: { rating: string; correct_label?: string; comment?: string }) =>
+    client.post(`/feedback/${queryResultId}`, payload).then((r) => r.data),
+
+  get: (queryResultId: string) =>
+    client.get(`/feedback/${queryResultId}`).then((r) => r.data),
+
+  getRunSummary: (runId: string) =>
+    client.get(`/feedback/run/${runId}/summary`).then((r) => r.data),
 };
 
 // ─── Recommendations ─────────────────────────────────────────────────────────

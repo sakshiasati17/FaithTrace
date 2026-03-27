@@ -94,6 +94,24 @@ export interface QueryDiagnosis {
   evidence: Record<string, unknown>;
 }
 
+// ─── Feedback ────────────────────────────────────────────────────────────────
+
+export type FeedbackRating = "positive" | "negative";
+
+export interface QueryFeedback {
+  id: string;
+  rating: FeedbackRating;
+  correct_label: FailureCategory | null;
+  comment: string | null;
+}
+
+export interface FeedbackSummary {
+  positive: number;
+  negative: number;
+  total: number;
+  coverage: number;
+}
+
 // ─── Recommendations ─────────────────────────────────────────────────────────
 
 export type Objective =
