@@ -66,7 +66,7 @@ function ConfigBadges({ config }: { config: Record<string, unknown> }) {
           </span>
         );
       })}
-      {config.reranker_enabled && (
+      {Boolean(config.reranker_enabled) && (
         <span className="text-[10px] px-1.5 py-0.5 rounded font-mono border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
           reranker
         </span>
@@ -113,7 +113,7 @@ function RecommendationCard({ rec, rank }: { rec: Recommendation; rank: number }
             <p className="text-xs text-zinc-500 mb-3">
               {OBJECTIVE_DESCRIPTIONS[rec.objective] ?? ""}
             </p>
-            <ConfigBadges config={rec.best_config as Record<string, unknown>} />
+            <ConfigBadges config={rec.best_config as unknown as Record<string, unknown>} />
           </div>
 
           <div className="text-right flex-shrink-0">
