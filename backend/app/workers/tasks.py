@@ -23,6 +23,7 @@ celery_app.conf.task_routes = {
     "app.workers.tasks.run_experiment": {"queue": "experiments"},
     "app.workers.tasks.evaluate_run": {"queue": "evaluation"},
     "app.workers.tasks.diagnose_run": {"queue": "diagnostics"},
+    "app.workers.tasks.train_failure_classifier": {"queue": "diagnostics"},
 }
 
 
@@ -398,6 +399,86 @@ def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         db.commit()
 
         return {"run_id": run_id, "diagnoses_written": len(diagnoses)}
+
+    except Exception as exc:
+        raise self.retry(exc=exc, countdown=10)
+    finally:
+        db.close()
+
+
+# ─── Task: train_failure_classifier ──────────────────────────────────────────
+
+@celery_app.task(name="app.workers.tasks.train_failure_classifier", bind=True, max_retries=1)
+def train_failure_classifier(self, experiment_id: str, eval_set_path: str):
+    """
+    Train the XGBoost failure classifier on all labeled query results from
+    a completed experiment.
+
+    Collects (features, label) pairs from every QueryResult that has a
+    non-null failure_category, then trains and persists the model.
+    """
+    from app.db.session import get_sync_db
+    from app.db.models import Run, QueryResult as QueryResultModel
+    from app.services.diagnostics.ml_classifier import train as ml_train
+    from sqlalchemy import select
+
+    db = get_sync_db()
+    try:
+        eval_set = _load_eval_set(eval_set_path)
+        eval_by_id = {item["query_id"]: item for item in eval_set if "query_id" in item}
+
+        # Collect all labeled QueryResults for this experiment
+        run_rows = db.execute(
+            select(Run).where(Run.experiment_id == experiment_id)
+        ).scalars().all()
+
+        if not run_rows:
+            return {"error": f"No runs found for experiment {experiment_id}"}
+
+        run_ids = [r.id for r in run_rows]
+        qr_rows = db.execute(
+            select(QueryResultModel)
+            .where(
+                QueryResultModel.run_id.in_(run_ids),
+                QueryResultModel.failure_category.isnot(None),
+            )
+        ).scalars().all()
+
+        if not qr_rows:
+            return {
+                "error": "No labeled query results found. "
+                         "Run diagnose_run first, or add failure_type labels to your eval set."
+            }
+
+        all_metrics, all_chunks, all_eval_items, all_labels = [], [], [], []
+        for qr in qr_rows:
+            evidence = qr.diagnosis_evidence or {}
+            metrics = {
+                "faithfulness":       evidence.get("faithfulness", 0.0),
+                "context_recall":     evidence.get("context_recall", 0.0),
+                "context_precision":  evidence.get("context_precision", 0.0),
+                "answer_correctness": evidence.get("answer_correctness", 0.0),
+                "answer_relevance":   evidence.get("answer_relevance", 0.0),
+                "latency_ms":         qr.latency_ms or 0.0,
+                "cost_usd":           qr.cost_usd or 0.0,
+            }
+            eval_item = eval_by_id.get(qr.query_id, {})
+            all_metrics.append(metrics)
+            all_chunks.append(qr.retrieved_chunks or [])
+            all_eval_items.append(eval_item)
+            all_labels.append(qr.failure_category)
+
+        summary = ml_train(all_metrics, all_chunks, all_eval_items, all_labels)
+
+        # Reload model into memory for immediate use
+        from app.services.diagnostics.ml_classifier import reload_model
+        reload_model()
+
+        return {
+            "experiment_id": experiment_id,
+            "samples_used": len(all_labels),
+            **summary,
+        }
 
     except Exception as exc:
         raise self.retry(exc=exc, countdown=10)

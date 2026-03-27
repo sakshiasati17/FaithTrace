@@ -1,7 +1,8 @@
 """
 Diagnostics endpoints.
 
-Exposes root-cause failure classification results per run and per query.
+Exposes root-cause failure classification results per run and per query,
+and triggers XGBoost classifier training.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -10,6 +11,7 @@ from sqlalchemy import select, func
 
 from app.db.session import get_db
 from app.db.models import QueryResult, Run, Experiment
+from app.services.diagnostics.ml_classifier import is_trained
 
 router = APIRouter()
 
@@ -100,4 +102,46 @@ async def get_failure_summary(experiment_id: str, db: AsyncSession = Depends(get
         "failure_counts": counts,
         "total_queries": total,
         "run_count": len(run_ids),
+    }
+
+
+@router.get("/classifier/status")
+async def get_classifier_status():
+    """Return whether the ML failure classifier has been trained."""
+    return {
+        "ml_classifier_trained": is_trained(),
+        "classifier_type": "xgboost" if is_trained() else "heuristic",
+    }
+
+
+@router.post("/classifier/train")
+async def train_classifier(
+    experiment_id: str,
+    eval_set_path: str = "eval_sets/procurement_policy_eval.json",
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Trigger async XGBoost classifier training on all labeled query results
+    from a completed experiment.
+
+    The model trains on failure_category labels written by the heuristic
+    classifier (or ground-truth labels in the eval set). After training,
+    all subsequent diagnose() calls will use the ML model automatically.
+    """
+    # Verify experiment exists
+    exp_result = await db.execute(select(Experiment).where(Experiment.id == experiment_id))
+    exp = exp_result.scalar_one_or_none()
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+
+    from app.workers.tasks import train_failure_classifier
+    task = train_failure_classifier.delay(experiment_id, eval_set_path)
+
+    return {
+        "task_id": task.id,
+        "status": "queued",
+        "message": (
+            "XGBoost classifier training started. "
+            "Call GET /diagnostics/classifier/status to check if training completed."
+        ),
     }

@@ -3,14 +3,20 @@ Root-cause failure classifier.
 
 Classifies each failed query into one or more failure categories based on
 retrieval context, metric scores, document metadata, and modality labels.
-Phase 1: Heuristic-only classification with fixed confidence = 0.7.
+
+Strategy:
+  1. Try the trained XGBoost ML classifier (ml_classifier.py).
+  2. If no model is trained yet, fall back to deterministic heuristic rules.
 """
 
+import logging
 from enum import Enum
 from dataclasses import dataclass, field
 from datetime import datetime
 
 from app.services.experiment.runner import QueryResult
+
+logger = logging.getLogger(__name__)
 
 
 class FailureCategory(str, Enum):
@@ -83,18 +89,8 @@ def _has_version_mismatch(result: QueryResult, eval_item: dict) -> bool:
     return False
 
 
-def diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisResult:
-    """
-    Classify the root cause of a failed or low-quality query result.
-
-    Args:
-        result: The pipeline's QueryResult for this query
-        eval_item: The ground-truth evaluation item including modality, valid dates
-        metrics: Per-query metric scores from Ragas
-
-    Returns:
-        DiagnosisResult with primary and secondary failure categories
-    """
+def _heuristic_diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisResult:
+    """Deterministic heuristic classifier (fallback when ML model not trained)."""
     faithfulness = metrics.get("faithfulness", 1.0)
     context_recall = metrics.get("context_recall", 1.0)
     context_precision = metrics.get("context_precision", 1.0)
@@ -164,6 +160,57 @@ def diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisRe
         confidence=0.7,
         evidence=evidence,
     )
+
+
+def diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisResult:
+    """
+    Classify the root cause of a failed or low-quality query result.
+
+    Tries the trained XGBoost ML classifier first; falls back to heuristics
+    if no model is available.
+
+    Args:
+        result: The pipeline's QueryResult for this query
+        eval_item: The ground-truth evaluation item (modality, valid dates)
+        metrics: Per-query metric scores from Ragas
+
+    Returns:
+        DiagnosisResult with primary/secondary failure categories and confidence
+    """
+    # --- Try ML classifier first ---
+    try:
+        from app.services.diagnostics.ml_classifier import predict as ml_predict
+        ml_result = ml_predict(metrics, result.retrieved_chunks, eval_item)
+        if ml_result is not None:
+            primary_failure, confidence = ml_result
+            # Build lightweight evidence dict for ML path
+            evidence = {
+                "faithfulness": metrics.get("faithfulness"),
+                "context_recall": metrics.get("context_recall"),
+                "context_precision": metrics.get("context_precision"),
+                "answer_correctness": metrics.get("answer_correctness"),
+                "modality": eval_item.get("modality", "text"),
+                "chunks_retrieved": len(result.retrieved_chunks),
+                "classifier": "xgboost",
+            }
+            logger.debug(
+                "ML classifier: query=%s → %s (conf=%.2f)",
+                result.query_id, primary_failure, confidence,
+            )
+            return DiagnosisResult(
+                query_id=result.query_id,
+                primary_failure=primary_failure,
+                secondary_failures=[],
+                confidence=confidence,
+                evidence=evidence,
+            )
+    except Exception as exc:
+        logger.warning("ML classifier error, falling back to heuristics: %s", exc)
+
+    # --- Fall back to heuristic classifier ---
+    heuristic = _heuristic_diagnose(result, eval_item, metrics)
+    heuristic.evidence["classifier"] = "heuristic"
+    return heuristic
 
 
 def diagnose_run(
