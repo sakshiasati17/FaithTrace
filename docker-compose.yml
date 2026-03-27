@@ -44,8 +44,9 @@ services:
     build:
       context: ./backend
     env_file: .env
-    ports:
-      - "8000:8000"
+    environment:
+      # Only the API container runs Alembic migrations on startup
+      RUN_MIGRATIONS: "true"
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,16 +57,21 @@ services:
     volumes:
       - ./backend:/app
       - storage_data:/app/storage
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   worker-ingestion:
     build:
       context: ./backend
     env_file: .env
     depends_on:
-      - redis
-      - postgres
-      - qdrant
+      api:
+        condition: service_healthy
     volumes:
       - ./backend:/app
       - storage_data:/app/storage
@@ -76,9 +82,8 @@ services:
       context: ./backend
     env_file: .env
     depends_on:
-      - redis
-      - postgres
-      - qdrant
+      api:
+        condition: service_healthy
     volumes:
       - ./backend:/app
       - storage_data:/app/storage
@@ -91,11 +96,22 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
-    ports:
-      - "3000:3000"
+        NEXT_PUBLIC_API_URL: /api/v1
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_started
 
 volumes:
   postgres_data:
