@@ -101,3 +101,17 @@ class QueryResult(Base):
     diagnosis_evidence: Mapped[dict] = mapped_column(JSON, default=dict)
 
     run: Mapped["Run"] = relationship("Run", back_populates="query_results")
+    feedback: Mapped[list["QueryFeedback"]] = relationship("QueryFeedback", back_populates="query_result")
+
+
+class QueryFeedback(Base):
+    __tablename__ = "query_feedback"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    query_result_id: Mapped[str] = mapped_column(String, ForeignKey("query_results.id"), nullable=False)
+    rating: Mapped[str] = mapped_column(String, nullable=False)   # "positive" | "negative"
+    correct_label: Mapped[str | None] = mapped_column(String, nullable=True)  # optional override failure category
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    query_result: Mapped["QueryResult"] = relationship("QueryResult", back_populates="feedback")
