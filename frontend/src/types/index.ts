@@ -88,7 +88,7 @@ export type FailureCategory =
 
 export interface QueryDiagnosis {
   query_id: string;
-  primary_failure: FailureCategory;
+  failure_category: FailureCategory;
   secondary_failures: FailureCategory[];
   confidence: number;
   evidence: Record<string, unknown>;

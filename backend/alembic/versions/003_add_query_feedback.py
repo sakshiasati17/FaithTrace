@@ -7,8 +7,8 @@ Create Date: 2024-01-01 00:00:00
 from alembic import op
 import sqlalchemy as sa
 
-revision = "003"
-down_revision = "002"
+revision = "003_add_query_feedback"
+down_revision = "002_add_diagnostic_accuracy"
 branch_labels = None
 depends_on = None
 
