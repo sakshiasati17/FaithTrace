@@ -37,6 +37,11 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:6333/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ─── Backend ────────────────────────────────────────────────────────────────
 
@@ -44,6 +49,9 @@ services:
     build:
       context: ./backend
     env_file: .env
+    environment:
+      # Only the API container runs Alembic migrations on startup
+      RUN_MIGRATIONS: "true"
     ports:
       - "8000:8000"
     depends_on:
@@ -52,20 +60,25 @@ services:
       redis:
         condition: service_healthy
       qdrant:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./backend:/app
       - storage_data:/app/storage
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   worker-ingestion:
     build:
       context: ./backend
     env_file: .env
     depends_on:
-      - redis
-      - postgres
-      - qdrant
+      api:
+        condition: service_healthy
     volumes:
       - ./backend:/app
       - storage_data:/app/storage
@@ -76,9 +89,8 @@ services:
       context: ./backend
     env_file: .env
     depends_on:
-      - redis
-      - postgres
-      - qdrant
+      api:
+        condition: service_healthy
     volumes:
       - ./backend:/app
       - storage_data:/app/storage
@@ -95,7 +107,8 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   postgres_data:

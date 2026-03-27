@@ -36,8 +36,10 @@ from app.services.diagnostics.classifier import FailureCategory
 
 logger = logging.getLogger(__name__)
 
-# Path where the trained model is persisted
-_MODEL_PATH = Path(os.getenv("ML_CLASSIFIER_PATH", "/tmp/faithtrace_xgb_classifier.pkl"))
+# Path where the trained model is persisted.
+# Defaults to the shared storage volume so the model survives container restarts
+# and is accessible to both the API and worker containers.
+_MODEL_PATH = Path(os.getenv("ML_CLASSIFIER_PATH", "/app/storage/ml_models/xgb_classifier.pkl"))
 
 # Ordered list of labels the model is trained on
 LABEL_CLASSES: list[str] = [
