@@ -1,12 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { experimentsApi, diagnosticsApi } from "@/lib/api";
-import { ArrowLeft, ChevronRight, ChevronDown, FileText, Table2, Sheet, AlertCircle } from "lucide-react";
+import { experimentsApi, diagnosticsApi, feedbackApi } from "@/lib/api";
+import { ArrowLeft, ChevronRight, ChevronDown, FileText, Table2, Sheet, AlertCircle, ThumbsUp, ThumbsDown } from "lucide-react";
 import { clsx } from "clsx";
-import type { QueryDiagnosis } from "@/types";
+import type { QueryDiagnosis, FailureCategory } from "@/types";
+
+const FAILURE_LABELS: FailureCategory[] = [
+  "NO_FAILURE", "STALE_ANSWER", "WRONG_VERSION", "TABLE_RETRIEVAL_MISS",
+  "CHART_LAYOUT_BLINDNESS", "CHUNKING_BOUNDARY_ERROR",
+  "LOW_RECALL_RETRIEVAL", "IRRELEVANT_CONTEXT_POLLUTION", "UNSUPPORTED_SYNTHESIS",
+];
 
 const FAILURE_COLORS: Record<string, string> = {
   NO_FAILURE: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
@@ -39,6 +45,113 @@ function ChunkBadge({ chunkType }: { chunkType: string }) {
       <Icon className="w-2.5 h-2.5" />
       {style.label}
     </span>
+  );
+}
+
+function FeedbackSummaryBadge({ runId }: { runId: string }) {
+  const { data } = useQuery({
+    queryKey: ["feedback-summary", runId],
+    queryFn: () => feedbackApi.getRunSummary(runId),
+    retry: false,
+  });
+  if (!data || data.total === 0) return null;
+  return (
+    <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs">
+      <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+        <ThumbsUp className="w-3 h-3" /> {data.positive}
+      </span>
+      <span className="flex items-center gap-1.5 text-red-400 font-medium">
+        <ThumbsDown className="w-3 h-3" /> {data.negative}
+      </span>
+      <span className="text-zinc-600">{Math.round(data.coverage * 100)}% rated</span>
+    </div>
+  );
+}
+
+function FeedbackButtons({ queryResultId }: { queryResultId: string }) {
+  const qc = useQueryClient();
+  const [showLabelPicker, setShowLabelPicker] = useState(false);
+
+  const { data: existing } = useQuery({
+    queryKey: ["feedback", queryResultId],
+    queryFn: () => feedbackApi.get(queryResultId),
+    retry: false,
+  });
+
+  const mutation = useMutation({
+    mutationFn: (payload: { rating: string; correct_label?: string }) =>
+      feedbackApi.submit(queryResultId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["feedback", queryResultId] });
+      setShowLabelPicker(false);
+    },
+  });
+
+  const current = existing?.rating ?? null;
+
+  return (
+    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      {/* Thumbs up */}
+      <button
+        onClick={() => mutation.mutate({ rating: "positive" })}
+        disabled={mutation.isPending}
+        className={clsx(
+          "flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all",
+          current === "positive"
+            ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
+            : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/30"
+        )}
+        title="Answer was good"
+      >
+        <ThumbsUp className="w-3 h-3" />
+      </button>
+
+      {/* Thumbs down — opens label picker */}
+      <button
+        onClick={() => setShowLabelPicker((v) => !v)}
+        disabled={mutation.isPending}
+        className={clsx(
+          "flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all",
+          current === "negative"
+            ? "bg-red-500/15 border-red-500/40 text-red-400"
+            : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-red-400 hover:border-red-500/30"
+        )}
+        title="Answer was wrong — click to label"
+      >
+        <ThumbsDown className="w-3 h-3" />
+      </button>
+
+      {/* Inline label picker */}
+      {showLabelPicker && (
+        <div className="absolute right-0 top-8 z-20 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl p-3 min-w-[220px]">
+          <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2 font-semibold">
+            What actually failed?
+          </p>
+          <div className="space-y-1">
+            {FAILURE_LABELS.map((label) => (
+              <button
+                key={label}
+                onClick={() => mutation.mutate({ rating: "negative", correct_label: label })}
+                className={clsx(
+                  "w-full text-left text-xs px-2.5 py-1.5 rounded-lg transition-colors",
+                  existing?.correct_label === label
+                    ? "bg-red-500/15 text-red-300"
+                    : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowLabelPicker(false)}
+            className="mt-2 w-full text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -75,12 +188,15 @@ export default function RunTracePage({ params }: { params: { id: string; runId: 
         <span className="text-zinc-400">Run Trace</span>
       </div>
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white mb-1">Query Trace</h1>
-        <p className="text-sm text-zinc-500">
-          Run <code className="font-mono text-zinc-400 text-xs">{runId.slice(0, 16)}…</code>
-          {" · "}{trace.length} queries
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white mb-1">Query Trace</h1>
+          <p className="text-sm text-zinc-500">
+            Run <code className="font-mono text-zinc-400 text-xs">{runId.slice(0, 16)}…</code>
+            {" · "}{trace.length} queries
+          </p>
+        </div>
+        <FeedbackSummaryBadge runId={runId} />
       </div>
 
       {traceLoading ? (
@@ -97,6 +213,7 @@ export default function RunTracePage({ params }: { params: { id: string; runId: 
             return (
               <div key={qr.query_id} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
                 {/* Row header */}
+                <div className="relative">
                 <button
                   className="w-full text-left px-5 py-4 flex items-start gap-4 hover:bg-zinc-800/30 transition-colors"
                   onClick={() => setExpandedRow(isExpanded ? null : qr.query_id)}
@@ -123,6 +240,11 @@ export default function RunTracePage({ params }: { params: { id: string; runId: 
                     }
                   </div>
                 </button>
+                {/* Feedback buttons — positioned outside the expand button */}
+                <div className="absolute right-12 top-1/2 -translate-y-1/2">
+                  <FeedbackButtons queryResultId={qr.id} />
+                </div>
+                </div>
 
                 {/* Expanded view */}
                 {isExpanded && (

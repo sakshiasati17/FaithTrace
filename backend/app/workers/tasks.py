@@ -418,7 +418,7 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str):
     non-null failure_category, then trains and persists the model.
     """
     from app.db.session import get_sync_db
-    from app.db.models import Run, QueryResult as QueryResultModel
+    from app.db.models import Run, QueryResult as QueryResultModel, QueryFeedback
     from app.services.diagnostics.ml_classifier import train as ml_train
     from sqlalchemy import select
 
@@ -450,6 +450,16 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str):
                          "Run diagnose_run first, or add failure_type labels to your eval set."
             }
 
+        # Load all human feedback for these query results — feedback labels override classifier labels
+        qr_ids = [qr.id for qr in qr_rows]
+        fb_rows = db.execute(
+            select(QueryFeedback).where(QueryFeedback.query_result_id.in_(qr_ids))
+        ).scalars().all()
+        # Map: query_result.id → feedback
+        feedback_by_qr_id = {fb.query_result_id: fb for fb in fb_rows}
+        feedback_overrides = sum(1 for fb in fb_rows if fb.correct_label)
+        positive_feedback = sum(1 for fb in fb_rows if fb.rating == "positive")
+
         all_metrics, all_chunks, all_eval_items, all_labels = [], [], [], []
         for qr in qr_rows:
             evidence = qr.diagnosis_evidence or {}
@@ -463,10 +473,23 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str):
                 "cost_usd":           qr.cost_usd or 0.0,
             }
             eval_item = eval_by_id.get(qr.query_id, {})
+
+            # Determine label: human feedback > heuristic/ML classifier label
+            fb = feedback_by_qr_id.get(qr.id)
+            if fb and fb.rating == "positive":
+                # User confirmed answer was correct → NO_FAILURE
+                label = "NO_FAILURE"
+            elif fb and fb.correct_label:
+                # User provided correct failure label → use it
+                label = fb.correct_label
+            else:
+                # Fall back to classifier-assigned label
+                label = qr.failure_category
+
             all_metrics.append(metrics)
             all_chunks.append(qr.retrieved_chunks or [])
             all_eval_items.append(eval_item)
-            all_labels.append(qr.failure_category)
+            all_labels.append(label)
 
         summary = ml_train(all_metrics, all_chunks, all_eval_items, all_labels)
 
@@ -477,6 +500,8 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str):
         return {
             "experiment_id": experiment_id,
             "samples_used": len(all_labels),
+            "feedback_overrides": feedback_overrides,
+            "positive_feedback_used": positive_feedback,
             **summary,
         }
 
