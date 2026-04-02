@@ -11,6 +11,7 @@ import type {
   Run,
   RunMetrics,
   QueryDiagnosis,
+  DiagnosticReasoning,
   Recommendation,
   QueryFeedback,
   FeedbackSummary,
@@ -81,6 +82,9 @@ export const diagnosticsApi = {
   getFailureSummary: (experimentId: string) =>
     client.get("/diagnostics/summary", { params: { experiment_id: experimentId } })
       .then((r) => r.data),
+
+  getReasoning: (runId: string, queryId: string): Promise<{ query_id: string; cached: boolean; reasoning: DiagnosticReasoning }> =>
+    client.post(`/diagnostics/run/${runId}/query/${queryId}/reason`).then((r) => r.data),
 };
 
 // ─── Feedback ─────────────────────────────────────────────────────────────────

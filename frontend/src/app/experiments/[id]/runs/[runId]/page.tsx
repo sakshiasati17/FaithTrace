@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { experimentsApi, diagnosticsApi, feedbackApi } from "@/lib/api";
-import { ArrowLeft, ChevronRight, ChevronDown, FileText, Table2, Sheet, AlertCircle, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ArrowLeft, ChevronRight, ChevronDown, FileText, Table2, Sheet, AlertCircle, ThumbsUp, ThumbsDown, Brain, Loader2, CheckCircle2, Lightbulb, Users } from "lucide-react";
 import { clsx } from "clsx";
-import type { QueryDiagnosis, FailureCategory } from "@/types";
+import type { QueryDiagnosis, DiagnosticReasoning, FailureCategory } from "@/types";
 
 const FAILURE_LABELS: FailureCategory[] = [
   "NO_FAILURE", "STALE_ANSWER", "WRONG_VERSION", "TABLE_RETRIEVAL_MISS",
@@ -155,6 +155,116 @@ function FeedbackButtons({ queryResultId }: { queryResultId: string }) {
   );
 }
 
+// ─── Reasoning Panel ──────────────────────────────────────────────────────────
+
+function ReasoningPanel({ runId, queryId, cached }: { runId: string; queryId: string; cached?: DiagnosticReasoning }) {
+  const [triggered, setTriggered] = useState(!!cached);
+  const [reasoning, setReasoning] = useState<DiagnosticReasoning | null>(cached ?? null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleAnalyze = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await diagnosticsApi.getReasoning(runId, queryId);
+      setReasoning(res.reasoning);
+      setTriggered(true);
+    } catch (e: any) {
+      setError(e?.response?.data?.detail ?? "Analysis failed. Check your OpenAI key.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!triggered) {
+    return (
+      <button
+        onClick={handleAnalyze}
+        disabled={loading}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/10 border border-violet-500/25 text-violet-400 hover:bg-violet-500/20 hover:border-violet-500/40 transition-all text-xs font-medium"
+      >
+        <Brain className="w-3.5 h-3.5" />
+        Analyze with AI
+      </button>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-zinc-500 py-2">
+        <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
+        GPT-4o is reasoning about this failure…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+        {error}
+      </div>
+    );
+  }
+
+  if (!reasoning) return null;
+
+  return (
+    <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl p-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <Brain className="w-3.5 h-3.5 text-violet-400" />
+        <span className="text-xs font-semibold text-violet-300 uppercase tracking-wider">AI Diagnostic Reasoning</span>
+        <span className="ml-auto text-[10px] text-zinc-600">
+          {Math.round(reasoning.confidence * 100)}% confidence
+        </span>
+      </div>
+
+      {/* Step-by-step reasoning */}
+      <div>
+        <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Reasoning Steps</p>
+        <ol className="space-y-1.5">
+          {reasoning.reasoning_steps.map((step, i) => (
+            <li key={i} className="flex items-start gap-2 text-xs text-zinc-300">
+              <span className="flex-shrink-0 w-4 h-4 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center text-[9px] font-bold mt-0.5">
+                {i + 1}
+              </span>
+              {step.replace(/^Step \d+:\s*/i, "")}
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      {/* Root cause */}
+      <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-800">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <CheckCircle2 className="w-3 h-3 text-amber-400" />
+          <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Root Cause</p>
+        </div>
+        <p className="text-sm text-zinc-200">{reasoning.root_cause}</p>
+      </div>
+
+      {/* Fix suggestion */}
+      <div className="bg-emerald-500/5 rounded-lg p-3 border border-emerald-500/20">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Lightbulb className="w-3 h-3 text-emerald-400" />
+          <p className="text-[10px] text-emerald-500/80 uppercase tracking-wider">Suggested Fix</p>
+        </div>
+        <p className="text-sm text-zinc-200">{reasoning.fix_suggestion}</p>
+      </div>
+
+      {/* Stakeholder summary */}
+      <div className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-800">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Users className="w-3 h-3 text-blue-400" />
+          <p className="text-[10px] text-zinc-500 uppercase tracking-wider">For Stakeholders</p>
+        </div>
+        <p className="text-xs text-zinc-400 leading-relaxed">{reasoning.stakeholder_summary}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function RunTracePage({ params }: { params: { id: string; runId: string } }) {
   const { id, runId } = params;
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -263,26 +373,35 @@ export default function RunTracePage({ params }: { params: { id: string; runId: 
 
                     {/* Diagnosis */}
                     {diag && (
-                      <div className="bg-zinc-800/50 rounded-lg p-3">
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> Diagnosis
-                        </p>
-                        <div className="flex flex-wrap gap-3 text-xs">
-                          <span>
-                            <span className="text-zinc-500">Primary:</span>{" "}
-                            <span className={clsx("font-medium px-1.5 py-0.5 rounded border text-[10px]", failureStyle)}>
-                              {diag.failure_category}
-                            </span>
-                          </span>
-                          <span className="text-zinc-500">Confidence: <span className="text-zinc-300">{(diag.confidence * 100).toFixed(0)}%</span></span>
-                          {Object.entries(diag.evidence || {}).map(([k, v]) =>
-                            typeof v === "number" ? (
-                              <span key={k} className="text-zinc-500">
-                                {k}: <span className="text-zinc-300">{(v as number).toFixed(3)}</span>
+                      <div className="space-y-3">
+                        <div className="bg-zinc-800/50 rounded-lg p-3">
+                          <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> Diagnosis
+                          </p>
+                          <div className="flex flex-wrap gap-3 text-xs">
+                            <span>
+                              <span className="text-zinc-500">Primary:</span>{" "}
+                              <span className={clsx("font-medium px-1.5 py-0.5 rounded border text-[10px]", failureStyle)}>
+                                {diag.failure_category}
                               </span>
-                            ) : null
-                          )}
+                            </span>
+                            <span className="text-zinc-500">Confidence: <span className="text-zinc-300">{(diag.confidence * 100).toFixed(0)}%</span></span>
+                            {Object.entries(diag.evidence || {}).map(([k, v]) =>
+                              typeof v === "number" ? (
+                                <span key={k} className="text-zinc-500">
+                                  {k}: <span className="text-zinc-300">{(v as number).toFixed(3)}</span>
+                                </span>
+                              ) : null
+                            )}
+                          </div>
                         </div>
+
+                        {/* AI Reasoning Agent */}
+                        <ReasoningPanel
+                          runId={runId}
+                          queryId={qr.query_id}
+                          cached={diag.reasoning}
+                        />
                       </div>
                     )}
 
