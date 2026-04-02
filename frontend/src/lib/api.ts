@@ -110,3 +110,26 @@ export const recommendationsApi = {
   explain: (runId: string): Promise<{ rationale: string }> =>
     client.get(`/recommendations/explain/${runId}`).then((r) => r.data),
 };
+
+// ─── Optimizer ───────────────────────────────────────────────────────────────
+
+import type { OptimizerJob } from "@/types";
+
+export const optimizerApi = {
+  create: (payload: {
+    name?: string;
+    target_metric?: string;
+    target_threshold?: number;
+    max_iterations?: number;
+    max_cost_usd?: number;
+    eval_set_path?: string;
+  }): Promise<OptimizerJob> =>
+    client.post("/optimizer/", payload).then((r) => r.data),
+
+  list: (): Promise<OptimizerJob[]> =>
+    client.get("/optimizer/").then((r) => r.data),
+
+  get: (id: string): Promise<OptimizerJob> =>
+    client.get(`/optimizer/${id}`).then((r) => r.data),
+};
+

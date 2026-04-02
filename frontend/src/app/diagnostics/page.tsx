@@ -159,6 +159,7 @@ export default function DiagnosticsPage() {
                         fontSize: "12px",
                         color: "#d4d4d8",
                       }}
+                      itemStyle={{ color: "#d4d4d8" }}
                     />
                     <Legend
                       formatter={(value) => (
