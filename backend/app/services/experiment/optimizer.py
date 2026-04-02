@@ -113,7 +113,7 @@ def run_optimizer_loop(goal: OptimizerGoal, job_id: str) -> OptimizerState:
     from app.services.experiment.config_matrix import build_mvp_matrix
     from app.services.experiment.runner import PipelineConfig
     from app.workers.tasks import run_experiment as run_experiment_task
-    from sqlalchemy import select
+    from sqlalchemy import select, func
     from dataclasses import fields as dc_fields
 
     state = OptimizerState(status="running")
@@ -181,7 +181,20 @@ def run_optimizer_loop(goal: OptimizerGoal, job_id: str) -> OptimizerState:
                 elapsed += poll_interval
                 db.expire_all()
                 exp = db.get(Experiment, experiment_id)
-                if exp and exp.status in ("done", "failed"):
+                if exp and exp.status == "failed":
+                    break
+                    
+                # Ensure all runs have their metrics computed
+                metrics_count = db.execute(
+                    select(func.count(RunMetrics.id)).where(RunMetrics.run_id.in_(run_ids))
+                ).scalar() or 0
+                
+                # Count fails (they won't get metrics)
+                failed_count = db.execute(
+                    select(func.count(Run.id)).where(Run.id.in_(run_ids), Run.status == "failed")
+                ).scalar() or 0
+                
+                if (metrics_count + failed_count) == len(run_ids):
                     break
 
             # ── Collect results ──
