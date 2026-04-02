@@ -54,17 +54,70 @@ async def get_query_diagnosis(run_id: str, query_id: str, db: AsyncSession = Dep
     if not qr:
         raise HTTPException(status_code=404, detail="Query result not found")
 
+    evidence = qr.diagnosis_evidence or {}
     return {
         "query_id": qr.query_id,
         "question": qr.question,
         "generated_answer": qr.generated_answer,
         "retrieved_chunks": qr.retrieved_chunks,
         "failure_category": qr.failure_category,
-        "confidence": qr.diagnosis_evidence.get("confidence", 0.7) if qr.diagnosis_evidence else 0.7,
-        "evidence": qr.diagnosis_evidence or {},
+        "confidence": evidence.get("confidence", 0.7),
+        "evidence": evidence,
+        "reasoning": evidence.get("reasoning"),   # populated after /reason is called
         "latency_ms": qr.latency_ms,
         "cost_usd": qr.cost_usd,
     }
+
+
+@router.post("/run/{run_id}/query/{query_id}/reason")
+async def reason_query_failure(run_id: str, query_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Use GPT-4o to reason step-by-step about why a specific query failed.
+
+    Results are cached in diagnosis_evidence["reasoning"] — calling this
+    endpoint a second time returns the cached result without a new LLM call.
+    """
+    result = await db.execute(
+        select(QueryResult).where(
+            QueryResult.run_id == run_id,
+            QueryResult.query_id == query_id,
+        )
+    )
+    qr = result.scalar_one_or_none()
+    if not qr:
+        raise HTTPException(status_code=404, detail="Query result not found")
+
+    evidence = dict(qr.diagnosis_evidence or {})
+
+    # Return cached result if already reasoned
+    if evidence.get("reasoning"):
+        return {"query_id": qr.query_id, "cached": True, "reasoning": evidence["reasoning"]}
+
+    # Build metrics dict from evidence
+    metrics = {
+        k: evidence[k]
+        for k in ("faithfulness", "context_recall", "context_precision", "answer_correctness")
+        if k in evidence
+    }
+
+    from app.services.diagnostics.reasoning_agent import reason as llm_reason
+    try:
+        reasoning = await llm_reason(
+            question=qr.question,
+            generated_answer=qr.generated_answer,
+            retrieved_chunks=qr.retrieved_chunks or [],
+            metrics=metrics,
+            failure_category=qr.failure_category or "NO_FAILURE",
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"LLM reasoning failed: {exc}")
+
+    # Cache in DB
+    evidence["reasoning"] = reasoning
+    qr.diagnosis_evidence = evidence
+    await db.commit()
+
+    return {"query_id": qr.query_id, "cached": False, "reasoning": reasoning}
 
 
 @router.get("/summary")

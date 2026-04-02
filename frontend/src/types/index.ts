@@ -86,12 +86,21 @@ export type FailureCategory =
   | "UNSUPPORTED_SYNTHESIS"
   | "NO_FAILURE";
 
+export interface DiagnosticReasoning {
+  reasoning_steps: string[];
+  root_cause: string;
+  fix_suggestion: string;
+  stakeholder_summary: string;
+  confidence: number;
+}
+
 export interface QueryDiagnosis {
   query_id: string;
   failure_category: FailureCategory;
   secondary_failures: FailureCategory[];
   confidence: number;
   evidence: Record<string, unknown>;
+  reasoning?: DiagnosticReasoning;
 }
 
 // ─── Feedback ────────────────────────────────────────────────────────────────
