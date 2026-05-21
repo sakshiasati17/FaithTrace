@@ -172,8 +172,8 @@ def run_optimizer_loop(goal: OptimizerGoal, job_id: str) -> OptimizerState:
             # ── Enqueue and wait ──
             run_experiment_task.delay(experiment_id, goal.eval_set_path)
 
-            # Poll for completion (max 10 min per iteration)
-            max_wait = 600
+            # Poll for completion (max 20 min per iteration)
+            max_wait = 1200
             poll_interval = 10
             elapsed = 0
             while elapsed < max_wait:
@@ -194,7 +194,8 @@ def run_optimizer_loop(goal: OptimizerGoal, job_id: str) -> OptimizerState:
                     select(func.count(Run.id)).where(Run.id.in_(run_ids), Run.status == "failed")
                 ).scalar() or 0
                 
-                if (metrics_count + failed_count) == len(run_ids):
+                if (metrics_count + failed_count) >= len(run_ids):
+                    logger.info("Iteration %d complete: %d metrics found.", iteration, metrics_count)
                     break
 
             # ── Collect results ──
@@ -216,7 +217,9 @@ def run_optimizer_loop(goal: OptimizerGoal, job_id: str) -> OptimizerState:
                         })
 
             if not scored_runs:
-                logger.warning("Optimizer iteration %d: no scored runs", iteration)
+                logger.error("Optimizer iteration %d produced NO scored runs. Check experiment logs.", iteration)
+                state.status = "failed"
+                state.message = f"Iteration {iteration} failure: No valid metrics were computed for any run."
                 state.history.append({
                     "iteration": iteration,
                     "experiment_id": experiment_id,
@@ -224,7 +227,7 @@ def run_optimizer_loop(goal: OptimizerGoal, job_id: str) -> OptimizerState:
                     "best_score": 0.0,
                     "top_configs": [],
                 })
-                continue
+                break
 
             # Sort by target metric descending
             scored_runs.sort(key=lambda r: r["score"], reverse=True)
