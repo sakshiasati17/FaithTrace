@@ -54,10 +54,10 @@ async def create_experiment(
         db.add(run)
         runs.append(run)
 
-    await db.flush()
-
-    # Store eval_set_path in experiment metadata
-    experiment_obj = await db.get(Experiment, experiment_id)
+    # Commit before enqueuing — the Celery worker runs in a separate process and
+    # reads from the DB immediately. flush() only makes rows visible within this
+    # session; commit() makes them visible to other connections.
+    await db.commit()
 
     # Enqueue the experiment run
     from app.workers.tasks import run_experiment as run_experiment_task

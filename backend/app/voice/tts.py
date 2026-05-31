@@ -38,7 +38,9 @@ class TextToSpeech:
     def speak_to_file(self, text: str, output_path: str):
         if self.engine == "coqui":
             self.tts.tts_to_file(text=text, file_path=output_path)
-        print(f"Audio saved: {output_path}")
+            print(f"Audio saved: {output_path}")
+        else:
+            raise RuntimeError("speak_to_file requires Coqui TTS — pyttsx3 does not support file output")
 
     def format_diagnostic_response(self, diagnostic_result: dict) -> str:
         """Convert raw diagnostic dict to natural spoken English."""

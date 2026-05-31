@@ -309,7 +309,7 @@ def _pytorch_predict(
         model.eval()
 
         tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-        context_text = " ".join(c.get("text", "") for c in retrieved_chunks[:3])[:300]
+        context_text = " ".join(c.get("content", "") for c in retrieved_chunks[:3])[:300]
         text = f"{question} [SEP] {context_text} [SEP] {generated_answer}"
 
         encoding = tokenizer(text, max_length=512, padding="max_length", truncation=True, return_tensors="pt")
@@ -327,7 +327,8 @@ def _pytorch_predict(
             pred_idx = int(logits.argmax(dim=1).item())
             confidence = float(probs[0][pred_idx].item())
 
-        return LABEL_NAMES[pred_idx], confidence
+        label = LABEL_NAMES[pred_idx] if pred_idx < len(LABEL_NAMES) else "no_failure"
+        return label, confidence
     except Exception as exc:
         logger.debug("PyTorch classifier unavailable, falling back to XGBoost: %s", exc)
         return None

@@ -12,6 +12,20 @@ LABEL_MAP = {
 }
 LABEL_NAMES = list(LABEL_MAP.keys())
 
+# FailureCategory enum (classifier.py) stores UPPERCASE values in the DB.
+# Map them to the 6 PyTorch labels above so training data is consistent.
+FAILURE_CATEGORY_TO_LABEL = {
+    "NO_FAILURE": "no_failure",
+    "LOW_RECALL_RETRIEVAL": "retrieval_miss",
+    "TABLE_RETRIEVAL_MISS": "retrieval_miss",
+    "CHUNKING_BOUNDARY_ERROR": "context_insufficient",
+    "IRRELEVANT_CONTEXT_POLLUTION": "context_insufficient",
+    "UNSUPPORTED_SYNTHESIS": "hallucination",
+    "STALE_ANSWER": "hallucination",
+    "WRONG_VERSION": "hallucination",
+    "CHART_LAYOUT_BLINDNESS": "ranking_failure",
+}
+
 
 class FailureDataset(Dataset):
     """
@@ -55,7 +69,10 @@ class FailureDataset(Dataset):
             dtype=torch.float32,
         )
 
-        label = LABEL_MAP[record["failure_type"]]
+        raw = record["failure_type"]
+        # Normalise UPPERCASE DB values → lowercase PyTorch labels
+        normalized = FAILURE_CATEGORY_TO_LABEL.get(raw, raw.lower() if raw else "no_failure")
+        label = LABEL_MAP.get(normalized, 0)  # default to no_failure (0) if unknown
 
         return {
             "input_ids": encoding["input_ids"].squeeze(0),

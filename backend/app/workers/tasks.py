@@ -607,7 +607,7 @@ def train_pytorch_failure_classifier(self, experiment_id: str, output_dir: str =
             records.append({
                 "query": qr.question,
                 "retrieved_context": " ".join(
-                    chunk.get("text", "") for chunk in (qr.retrieved_chunks or [])[:3]
+                    chunk.get("content", "") for chunk in (qr.retrieved_chunks or [])[:3]
                 ),
                 "generated_answer": qr.generated_answer,
                 "faithfulness": ev.get("faithfulness", 0.5),
@@ -615,7 +615,7 @@ def train_pytorch_failure_classifier(self, experiment_id: str, output_dir: str =
                 "context_recall": ev.get("context_recall", 0.5),
                 "context_precision": ev.get("context_precision", 0.5),
                 "correctness": ev.get("answer_correctness", 0.5),
-                "failure_type": qr.failure_category,
+                "failure_type": qr.failure_category,  # UPPERCASE from DB; dataset.py normalises it
             })
 
         from app.models.failure_classifier.train import train as pytorch_train
