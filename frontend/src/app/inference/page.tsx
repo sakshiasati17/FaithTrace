@@ -6,6 +6,7 @@ import { optimizationApi } from "@/lib/api";
 import { Cpu, Zap, BarChart3, Loader2, AlertTriangle, CheckCircle2, Mic } from "lucide-react";
 import { clsx } from "clsx";
 import type { BenchmarkResult } from "@/types";
+import { VoicePanel } from "@/components/ui/VoicePanel";
 
 // ─── Precision badge ──────────────────────────────────────────────────────────
 function PrecisionBadge({ precision }: { precision: string }) {
@@ -193,34 +194,7 @@ export default function InferencePage() {
             )}
           </div>
 
-          {/* Voice interface info */}
-          <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-5">
-            <div className="flex items-center gap-2 mb-2">
-              <Mic className="w-4 h-4 text-amber-400" />
-              <h2 className="text-sm font-semibold text-zinc-200">Voice Interface</h2>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/30 text-amber-400 border border-amber-700/40 font-medium">Extension 3</span>
-            </div>
-            <p className="text-xs text-zinc-500 mb-3">
-              Whisper STT + Coqui TTS + intent parser. POST an audio file to{" "}
-              <code className="font-mono text-zinc-400 text-[11px]">/api/v1/voice/command</code>{" "}
-              to get transcription + parsed intent + target API endpoint.
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                "run experiment 5",
-                "compare experiments 3 and 7",
-                "what went wrong",
-                "show failed queries",
-                "suggest improvements",
-                "run benchmark",
-                "show GPU info",
-              ].map((cmd) => (
-                <span key={cmd} className="text-[10px] px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 font-mono">
-                  "{cmd}"
-                </span>
-              ))}
-            </div>
-          </div>
+          <VoicePanel />
         </div>
       </div>
 

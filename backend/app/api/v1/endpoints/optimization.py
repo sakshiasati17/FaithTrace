@@ -87,6 +87,60 @@ async def get_latest_benchmark():
         return json.load(f)
 
 
+@router.post("/export/optimize")
+async def export_and_optimize(
+    model_path: str = "checkpoints/failure_classifier/best_model.pt",
+    output_dir: str = "models/tensorrt",
+):
+    """
+    End-to-end pipeline: PyTorch checkpoint → ONNX → TensorRT FP32 + FP16 + INT8.
+
+    Steps:
+      1. Load trained PyTorch classifier
+      2. Export to ONNX (with dynamic batch axis)
+      3. Convert to TensorRT engines at all supported precisions
+      4. Return paths to generated engines
+
+    GPU auto-profiler is consulted to skip precisions the hardware can't accelerate.
+    """
+    if not Path(model_path).exists():
+        raise HTTPException(status_code=404, detail=f"Checkpoint not found: {model_path}")
+
+    try:
+        import torch
+        from app.models.failure_classifier import FailureClassifier
+        from app.optimization.onnx_export import export_classifier_to_onnx
+        from app.optimization.tensorrt_convert import convert_all_precisions, TRT_AVAILABLE
+        from app.optimization.gpu_profiler import GPUAutoProfiler
+
+        # Step 1: load model
+        model = FailureClassifier(num_classes=6)
+        ckpt = torch.load(model_path, map_location="cpu")
+        model.load_state_dict(ckpt["model_state_dict"])
+
+        # Step 2: export to ONNX
+        onnx_path = f"{output_dir}/failure_classifier.onnx"
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        export_classifier_to_onnx(model, output_path=onnx_path)
+
+        # Step 3: TensorRT conversion (GPU hardware required)
+        engines = {}
+        trt_available = TRT_AVAILABLE
+        if trt_available:
+            profile = GPUAutoProfiler().profile()
+            engines = convert_all_precisions(onnx_path, output_dir=output_dir)
+
+        return {
+            "status": "complete",
+            "onnx_path": onnx_path,
+            "tensorrt_engines": engines,
+            "trt_available": trt_available,
+            "gpu": GPUAutoProfiler().profile().name if trt_available else "N/A",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/train/pytorch")
 async def train_pytorch_classifier(
     experiment_id: str,

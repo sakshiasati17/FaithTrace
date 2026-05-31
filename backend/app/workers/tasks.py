@@ -25,6 +25,8 @@ celery_app.conf.task_routes = {
     "app.workers.tasks.diagnose_run": {"queue": "diagnostics"},
     "app.workers.tasks.train_failure_classifier": {"queue": "diagnostics"},
     "app.workers.tasks.run_optimizer_agent": {"queue": "experiments"},
+    "app.workers.tasks.train_pytorch_failure_classifier": {"queue": "diagnostics"},
+    "app.workers.tasks.run_inference_benchmark": {"queue": "experiments"},
 }
 
 

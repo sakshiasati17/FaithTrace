@@ -75,6 +75,37 @@ async def voice_command(audio: UploadFile = File(...)):
     transcription = _get_stt().transcribe_audio(audio_array.astype(np.float32))
     intent = _get_parser().parse(transcription.text)
 
+    # Execute the mapped FaithTrace API call and return the result
+    api_result = None
+    spoken_response = None
+    error = None
+
+    if intent.action == "help":
+        spoken_response = _get_parser().help_text()
+    elif intent.action == "unknown":
+        spoken_response = f"I didn't understand: {transcription.text}. Say help to hear available commands."
+    elif intent.api_endpoint:
+        import httpx
+        url = f"http://localhost:8000/api/v1{intent.api_endpoint}"
+        try:
+            async with httpx.AsyncClient(timeout=30) as http:
+                if intent.api_method == "GET":
+                    resp = await http.get(url, params=intent.parameters)
+                else:
+                    resp = await http.post(url, json=intent.parameters)
+            if resp.status_code == 200:
+                api_result = resp.json()
+                if intent.action in ("diagnose_latest", "diagnose_experiment"):
+                    spoken_response = _get_tts().format_diagnostic_response(api_result)
+                else:
+                    spoken_response = f"Request completed for {intent.action.replace('_', ' ')}."
+            else:
+                error = f"API returned {resp.status_code}"
+                spoken_response = f"The request failed with status {resp.status_code}."
+        except Exception as exc:
+            error = str(exc)
+            spoken_response = "Could not reach the FaithTrace API."
+
     return {
         "transcription": transcription.text,
         "language": transcription.language,
@@ -83,6 +114,9 @@ async def voice_command(audio: UploadFile = File(...)):
         "parameters": intent.parameters,
         "api_endpoint": intent.api_endpoint,
         "api_method": intent.api_method,
+        "api_result": api_result,
+        "spoken_response": spoken_response,
+        "error": error,
     }
 
 
