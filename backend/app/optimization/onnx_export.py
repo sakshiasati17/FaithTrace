@@ -28,15 +28,17 @@ def export_classifier_to_onnx(
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-    # dynamo=False forces the legacy TorchScript tracer.
     # PyTorch 2.5+ defaults to dynamo=True which stores weights in an external
-    # sidecar file (producing a tiny .onnx stub) and ignores dynamic_axes.
-    # The legacy tracer embeds all 66M weights directly in the .onnx file
-    # (~255 MB) and honours dynamic_axes correctly.
+    # sidecar file (producing a tiny .onnx stub). dynamo=False alone is silently
+    # ignored for nn.Module. Wrapping in torch.jit.trace first produces a
+    # ScriptModule; passing that with dynamo=False forces the legacy TorchScript
+    # ONNX path which embeds all 66M weights directly (~255 MB).
+    dummy_inputs = (dummy_input_ids, dummy_attention_mask, dummy_ragas_scores)
     with torch.no_grad():
+        traced = torch.jit.trace(model, dummy_inputs, strict=False)
         torch.onnx.export(
-            model,
-            (dummy_input_ids, dummy_attention_mask, dummy_ragas_scores),
+            traced,
+            dummy_inputs,
             output_path,
             dynamo=False,
             export_params=True,
