@@ -59,28 +59,20 @@ def build_tensorrt_engine(
     config = builder.create_builder_config()
     config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, workspace_size_gb * (1 << 30))
 
+    # TRT 10 removed BuilderFlag.FP16 and BuilderFlag.INT8 entirely.
+    # TRT 8/9 had these flags. Use hasattr to support both API generations.
     if precision == "fp16":
-        # platform_has_fast_fp16 was removed in TRT 10 — just set the flag directly
-        try:
-            has_fp16 = builder.platform_has_fast_fp16
-        except AttributeError:
-            has_fp16 = True  # TRT 10+ always supports FP16 on modern GPUs
-        if has_fp16:
+        if hasattr(trt.BuilderFlag, "FP16"):
             config.set_flag(trt.BuilderFlag.FP16)
         else:
-            print("WARNING: GPU lacks fast FP16, falling back to FP32")
+            print(f"NOTE: TRT {trt.__version__} removed BuilderFlag.FP16 — building FP32 (precision set per-layer in TRT 10+)")
     elif precision == "int8":
-        try:
-            has_int8 = builder.platform_has_fast_int8
-        except AttributeError:
-            has_int8 = True
-        if has_int8:
+        if hasattr(trt.BuilderFlag, "INT8"):
             config.set_flag(trt.BuilderFlag.INT8)
             if calibration_data:
                 config.int8_calibrator = calibration_data
         else:
-            print("WARNING: GPU lacks fast INT8, using FP16")
-            config.set_flag(trt.BuilderFlag.FP16)
+            print(f"NOTE: TRT {trt.__version__} removed BuilderFlag.INT8 — use quantization API for INT8 in TRT 10+")
 
     profile = builder.create_optimization_profile()
     for i in range(network.num_inputs):
