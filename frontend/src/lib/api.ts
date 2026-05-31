@@ -1,10 +1,4 @@
-/**
- * FaithTrace API client.
- *
- * Thin wrapper around fetch/axios for type-safe calls to the FastAPI backend.
- */
-
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import type {
   Document,
   Experiment,
@@ -15,12 +9,28 @@ import type {
   Recommendation,
   QueryFeedback,
   FeedbackSummary,
+  OptimizerJob,
 } from "@/types";
 
 const client = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1",
   timeout: 30_000,
 });
+
+// Normalize backend error messages so callers get a clean string
+client.interceptors.response.use(
+  (res) => res,
+  (err: AxiosError<{ detail?: string | { msg: string }[] }>) => {
+    const detail = err.response?.data?.detail;
+    const message =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+        ? detail.map((d) => d.msg).join(", ")
+        : err.message;
+    return Promise.reject(new Error(message));
+  }
+);
 
 // ─── Corpus ───────────────────────────────────────────────────────────────────
 
@@ -112,8 +122,6 @@ export const recommendationsApi = {
 };
 
 // ─── Optimizer ───────────────────────────────────────────────────────────────
-
-import type { OptimizerJob } from "@/types";
 
 export const optimizerApi = {
   create: (payload: {
