@@ -32,6 +32,8 @@ FaithTrace fills this gap with a structured experiment engine, a root-cause diag
 | **Multimodal document parsing** | Extract and index text, tables, page layouts, and spreadsheet cells as first-class retrieval units |
 | **Root-cause diagnostics** | Classify each failure as stale content, version mismatch, table miss, chart blindness, chunking error, or ranking failure |
 | **Configuration recommendation** | Recommend the best pipeline per objective: lowest cost, highest faithfulness, best latency, best for tables, best for drift-heavy corpora |
+| **Diagnostic Reasoning Agent** | LLM-powered agent (GPT-4o) that performs step-by-step root-cause analysis on failed queries with actionable fix suggestions |
+| **Autonomous Optimizer Agent** | Iterative search agent that automatically benchmarks pipeline configurations using neighbor-search to converge on the best config |
 | **Leaderboard + trace viewer** | Side-by-side metric comparison with cited chunk/page/table highlights per answer |
 
 ---
@@ -51,49 +53,40 @@ FaithTrace treats each of these as a measurable, diagnosable, and improvable sys
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                          FaithTrace Platform                         │
-│                                                                     │
-│  ┌──────────────┐      ┌──────────────────────────────────────────┐ │
-│  │   Frontend   │      │               Backend (FastAPI)          │ │
-│  │  (Next.js)   │◄────►│                                          │ │
-│  │              │      │  ┌────────────┐   ┌────────────────────┐ │ │
-│  │ - Experiment │      │  │ Ingestion  │   │ Experiment Engine  │ │ │
-│  │   Setup      │      │  │ API        │   │                    │ │ │
-│  │ - Corpus     │      │  │            │   │ - Pipeline runner  │ │ │
-│  │   Upload     │      │  │ - Parse    │   │ - Config matrix    │ │ │
-│  │ - Dashboard  │      │  │ - Chunk    │   │ - Parallel jobs    │ │ │
-│  │ - Trace      │      │  │ - Embed    │   └────────────────────┘ │ │
-│  │   Viewer     │      │  │ - Version  │                          │ │
-│  │ - Leaderboard│      │  │   tracking │   ┌────────────────────┐ │ │
-│  └──────────────┘      │  └────────────┘   │ Evaluation Engine  │ │ │
-│                        │                   │                    │ │ │
-│                        │  ┌────────────┐   │ - Ragas metrics    │ │ │
-│                        │  │Diagnostics │   │ - Freshness score  │ │ │
-│                        │  │Engine      │   │ - Multimodal       │ │ │
-│                        │  │            │   │   grounding rate   │ │ │
-│                        │  │ - Failure  │   │ - Latency/cost     │ │ │
-│                        │  │   classifier│  └────────────────────┘ │ │
-│                        │  │ - Root     │                          │ │ │
-│                        │  │   cause    │   ┌────────────────────┐ │ │
-│                        │  │   labeling │   │ Recommendation     │ │ │
-│                        │  └────────────┘   │ Engine             │ │ │
-│                        │                   │                    │ │ │
-│                        │                   │ - Best overall     │ │ │
-│                        │                   │ - Best for tables  │ │ │
-│                        │                   │ - Lowest cost      │ │ │
-│                        │                   │ - Best for drift   │ │ │
-│                        │                   └────────────────────┘ │ │
-│                        └──────────────────────────────────────────┘ │
-│                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │                        Storage Layer                          │  │
-│  │                                                               │  │
-│  │  PostgreSQL              Vector DB           Object Storage   │  │
-│  │  (runs, metrics,         (embeddings,        (raw docs,       │  │
-│  │   configs, versions)      chunks, index)      parsed artifacts)│  │
-│  └───────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
+                              ┌───────────┐
+                              │   Nginx   │ :80
+                              │  (Reverse │
+                              │   Proxy)  │
+                              └─────┬─────┘
+                          ┌─────────┼─────────┐
+                          ▼                   ▼
+                    ┌──────────┐        ┌──────────┐
+                    │ Frontend │ :3000  │ FastAPI  │ :8000
+                    │ Next.js  │        │  API     │
+                    └──────────┘        └────┬─────┘
+                                             │
+              ┌──────────────┬───────────────┼───────────────┐
+              ▼              ▼               ▼               ▼
+       ┌────────────┐ ┌────────────┐  ┌────────────┐  ┌──────────┐
+       │ PostgreSQL │ │   Redis    │  │   Qdrant   │  │  Celery  │
+       │   (state)  │ │  (broker)  │  │ (vectors)  │  │ Workers  │
+       └────────────┘ └────────────┘  └────────────┘  └────┬─────┘
+                                                           │
+                                            ┌──────────────┼──────────────┐
+                                            ▼              ▼              ▼
+                                      ┌──────────┐  ┌──────────┐  ┌──────────┐
+                                      │Ingestion │  │Experiment│  │Evaluation│
+                                      │ Worker   │  │ Worker   │  │& Diag    │
+                                      └──────────┘  └──────────┘  └──────────┘
+
+                              ┌─────────────────────────────┐
+                              │       AI Agent Layer        │
+                              │                             │
+                              │ • Diagnostic Reasoning Agent│
+                              │   (GPT-4o step-by-step)     │
+                              │ • Autonomous Optimizer Agent│
+                              │   (iterative config search) │
+                              └─────────────────────────────┘
 ```
 
 ---
@@ -139,6 +132,29 @@ The diagnostics engine classifies each retrieval or generation failure into one 
 - `LOW_RECALL_RETRIEVAL` — top-k retrieval did not surface the relevant passage
 - `IRRELEVANT_CONTEXT_POLLUTION` — retrieved chunks introduced off-topic content that misled generation
 - `UNSUPPORTED_SYNTHESIS` — answer made claims that no retrieved chunk supported
+
+---
+
+## AI Agents
+
+### Diagnostic Reasoning Agent
+An LLM-powered agent that uses GPT-4o to perform step-by-step root-cause analysis on failed RAG queries. Given a question, the generated answer, retrieved chunks, evaluation metrics, and the pre-classified failure category, the agent:
+1. Reasons through what went wrong in a structured chain-of-thought
+2. Identifies the true root cause
+3. Suggests one concrete, actionable fix for the engineering team
+4. Produces a plain-English summary for non-technical stakeholders
+
+Invoked on-demand via `POST /api/v1/diagnostics/run/{run_id}/query/{query_id}/reason`. Results are cached to avoid repeated API calls.
+
+### Autonomous Optimizer Agent
+An iterative search agent that automatically discovers the best RAG pipeline configuration for a given optimization goal:
+1. **Iteration 1:** Runs a broad sweep across the MVP config matrix (24 configurations)
+2. **Iteration 2+:** Analyzes the top 3 performers, generates neighbor configs (varying one axis at a time), and benchmarks only those variants
+3. **Convergence:** Stops when the target metric threshold is met, the budget is exhausted, or max iterations are reached
+
+Goal definition includes target metric (e.g., faithfulness ≥ 0.85), iteration budget, and cost cap. The agent updates its state in the database after each iteration, enabling real-time progress tracking from the frontend.
+
+Invoked via `POST /api/v1/optimizer/`. Runs as a Celery background task.
 
 ---
 
@@ -216,14 +232,16 @@ Each test item includes:
 |---|---|
 | Frontend | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
 | Backend API | Python 3.11, FastAPI, Pydantic v2, Celery, Redis |
-| RAG / LLM | LangChain, LangGraph, OpenAI API, HuggingFace models |
-| Evaluation | Ragas, custom evaluators, LangSmith (optional) |
-| Vector DB | Qdrant (default), Weaviate or Chroma (configurable) |
-| Relational DB | PostgreSQL 16, SQLAlchemy, Alembic |
+| RAG / LLM | LangChain, OpenAI API (GPT-4o, GPT-4o-mini), text-embedding-3-small |
+| Evaluation | Ragas, custom metric evaluators, LangSmith (optional tracing) |
+| AI Agents | GPT-4o diagnostic reasoning agent, XGBoost failure classifier, autonomous optimizer agent |
+| Vector DB | Qdrant |
+| Relational DB | PostgreSQL 16, SQLAlchemy 2.0, Alembic |
 | Object Storage | Local filesystem (dev), S3-compatible (prod) |
-| Parsing | PyMuPDF, pdfplumber, unstructured, openpyxl, Camelot |
-| Containerization | Docker, Docker Compose |
-| Testing | Pytest, Vitest, Playwright |
+| Parsing | PyMuPDF, pdfplumber, unstructured, openpyxl, python-docx |
+| ML / Diagnostics | XGBoost, scikit-learn, cross-encoder reranker (ms-marco-MiniLM-L-6-v2) |
+| Containerization | Docker, Docker Compose (8 containers) |
+| Reverse Proxy | Nginx (rate limiting, SSL termination) |
 
 ---
 
@@ -239,68 +257,65 @@ Each test item includes:
 
 ## Project Milestones
 
-### MVP (Phase 1)
-- [ ] Corpus ingestion pipeline for PDF, DOCX, and XLSX
-- [ ] 4–6 RAG pipeline configurations (vector, hybrid, hybrid+rerank)
-- [ ] Faithfulness, context precision, latency, and cost metrics via Ragas
-- [ ] Basic freshness validity metric
-- [ ] Leaderboard UI and config comparison view
+### MVP (Phase 1) ✅
+- [x] Corpus ingestion pipeline for PDF, DOCX, XLSX, CSV, and HTML
+- [x] 4 retrieval strategies × 4 chunking × 4 parsing × 4 freshness = 256 pipeline configurations
+- [x] Faithfulness, context precision/recall, answer correctness/relevance via Ragas
+- [x] Freshness validity and temporal citation accuracy metrics
+- [x] Leaderboard UI and config comparison view
+- [x] Docker Compose deployment (8 containers)
 
-### Phase 2
-- [ ] Table-aware and structure-aware chunking
-- [ ] Version-aware retrieval with effective-date metadata
-- [ ] Root-cause failure classifier
-- [ ] Recommendation engine (best overall, lowest cost, best for tables, best for drift)
-- [ ] Report export (PDF / JSON)
+### Phase 2 ✅
+- [x] Table-aware and structure-aware chunking
+- [x] Version-aware retrieval with effective-date metadata
+- [x] Root-cause failure classifier (XGBoost ML + heuristic fallback)
+- [x] Recommendation engine (7 objectives: best overall, lowest cost, best latency, best faithfulness, best for tables, best for drift, best for long PDFs)
+- [x] Human feedback loop with classifier retraining
 
-### Phase 3
-- [ ] Vision-assisted PDF parsing (chart and image understanding)
-- [ ] Temporal drift trend dashboard (corpus snapshot comparison over time)
-- [ ] Automated regression gates for pipeline re-evaluation
-- [ ] Explainable recommendation rationale
+### Phase 3 ✅
+- [x] Vision-assisted PDF parsing (GPT-4o Vision for charts and diagrams)
+- [x] LLM-powered Diagnostic Reasoning Agent (GPT-4o step-by-step root-cause analysis)
+- [x] Autonomous Optimizer Agent (iterative config search with neighbor-expansion and convergence detection)
+- [x] Production hardening: Nginx reverse proxy, rate limiting, API key auth, Sentry integration
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
-- Python 3.11+
-- Node.js 20+
 - Docker and Docker Compose
-- PostgreSQL 16
-- An OpenAI API key (or compatible LLM endpoint)
+- An OpenAI API key
 
-### Local Setup
+### Quick Start (Docker — recommended)
 
 ```bash
-# Clone the repository
 git clone https://github.com/sakshiasati17/FaithTrace.git
 cd FaithTrace
-
-# Backend
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env       # fill in your API keys and DB URL
-alembic upgrade head
-uvicorn app.main:app --reload
-
-# Frontend
-cd ../frontend
-npm install
-cp .env.local.example .env.local
-npm run dev
+cp .env.example .env       # add your OPENAI_API_KEY
+docker compose up -d --build
 ```
 
-### Docker (recommended for full stack)
+The full platform will be available at:
+- **Frontend:** http://localhost (proxied via Nginx)
+- **API Docs:** http://localhost/docs (development mode)
+- **Health Check:** http://localhost/health
+
+### Manual Setup (development)
 
 ```bash
+# Backend
+cd backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
 cp .env.example .env
-docker compose up --build
-```
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
 
-The app will be available at `http://localhost:3000`. The API docs are at `http://localhost:8000/docs`.
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev
+```
 
 ---
 
@@ -308,46 +323,34 @@ The app will be available at `http://localhost:3000`. The API docs are at `http:
 
 ```
 FaithTrace/
-├── backend/                    # FastAPI application
+├── backend/
 │   ├── app/
-│   │   ├── api/                # Route handlers
-│   │   ├── core/               # Config, security, dependencies
-│   │   ├── db/                 # SQLAlchemy models and Alembic migrations
-│   │   ├── services/           # Business logic modules
-│   │   │   ├── ingestion/      # Document parsing and chunking
-│   │   │   ├── experiment/     # Pipeline runner and config matrix
-│   │   │   ├── evaluation/     # Metrics computation
-│   │   │   ├── diagnostics/    # Failure classification
-│   │   │   └── recommendation/ # Config recommendation logic
-│   │   ├── workers/            # Celery task definitions
+│   │   ├── api/v1/endpoints/      # REST endpoints (corpus, experiments, optimizer, diagnostics, etc.)
+│   │   ├── core/                  # Config, security
+│   │   ├── db/                    # SQLAlchemy models, Alembic migrations
+│   │   ├── schemas/               # Pydantic request/response schemas
+│   │   ├── services/
+│   │   │   ├── ingestion/         # parser.py, chunker.py, indexer.py
+│   │   │   ├── experiment/        # runner.py, config_matrix.py, optimizer.py (agent)
+│   │   │   ├── evaluation/        # ragas_runner.py, metrics.py
+│   │   │   ├── diagnostics/       # classifier.py, ml_classifier.py, reasoning_agent.py (agent)
+│   │   │   └── recommendation/    # engine.py
+│   │   ├── workers/               # Celery tasks (ingestion, experiments, evaluation, diagnostics, optimizer)
 │   │   └── main.py
-│   ├── tests/
-│   ├── alembic/
+│   ├── alembic/versions/          # Database migrations (001–004)
 │   ├── requirements.txt
 │   └── Dockerfile
-├── frontend/                   # Next.js application
+├── frontend/
 │   ├── src/
-│   │   ├── app/                # App router pages
-│   │   ├── components/         # Reusable UI components
-│   │   ├── lib/                # API client and utilities
-│   │   └── types/              # TypeScript type definitions
-│   ├── tests/
+│   │   ├── app/                   # Pages: dashboard, corpus, experiments, leaderboard,
+│   │   │                          #         diagnostics, recommendations, optimizer
+│   │   ├── lib/api.ts             # Typed API client
+│   │   └── types/index.ts         # TypeScript type definitions
 │   ├── package.json
 │   └── Dockerfile
-├── docs/                       # Architecture diagrams and research notes
-│   ├── architecture/
-│   ├── metrics/
-│   └── dataset/
-├── corpus/                     # Sample enterprise document corpus
-│   ├── policies/
-│   ├── manuals/
-│   ├── sops/
-│   ├── reports/
-│   └── spreadsheets/
-├── eval_sets/                  # Benchmark question sets and ground truth
-├── scripts/                    # Data generation and migration utilities
-├── docker-compose.yml
-├── docker-compose.prod.yml
+├── eval_sets/                     # Benchmark question sets with ground truth
+├── nginx.conf                     # Reverse proxy configuration
+├── docker-compose.yml             # 8-container orchestration
 ├── .env.example
 └── README.md
 ```
@@ -375,6 +378,8 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 - [Ragas](https://ragas.io) — RAG evaluation metrics
 - [LangChain](https://langchain.com) — RAG pipeline framework
-- [LangSmith](https://smith.langchain.com) — experiment tracing
-- [Unstructured](https://unstructured.io) — document parsing
+- [OpenAI](https://openai.com) — GPT-4o, GPT-4o-mini, text-embedding-3-small
+- [Qdrant](https://qdrant.tech) — Vector database
+- [XGBoost](https://xgboost.readthedocs.io) — Gradient-boosted failure classification
+- [Unstructured](https://unstructured.io) — Document parsing
 - Research on temporal drift in retrieval benchmarks and multimodal enterprise document understanding

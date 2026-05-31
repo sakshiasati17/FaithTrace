@@ -24,6 +24,7 @@ celery_app.conf.task_routes = {
     "app.workers.tasks.evaluate_run": {"queue": "evaluation"},
     "app.workers.tasks.diagnose_run": {"queue": "diagnostics"},
     "app.workers.tasks.train_failure_classifier": {"queue": "diagnostics"},
+    "app.workers.tasks.run_optimizer_agent": {"queue": "experiments"},
 }
 
 
@@ -509,3 +510,55 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str):
         raise self.retry(exc=exc, countdown=10)
     finally:
         db.close()
+
+
+# ─── Task: run_optimizer_agent ────────────────────────────────────────────────
+
+@celery_app.task(name="app.workers.tasks.run_optimizer_agent", bind=True, max_retries=1)
+def run_optimizer_agent(self, job_id: str):
+    """Orchestrate the autonomous optimizer loop."""
+    from app.db.session import get_sync_db
+    from app.db.models import OptimizerJob
+    from app.services.experiment.optimizer import OptimizerGoal, run_optimizer_loop
+
+    db = get_sync_db()
+    try:
+        job = db.get(OptimizerJob, job_id)
+        if not job:
+            return {"error": f"Optimizer job {job_id} not found"}
+
+        job.status = "running"
+        db.commit()
+
+        # Reconstruct goal from persisted JSON
+        goal_dict = job.goal or {}
+        goal = OptimizerGoal(
+            target_metric=goal_dict.get("target_metric", "faithfulness"),
+            target_threshold=goal_dict.get("target_threshold", 0.85),
+            max_iterations=goal_dict.get("max_iterations", 5),
+            max_cost_usd=goal_dict.get("max_cost_usd", 0.50),
+            eval_set_path=goal_dict.get("eval_set_path", "eval_sets/sample_eval_set.json"),
+        )
+
+        state = run_optimizer_loop(goal, job_id)
+
+        return {
+            "job_id": job_id,
+            "status": state.status,
+            "best_score": state.best_score,
+            "iterations": state.iteration,
+            "message": state.message,
+        }
+
+    except Exception as exc:
+        try:
+            job = db.get(OptimizerJob, job_id)
+            if job:
+                job.status = "failed"
+                db.commit()
+        except Exception:
+            pass
+        raise self.retry(exc=exc, countdown=30)
+    finally:
+        db.close()
+

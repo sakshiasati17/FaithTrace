@@ -139,3 +139,51 @@ export interface Recommendation {
   score: number;
   rationale: string;
 }
+
+// ─── Optimizer ───────────────────────────────────────────────────────────────
+
+export type OptimizerStatus =
+  | "pending"
+  | "running"
+  | "converged"
+  | "budget_exceeded"
+  | "max_iterations"
+  | "failed";
+
+export interface OptimizerGoal {
+  target_metric: string;
+  target_threshold: number;
+  max_iterations: number;
+  max_cost_usd: number;
+  eval_set_path: string;
+}
+
+export interface OptimizerHistoryEntry {
+  iteration: number;
+  experiment_id: string;
+  configs_tested: number;
+  best_score: number;
+  best_config?: PipelineConfig;
+  top_configs?: PipelineConfig[];
+}
+
+export interface OptimizerState {
+  iteration: number;
+  best_config: PipelineConfig | Record<string, never>;
+  best_score: number;
+  total_cost_usd: number;
+  status: OptimizerStatus;
+  history: OptimizerHistoryEntry[];
+  message: string;
+}
+
+export interface OptimizerJob {
+  id: string;
+  name: string;
+  goal: OptimizerGoal;
+  state: OptimizerState;
+  status: OptimizerStatus;
+  created_at: string;
+  completed_at: string | null;
+}
+

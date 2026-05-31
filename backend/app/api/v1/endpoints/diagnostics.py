@@ -36,6 +36,7 @@ async def get_run_diagnostics(run_id: str, db: AsyncSession = Depends(get_db)):
             "failure_category": qr.failure_category,
             "confidence": qr.diagnosis_evidence.get("confidence", 0.7) if qr.diagnosis_evidence else 0.7,
             "evidence": qr.diagnosis_evidence or {},
+            "reasoning": (qr.diagnosis_evidence or {}).get("reasoning"),
         }
         for qr in query_results
     ]
