@@ -47,32 +47,34 @@ def _get_parser():
 @router.post("/command")
 async def voice_command(audio: UploadFile = File(...)):
     """
-    Accept an audio file (WAV/MP3/OGG), transcribe it with Whisper,
-    parse the intent, and return structured JSON.
-
-    The frontend can record browser audio via MediaRecorder API and POST it here,
-    enabling voice interaction without a local microphone loop.
+    Accept audio in any format the browser sends (WebM, Opus, OGG, WAV, MP3).
+    Saves to a temp file so Whisper's internal ffmpeg handles format decoding —
+    soundfile only supports WAV/FLAC/OGG and chokes on the WebM/Opus that
+    Chrome's MediaRecorder emits by default.
     """
-    try:
-        import soundfile as sf
-    except ImportError:
-        raise HTTPException(status_code=500, detail="soundfile not installed")
+    import os
+    import tempfile
+    from pathlib import Path
 
     audio_bytes = await audio.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Empty audio file received")
+
+    # Preserve the original extension so ffmpeg picks the right demuxer.
+    # Fall back to .webm — the most common format from Chrome MediaRecorder.
+    original_name = audio.filename or "audio.webm"
+    suffix = Path(original_name).suffix or ".webm"
+
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(audio_bytes)
+        tmp_path = tmp.name
+
     try:
-        audio_array, sample_rate = sf.read(io.BytesIO(audio_bytes))
+        transcription = _get_stt().transcribe_file(tmp_path)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not parse audio: {e}")
-
-    # Resample to 16 kHz if needed (Whisper requirement)
-    if sample_rate != 16_000:
-        try:
-            import librosa
-            audio_array = librosa.resample(audio_array.astype(np.float32), orig_sr=sample_rate, target_sr=16_000)
-        except ImportError:
-            raise HTTPException(status_code=500, detail="librosa not installed; audio must be 16 kHz")
-
-    transcription = _get_stt().transcribe_audio(audio_array.astype(np.float32))
+        raise HTTPException(status_code=400, detail=f"Could not transcribe audio: {e}")
+    finally:
+        os.unlink(tmp_path)
     intent = _get_parser().parse(transcription.text)
 
     # Execute the mapped FaithTrace API call and return the result

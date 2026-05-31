@@ -62,12 +62,16 @@ class SpeechToText:
         )
 
     def transcribe_file(self, audio_path: str) -> TranscriptionResult:
-        result = self.model.transcribe(audio_path, language="en")
+        result = self.model.transcribe(audio_path, language="en", fp16=(self.device == "cuda"))
+        segs = result.get("segments", [])
+        avg_logprob = np.mean([s.get("avg_logprob", -1.0) for s in segs]) if segs else -1.0
+        confidence = float(np.clip(np.exp(avg_logprob), 0, 1))
+        duration = segs[-1]["end"] if segs else 0.0
         return TranscriptionResult(
             text=result["text"].strip(),
             language=result.get("language", "en"),
-            confidence=0.0,
-            duration_seconds=0.0,
+            confidence=round(confidence, 3),
+            duration_seconds=round(duration, 2),
         )
 
 
