@@ -93,7 +93,7 @@ export default function ExperimentDetailPage({ params }: { params: { id: string 
       {leaderboard && leaderboard.length > 0 && (
         <div className="mb-8">
           <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-3">Best Run Metrics</p>
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-5 gap-3 stagger-in">
             <MetricCard label="Faithfulness" value={leaderboard[0].metrics?.faithfulness} />
             <MetricCard label="Context Recall" value={leaderboard[0].metrics?.context_recall} />
             <MetricCard label="Answer Correctness" value={leaderboard[0].metrics?.answer_correctness} />
@@ -104,7 +104,7 @@ export default function ExperimentDetailPage({ params }: { params: { id: string 
       )}
 
       {/* Runs table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden card-lift">
         <div className="px-6 py-4 border-b border-zinc-800">
           <h2 className="text-sm font-semibold text-zinc-300">Pipeline Runs</h2>
         </div>

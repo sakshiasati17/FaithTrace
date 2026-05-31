@@ -36,9 +36,9 @@ export function MetricCard({
   const color = value != null ? scoreColor(unit === "ms" ? value / 5000 : value, lowerIsBetter) : "text-zinc-500";
 
   return (
-    <div className={clsx("bg-zinc-900 border border-zinc-800 rounded-xl p-4", className)}>
+    <div className={clsx("bg-zinc-900 border border-zinc-800 rounded-xl p-4 card-lift gradient-border", className)}>
       <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1">{label}</p>
-      <p className={clsx("text-2xl font-bold", color)}>{display}</p>
+      <p className={clsx("text-2xl font-bold tabular-nums", color)}>{display}</p>
       {description && <p className="text-[10px] text-zinc-600 mt-1 leading-snug">{description}</p>}
     </div>
   );

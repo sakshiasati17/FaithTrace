@@ -143,7 +143,8 @@ export default function ExperimentsPage() {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-lg transition-colors"
+          className="press flex items-center gap-2 px-4 py-2 text-white text-sm font-semibold rounded-lg transition-all glow-violet-sm hover:glow-violet-md"
+          style={{ background: "linear-gradient(135deg,#7c3aed,#6d28d9)" }}
         >
           <Plus className="w-4 h-4" />
           New Experiment
@@ -165,7 +166,7 @@ export default function ExperimentsPage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 stagger-in">
           {(experiments as Experiment[]).map((exp: Experiment) => {
             const totalRuns = exp.runs?.length ?? 0;
             const doneRuns = exp.runs?.filter((r) => r.status === "done").length ?? 0;
@@ -173,7 +174,7 @@ export default function ExperimentsPage() {
 
             return (
               <Link key={exp.id} href={`/experiments/${exp.id}`}>
-                <div className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl p-5 transition-all cursor-pointer">
+                <div className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl p-5 transition-all cursor-pointer card-lift gradient-border">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-1">

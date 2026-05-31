@@ -82,7 +82,7 @@ export default function CorpusPage() {
       </div>
 
       {/* Upload form */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8 gradient-border">
         <h2 className="text-sm font-semibold text-zinc-300 mb-4">Upload Document</h2>
         <form onSubmit={handleUpload} className="space-y-4">
           {/* Drop zone */}
@@ -146,7 +146,7 @@ export default function CorpusPage() {
           <button
             type="submit"
             disabled={uploading}
-            className="flex items-center gap-2 px-5 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+            className="press flex items-center gap-2 px-5 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors glow-violet-sm hover:glow-violet-md"
           >
             {uploading ? (
               <><RefreshCw className="w-4 h-4 animate-spin" /> Uploading…</>
@@ -158,7 +158,7 @@ export default function CorpusPage() {
       </div>
 
       {/* Documents table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden card-lift">
         <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-zinc-300">
             Documents

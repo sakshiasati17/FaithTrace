@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { optimizerApi } from "@/lib/api";
+import { Zap, Loader2, ChevronDown, ChevronUp, Trophy, Target, DollarSign, Hash } from "lucide-react";
+import { clsx } from "clsx";
 import type { OptimizerJob, OptimizerStatus } from "@/types";
 
-/* ─── Metric options for the dropdown ─────────────────────────────────────── */
 const METRIC_OPTIONS = [
   { value: "faithfulness", label: "Faithfulness" },
   { value: "answer_correctness", label: "Answer Correctness" },
@@ -15,13 +16,13 @@ const METRIC_OPTIONS = [
   { value: "multimodal_grounding_rate", label: "Multimodal Grounding" },
 ];
 
-const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  pending:          { bg: "rgba(148,163,184,0.15)", text: "#94a3b8", label: "Pending" },
-  running:          { bg: "rgba(59,130,246,0.15)",  text: "#60a5fa", label: "Running" },
-  converged:        { bg: "rgba(34,197,94,0.15)",   text: "#4ade80", label: "Converged ✓" },
-  budget_exceeded:  { bg: "rgba(251,191,36,0.15)",  text: "#fbbf24", label: "Budget Hit" },
-  max_iterations:   { bg: "rgba(251,191,36,0.15)",  text: "#fbbf24", label: "Max Iterations" },
-  failed:           { bg: "rgba(239,68,68,0.15)",   text: "#f87171", label: "Failed" },
+const STATUS_STYLES: Record<string, { cls: string; label: string }> = {
+  pending:         { cls: "bg-zinc-800 text-zinc-400 border-zinc-700", label: "Pending" },
+  running:         { cls: "bg-blue-500/10 text-blue-400 border-blue-500/30", label: "Running" },
+  converged:       { cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30", label: "Converged" },
+  budget_exceeded: { cls: "bg-amber-500/10 text-amber-400 border-amber-500/30", label: "Budget Hit" },
+  max_iterations:  { cls: "bg-amber-500/10 text-amber-400 border-amber-500/30", label: "Max Iterations" },
+  failed:          { cls: "bg-red-500/10 text-red-400 border-red-500/30", label: "Failed" },
 };
 
 export default function OptimizerPage() {
@@ -30,7 +31,6 @@ export default function OptimizerPage() {
   const [creating, setCreating] = useState(false);
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
-  /* ─── Form state ──────────────────────────────────────────────────────── */
   const [formMetric, setFormMetric] = useState("faithfulness");
   const [formThreshold, setFormThreshold] = useState(0.85);
   const [formMaxIter, setFormMaxIter] = useState(5);
@@ -41,13 +41,11 @@ export default function OptimizerPage() {
       const data = await optimizerApi.list();
       setJobs(data);
     } catch {
-      /* ignore fetch errors during polling */
     } finally {
       setLoading(false);
     }
   }, []);
 
-  /* Initial load + polling for active jobs */
   useEffect(() => {
     fetchJobs();
     const interval = setInterval(() => {
@@ -75,52 +73,44 @@ export default function OptimizerPage() {
     }
   };
 
-  /* ─── Render ──────────────────────────────────────────────────────────── */
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto", padding: "32px 20px" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "#f1f5f9", margin: 0 }}>
-          ⚡ Autonomous Optimizer
-        </h1>
-        <p style={{ color: "#94a3b8", marginTop: 6, fontSize: 14 }}>
+    <div className="max-w-5xl mx-auto px-8 py-10">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-white mb-1">Autonomous Optimizer</h1>
+        <p className="text-sm text-zinc-500">
           AI agent that iteratively searches for the best RAG pipeline configuration
         </p>
       </div>
 
-      {/* ─── Create Form ─────────────────────────────────────────────────── */}
-      <div style={{
-        background: "linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.95))",
-        border: "1px solid rgba(99,102,241,0.25)",
-        borderRadius: 12,
-        padding: 24,
-        marginBottom: 32,
-      }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "#e2e8f0", margin: "0 0 16px 0" }}>
-          Launch New Optimizer
-        </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+      {/* Create Form */}
+      <div className="rounded-xl p-6 mb-8 border border-violet-500/20 bg-gradient-to-br from-zinc-900 to-zinc-950 gradient-border">
+        <h2 className="text-sm font-semibold text-zinc-200 mb-4">Launch New Optimizer</h2>
+        <div className="grid grid-cols-4 gap-3 mb-4">
           <div>
-            <label style={labelStyle}>Name</label>
+            <label className="block text-[11px] text-zinc-500 mb-1.5 font-medium">Name</label>
             <input
-              style={inputStyle}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-violet-500"
               placeholder="Auto-Optimizer"
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
             />
           </div>
           <div>
-            <label style={labelStyle}>Target Metric</label>
-            <select style={inputStyle} value={formMetric} onChange={(e) => setFormMetric(e.target.value)}>
+            <label className="block text-[11px] text-zinc-500 mb-1.5 font-medium">Target Metric</label>
+            <select
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-violet-500"
+              value={formMetric}
+              onChange={(e) => setFormMetric(e.target.value)}
+            >
               {METRIC_OPTIONS.map((m) => (
                 <option key={m.value} value={m.value}>{m.label}</option>
               ))}
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Threshold</label>
+            <label className="block text-[11px] text-zinc-500 mb-1.5 font-medium">Threshold</label>
             <input
-              style={inputStyle}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-violet-500 font-mono"
               type="number"
               min={0} max={1} step={0.05}
               value={formThreshold}
@@ -128,9 +118,9 @@ export default function OptimizerPage() {
             />
           </div>
           <div>
-            <label style={labelStyle}>Max Iterations</label>
+            <label className="block text-[11px] text-zinc-500 mb-1.5 font-medium">Max Iterations</label>
             <input
-              style={inputStyle}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-violet-500 font-mono"
               type="number"
               min={1} max={10}
               value={formMaxIter}
@@ -141,38 +131,31 @@ export default function OptimizerPage() {
         <button
           onClick={handleCreate}
           disabled={creating}
-          style={{
-            background: creating ? "#334155" : "linear-gradient(135deg, #6366f1, #8b5cf6)",
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            padding: "10px 24px",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: creating ? "not-allowed" : "pointer",
-            transition: "all 0.2s",
-          }}
+          className="press inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all glow-violet-sm hover:glow-violet-md"
+          style={{ background: "linear-gradient(135deg,#7c3aed,#6d28d9)" }}
         >
-          {creating ? "Starting..." : "🚀 Start Optimizer Agent"}
+          {creating ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Zap className="w-3.5 h-3.5" />
+          )}
+          {creating ? "Starting..." : "Start Optimizer Agent"}
         </button>
       </div>
 
-      {/* ─── Jobs List ───────────────────────────────────────────────────── */}
+      {/* Jobs List */}
       {loading ? (
-        <p style={{ color: "#64748b", textAlign: "center", padding: 40 }}>Loading...</p>
+        <div className="flex items-center justify-center gap-2 py-20 text-sm text-zinc-600">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading...
+        </div>
       ) : jobs.length === 0 ? (
-        <div style={{
-          textAlign: "center",
-          padding: 60,
-          color: "#64748b",
-          border: "1px dashed rgba(100,116,139,0.3)",
-          borderRadius: 12,
-        }}>
-          <p style={{ fontSize: 18 }}>No optimizer jobs yet</p>
-          <p style={{ fontSize: 13 }}>Create one above to start searching for the best pipeline config</p>
+        <div className="rounded-xl bg-zinc-900 border border-zinc-800 py-20 text-center">
+          <Zap className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
+          <p className="text-sm font-medium text-zinc-500 mb-1">No optimizer jobs yet</p>
+          <p className="text-xs text-zinc-600">Create one above to start searching for the best pipeline config</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="space-y-4 stagger-in">
           {jobs.map((job) => (
             <JobCard
               key={job.id}
@@ -187,8 +170,6 @@ export default function OptimizerPage() {
   );
 }
 
-/* ─── Job Card Component ─────────────────────────────────────────────────── */
-
 function JobCard({ job, expanded, onToggle }: { job: OptimizerJob; expanded: boolean; onToggle: () => void }) {
   const state = job.state;
   const goal = job.goal;
@@ -198,215 +179,157 @@ function JobCard({ job, expanded, onToggle }: { job: OptimizerJob; expanded: boo
     : 0;
 
   return (
-    <div style={{
-      background: "rgba(30,41,59,0.7)",
-      border: `1px solid ${job.status === "converged" ? "rgba(34,197,94,0.3)" : "rgba(51,65,85,0.5)"}`,
-      borderRadius: 12,
-      overflow: "hidden",
-      transition: "border-color 0.3s",
-    }}>
+    <div className={clsx(
+      "rounded-xl overflow-hidden transition-all card-lift",
+      job.status === "converged"
+        ? "bg-zinc-900 border border-emerald-500/20"
+        : "bg-zinc-900 border border-zinc-800"
+    )}>
       {/* Header row */}
       <div
         onClick={onToggle}
-        style={{
-          padding: "16px 20px",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
+        className="px-5 py-4 cursor-pointer flex items-center justify-between hover:bg-zinc-800/20 transition-colors"
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 20 }}>
-            {job.status === "running" ? "⚡" : job.status === "converged" ? "🏆" : "🔬"}
-          </span>
-          <div>
-            <div style={{ fontWeight: 600, color: "#e2e8f0", fontSize: 15 }}>{job.name}</div>
-            <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>
-              {goal?.target_metric} ≥ {goal?.target_threshold} · Max {goal?.max_iterations} iterations
-            </div>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={clsx(
+            "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
+            job.status === "running" ? "bg-blue-500/10" : job.status === "converged" ? "bg-emerald-500/10" : "bg-zinc-800"
+          )}>
+            <Zap className={clsx(
+              "w-4 h-4",
+              job.status === "running" ? "text-blue-400" : job.status === "converged" ? "text-emerald-400" : "text-zinc-500"
+            )} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-zinc-200 truncate">{job.name}</p>
+            <p className="text-xs text-zinc-600 mt-0.5">
+              {goal?.target_metric} &ge; {goal?.target_threshold} &middot; Max {goal?.max_iterations} iterations
+            </p>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* Best score */}
+        <div className="flex items-center gap-3 flex-shrink-0">
           {state?.best_score > 0 && (
-            <div style={{
-              background: "rgba(34,197,94,0.12)",
-              color: "#4ade80",
-              padding: "4px 10px",
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              fontFamily: "monospace",
-            }}>
+            <span className="text-xs font-mono font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-md">
               Best: {state.best_score.toFixed(3)}
-            </div>
+            </span>
           )}
-          {/* Status badge */}
-          <span style={{
-            background: statusInfo.bg,
-            color: statusInfo.text,
-            padding: "4px 10px",
-            borderRadius: 6,
-            fontSize: 12,
-            fontWeight: 600,
-          }}>
+          <span className={clsx("inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border", statusInfo.cls)}>
             {statusInfo.label}
           </span>
-          <span style={{ color: "#64748b", fontSize: 18 }}>{expanded ? "▲" : "▼"}</span>
+          {expanded ? (
+            <ChevronUp className="w-4 h-4 text-zinc-600" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-zinc-600" />
+          )}
         </div>
       </div>
 
       {/* Progress bar */}
       {job.status === "running" && (
-        <div style={{ height: 3, background: "rgba(51,65,85,0.5)" }}>
-          <div style={{
-            height: "100%",
-            width: `${progress}%`,
-            background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
-            transition: "width 0.5s ease",
-          }} />
+        <div className="h-[3px] bg-zinc-800">
+          <div
+            className="h-full rounded-full transition-all duration-700 ease-out"
+            style={{ width: `${progress}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)" }}
+          />
         </div>
       )}
 
       {/* Expanded details */}
       {expanded && (
-        <div style={{ padding: "0 20px 20px", borderTop: "1px solid rgba(51,65,85,0.3)" }}>
-          {/* Stats row */}
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 12,
-            marginTop: 16,
-            marginBottom: 16,
-          }}>
-            <StatBox label="Iteration" value={`${state?.iteration || 0} / ${goal?.max_iterations}`} />
-            <StatBox label="Best Score" value={(state?.best_score || 0).toFixed(3)} highlight />
-            <StatBox label="Cost" value={`$${(state?.total_cost_usd || 0).toFixed(3)}`} />
-            <StatBox label="Threshold" value={goal?.target_threshold?.toFixed(2) || "—"} />
+        <div className="px-5 pb-5 border-t border-zinc-800/60">
+          <div className="grid grid-cols-4 gap-3 mt-4 mb-4 stagger-in">
+            <StatBox icon={Hash} label="Iteration" value={`${state?.iteration || 0} / ${goal?.max_iterations}`} />
+            <StatBox icon={Trophy} label="Best Score" value={(state?.best_score || 0).toFixed(3)} highlight />
+            <StatBox icon={DollarSign} label="Cost" value={`$${(state?.total_cost_usd || 0).toFixed(3)}`} />
+            <StatBox icon={Target} label="Threshold" value={goal?.target_threshold?.toFixed(2) || "—"} />
           </div>
 
-          {/* Message */}
           {state?.message && (
-            <div style={{
-              background: job.status === "converged"
-                ? "rgba(34,197,94,0.08)"
-                : "rgba(99,102,241,0.08)",
-              border: `1px solid ${job.status === "converged" ? "rgba(34,197,94,0.2)" : "rgba(99,102,241,0.2)"}`,
-              borderRadius: 8,
-              padding: "10px 14px",
-              fontSize: 13,
-              color: "#cbd5e1",
-              marginBottom: 16,
-            }}>
+            <div className={clsx(
+              "rounded-lg px-4 py-3 text-sm mb-4 border",
+              job.status === "converged"
+                ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-300"
+                : "bg-violet-500/5 border-violet-500/20 text-zinc-300"
+            )}>
               {state.message}
             </div>
           )}
 
-          {/* Winner config */}
           {state?.best_config && Object.keys(state.best_config).length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8", margin: "0 0 8px" }}>
-                🏆 Best Configuration
-              </h3>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
-                gap: 6,
-                background: "rgba(15,23,42,0.5)",
-                borderRadius: 8,
-                padding: 12,
-              }}>
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Best Configuration</p>
+              <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-zinc-800/40 border border-zinc-700/30">
                 {Object.entries(state.best_config)
                   .filter(([k]) => !["embedding_model", "llm_model", "top_k", "prompt_template"].includes(k))
                   .map(([key, val]) => (
-                    <div key={key} style={{ fontSize: 12 }}>
-                      <span style={{ color: "#64748b" }}>{formatKey(key)}: </span>
-                      <span style={{ color: "#e2e8f0", fontFamily: "monospace" }}>{String(val)}</span>
+                    <div key={key} className="flex items-center gap-2 text-xs">
+                      <span className="text-zinc-600">{formatKey(key)}</span>
+                      <span className="text-zinc-200 font-mono">{String(val)}</span>
                     </div>
                   ))}
               </div>
             </div>
           )}
 
-          {/* Iteration timeline */}
           {state?.history && state.history.length > 0 && (
             <div>
-              <h3 style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8", margin: "0 0 8px" }}>
-                Iteration History
-              </h3>
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Iteration History</p>
+
               {/* Convergence mini-chart */}
-              <div style={{
-                display: "flex",
-                alignItems: "flex-end",
-                gap: 3,
-                height: 48,
-                marginBottom: 12,
-                padding: "0 4px",
-              }}>
+              <div className="flex items-end gap-1 h-12 mb-3 px-1">
                 {state.history.map((h, i) => {
                   const pct = Math.max((h.best_score / (goal?.target_threshold || 1)) * 100, 5);
                   const isAtGoal = h.best_score >= (goal?.target_threshold || 1);
                   return (
                     <div
                       key={i}
+                      className="flex-1 rounded-t transition-all duration-500"
                       style={{
-                        flex: 1,
                         height: `${Math.min(pct, 100)}%`,
                         background: isAtGoal
                           ? "linear-gradient(180deg, #4ade80, #22c55e)"
-                          : "linear-gradient(180deg, #818cf8, #6366f1)",
-                        borderRadius: "4px 4px 0 0",
-                        transition: "height 0.3s",
-                        position: "relative",
+                          : "linear-gradient(180deg, #a78bfa, #7c3aed)",
                       }}
                       title={`Iter ${h.iteration}: ${h.best_score.toFixed(3)}`}
                     />
                   );
                 })}
               </div>
-              {/* Threshold line label */}
-              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8, textAlign: "right" }}>
+              <p className="text-[10px] text-zinc-600 text-right mb-3 font-mono">
                 Goal: {goal?.target_threshold}
-              </div>
+              </p>
 
               {/* Table */}
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                <thead>
-                  <tr>
-                    {["Iter", "Configs", "Best Score", "Experiment"].map((h) => (
-                      <th key={h} style={{
-                        textAlign: "left",
-                        padding: "6px 8px",
-                        color: "#64748b",
-                        borderBottom: "1px solid rgba(51,65,85,0.4)",
-                        fontWeight: 500,
-                      }}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.history.map((h) => (
-                    <tr key={h.iteration}>
-                      <td style={cellStyle}>{h.iteration}</td>
-                      <td style={cellStyle}>{h.configs_tested}</td>
-                      <td style={{
-                        ...cellStyle,
-                        color: h.best_score >= (goal?.target_threshold || 1) ? "#4ade80" : "#e2e8f0",
-                        fontFamily: "monospace",
-                        fontWeight: 600,
-                      }}>
-                        {h.best_score.toFixed(3)}
-                      </td>
-                      <td style={{ ...cellStyle, fontFamily: "monospace", color: "#64748b" }}>
-                        {h.experiment_id?.slice(0, 8)}…
-                      </td>
+              <div className="rounded-lg bg-zinc-800/30 border border-zinc-700/30 overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-700/30">
+                      {["Iter", "Configs", "Best Score", "Experiment"].map((h) => (
+                        <th key={h} className="px-3 py-2 text-left text-[10px] font-medium text-zinc-600 uppercase tracking-wider">
+                          {h}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {state.history.map((h) => (
+                      <tr key={h.iteration} className="border-b border-zinc-800/40 last:border-0">
+                        <td className="px-3 py-2 text-zinc-300">{h.iteration}</td>
+                        <td className="px-3 py-2 text-zinc-300">{h.configs_tested}</td>
+                        <td className={clsx(
+                          "px-3 py-2 font-mono font-semibold",
+                          h.best_score >= (goal?.target_threshold || 1) ? "text-emerald-400" : "text-zinc-200"
+                        )}>
+                          {h.best_score.toFixed(3)}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-zinc-600">
+                          {h.experiment_id?.slice(0, 8)}...
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -415,57 +338,21 @@ function JobCard({ job, expanded, onToggle }: { job: OptimizerJob; expanded: boo
   );
 }
 
-/* ─── Stat Box ───────────────────────────────────────────────────────────── */
-
-function StatBox({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function StatBox({ icon: Icon, label, value, highlight }: { icon: React.ElementType; label: string; value: string; highlight?: boolean }) {
   return (
-    <div style={{
-      background: "rgba(15,23,42,0.6)",
-      borderRadius: 8,
-      padding: "10px 12px",
-      textAlign: "center",
-    }}>
-      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4 }}>{label}</div>
-      <div style={{
-        fontSize: 18,
-        fontWeight: 700,
-        fontFamily: "monospace",
-        color: highlight ? "#4ade80" : "#e2e8f0",
-      }}>
+    <div className="rounded-lg bg-zinc-800/40 border border-zinc-700/30 p-3 text-center">
+      <Icon className={clsx("w-3.5 h-3.5 mx-auto mb-1.5", highlight ? "text-emerald-400" : "text-zinc-600")} />
+      <p className="text-[10px] text-zinc-600 mb-1">{label}</p>
+      <p className={clsx(
+        "text-lg font-bold font-mono",
+        highlight ? "text-emerald-400 num-glow-green" : "text-zinc-200"
+      )}>
         {value}
-      </div>
+      </p>
     </div>
   );
 }
 
-/* ─── Helpers ─────────────────────────────────────────────────────────────── */
-
 function formatKey(key: string): string {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 11,
-  color: "#94a3b8",
-  marginBottom: 4,
-  fontWeight: 500,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  background: "rgba(15,23,42,0.8)",
-  border: "1px solid rgba(51,65,85,0.5)",
-  borderRadius: 6,
-  color: "#e2e8f0",
-  fontSize: 13,
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const cellStyle: React.CSSProperties = {
-  padding: "6px 8px",
-  color: "#e2e8f0",
-  borderBottom: "1px solid rgba(51,65,85,0.2)",
-};
