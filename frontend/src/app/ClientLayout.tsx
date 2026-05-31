@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Database, FlaskConical, BarChart3, Stethoscope,
-  Home, Lightbulb, ChevronRight, Activity, Zap,
+  Home, Lightbulb, ChevronRight, Activity, Zap, Cpu,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/diagnostics",   label: "Diagnostics",     icon: Stethoscope },
   { href: "/recommendations", label: "Recommendations", icon: Lightbulb },
   { href: "/optimizer",     label: "Optimizer",       icon: Zap },
+  { href: "/inference",     label: "Inference",       icon: Cpu },
 ];
 
 function Sidebar() {

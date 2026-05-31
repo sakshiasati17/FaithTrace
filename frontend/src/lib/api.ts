@@ -4,7 +4,7 @@
  * Thin wrapper around fetch/axios for type-safe calls to the FastAPI backend.
  */
 
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import type {
   Document,
   Experiment,
@@ -15,12 +15,31 @@ import type {
   Recommendation,
   QueryFeedback,
   FeedbackSummary,
+  OptimizerJob,
+  GPUProfile,
+  BenchmarkReport,
+  VoiceCommandResult,
 } from "@/types";
 
 const client = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1",
   timeout: 30_000,
 });
+
+// Normalise backend error detail into a clean Error message for all callers
+client.interceptors.response.use(
+  (res) => res,
+  (err: AxiosError<{ detail?: string | { msg: string }[] }>) => {
+    const detail = err.response?.data?.detail;
+    const message =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+        ? detail.map((d) => d.msg).join(", ")
+        : err.message;
+    return Promise.reject(new Error(message));
+  }
+);
 
 // ─── Corpus ───────────────────────────────────────────────────────────────────
 
@@ -113,8 +132,6 @@ export const recommendationsApi = {
 
 // ─── Optimizer ───────────────────────────────────────────────────────────────
 
-import type { OptimizerJob } from "@/types";
-
 export const optimizerApi = {
   create: (payload: {
     name?: string;
@@ -133,3 +150,50 @@ export const optimizerApi = {
     client.get(`/optimizer/${id}`).then((r) => r.data),
 };
 
+
+// ─── Inference Optimization ───────────────────────────────────────────────────
+
+export const optimizationApi = {
+  gpuProfile: (): Promise<GPUProfile> =>
+    client.get("/optimization/gpu-profile").then((r) => r.data),
+
+  exportClassifier: (modelPath?: string): Promise<{ status: string; onnx_path: string }> =>
+    client.post("/optimization/export/classifier", null, {
+      params: { model_path: modelPath },
+    }).then((r) => r.data),
+
+  runBenchmark: (): Promise<{ task_id: string; status: string }> =>
+    client.post("/optimization/benchmark").then((r) => r.data),
+
+  getLatestBenchmark: (): Promise<BenchmarkReport> =>
+    client.get("/optimization/benchmark/latest").then((r) => r.data),
+
+  trainPytorch: (experimentId: string, numEpochs?: number): Promise<{ task_id: string; status: string }> =>
+    client.post("/optimization/train/pytorch", null, {
+      params: { experiment_id: experimentId, num_epochs: numEpochs },
+    }).then((r) => r.data),
+
+  tritonHealth: (): Promise<{ server_ready: boolean; model_ready: boolean }> =>
+    client.get("/optimization/triton/health").then((r) => r.data),
+};
+
+// ─── Voice ────────────────────────────────────────────────────────────────────
+
+export const voiceApi = {
+  command: (audioBlob: Blob): Promise<VoiceCommandResult> => {
+    const form = new FormData();
+    form.append("audio", audioBlob, "command.wav");
+    return client.post("/voice/command", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }).then((r) => r.data);
+  },
+
+  speak: (text: string): Promise<Blob> =>
+    client.post("/voice/speak", null, {
+      params: { text },
+      responseType: "blob",
+    }).then((r) => r.data),
+
+  health: (): Promise<{ stt_loaded: boolean; tts_loaded: boolean; whisper_model: string }> =>
+    client.get("/voice/health").then((r) => r.data),
+};
