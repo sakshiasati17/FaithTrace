@@ -39,9 +39,16 @@ def build_tensorrt_engine(
         raise RuntimeError("TensorRT is not installed. Run: pip install tensorrt")
 
     builder = trt.Builder(TRT_LOGGER)
-    network = builder.create_network(
-        1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
-    )
+
+    # TensorRT 10 removed EXPLICIT_BATCH (all networks are explicit-batch by default).
+    # TensorRT 8/9 required the flag. Support both.
+    try:
+        network = builder.create_network(
+            1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
+        )
+    except AttributeError:
+        network = builder.create_network()
+
     parser = trt.OnnxParser(network, TRT_LOGGER)
 
     with open(onnx_path, "rb") as f:
@@ -53,12 +60,21 @@ def build_tensorrt_engine(
     config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, workspace_size_gb * (1 << 30))
 
     if precision == "fp16":
-        if builder.platform_has_fast_fp16:
+        # platform_has_fast_fp16 was removed in TRT 10 — just set the flag directly
+        try:
+            has_fp16 = builder.platform_has_fast_fp16
+        except AttributeError:
+            has_fp16 = True  # TRT 10+ always supports FP16 on modern GPUs
+        if has_fp16:
             config.set_flag(trt.BuilderFlag.FP16)
         else:
             print("WARNING: GPU lacks fast FP16, falling back to FP32")
     elif precision == "int8":
-        if builder.platform_has_fast_int8:
+        try:
+            has_int8 = builder.platform_has_fast_int8
+        except AttributeError:
+            has_int8 = True
+        if has_int8:
             config.set_flag(trt.BuilderFlag.INT8)
             if calibration_data:
                 config.int8_calibrator = calibration_data

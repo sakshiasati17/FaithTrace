@@ -28,20 +28,29 @@ def export_classifier_to_onnx(
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-    torch.onnx.export(
-        model,
-        (dummy_input_ids, dummy_attention_mask, dummy_ragas_scores),
-        output_path,
-        opset_version=17,
-        input_names=["input_ids", "attention_mask", "ragas_scores"],
-        output_names=["logits"],
-        dynamic_axes={
-            "input_ids": {0: "batch_size"},
-            "attention_mask": {0: "batch_size"},
-            "ragas_scores": {0: "batch_size"},
-            "logits": {0: "batch_size"},
-        },
-    )
+    # dynamo=False forces the legacy TorchScript tracer.
+    # PyTorch 2.5+ defaults to dynamo=True which stores weights in an external
+    # sidecar file (producing a tiny .onnx stub) and ignores dynamic_axes.
+    # The legacy tracer embeds all 66M weights directly in the .onnx file
+    # (~255 MB) and honours dynamic_axes correctly.
+    with torch.no_grad():
+        torch.onnx.export(
+            model,
+            (dummy_input_ids, dummy_attention_mask, dummy_ragas_scores),
+            output_path,
+            dynamo=False,
+            export_params=True,
+            opset_version=14,
+            do_constant_folding=True,
+            input_names=["input_ids", "attention_mask", "ragas_scores"],
+            output_names=["logits"],
+            dynamic_axes={
+                "input_ids": {0: "batch_size"},
+                "attention_mask": {0: "batch_size"},
+                "ragas_scores": {0: "batch_size"},
+                "logits": {0: "batch_size"},
+            },
+        )
 
     onnx_model = onnx.load(output_path)
     onnx.checker.check_model(onnx_model)
