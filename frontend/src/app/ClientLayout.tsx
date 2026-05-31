@@ -6,80 +6,108 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Database, FlaskConical, BarChart3, Stethoscope,
-  Home, Lightbulb, ChevronRight, Activity, Zap, Cpu,
+  Home, Lightbulb, ChevronRight, Zap, Cpu,
+  MessageCircle,
 } from "lucide-react";
 import { clsx } from "clsx";
 
 const NAV_ITEMS = [
-  { href: "/",              label: "Overview",        icon: Home },
-  { href: "/corpus",        label: "Corpus",          icon: Database },
-  { href: "/experiments",   label: "Experiments",     icon: FlaskConical },
-  { href: "/leaderboard",   label: "Leaderboard",     icon: BarChart3 },
-  { href: "/diagnostics",   label: "Diagnostics",     icon: Stethoscope },
-  { href: "/recommendations", label: "Recommendations", icon: Lightbulb },
-  { href: "/optimizer",     label: "Optimizer",       icon: Zap },
-  { href: "/inference",     label: "Inference",       icon: Cpu },
+  { href: "/",                label: "Overview",        icon: Home,         section: "platform" },
+  { href: "/corpus",          label: "Corpus",          icon: Database,     section: "platform" },
+  { href: "/experiments",     label: "Experiments",     icon: FlaskConical, section: "platform" },
+  { href: "/leaderboard",     label: "Leaderboard",     icon: BarChart3,    section: "platform" },
+  { href: "/diagnostics",     label: "Diagnostics",     icon: Stethoscope,  section: "analysis" },
+  { href: "/recommendations", label: "Recommendations", icon: Lightbulb,    section: "analysis" },
+  { href: "/optimizer",       label: "Optimizer",       icon: Zap,          section: "agents" },
+  { href: "/inference",       label: "Inference",       icon: Cpu,          section: "agents" },
 ];
+
+const SECTIONS: Record<string, string> = {
+  platform: "Platform",
+  analysis: "Analysis",
+  agents:   "AI Agents",
+};
+
+function Logo() {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="relative w-8 h-8 rounded-xl flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform"
+        style={{ background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 50%, #6d28d9 100%)" }}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="relative z-10">
+          <path d="M8 1L14.5 5V11L8 15L1.5 11V5L8 1Z" stroke="white" strokeWidth="1.2" fill="none" />
+          <path d="M8 5L11 7V11L8 13L5 11V7L8 5Z" fill="white" fillOpacity="0.9" />
+        </svg>
+        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+      <div>
+        <p className="text-[13px] font-bold text-white tracking-tight leading-none">
+          Faith<span className="gradient-text">Trace</span>
+        </p>
+        <p className="text-[8px] text-zinc-500 mt-1 tracking-[0.2em] uppercase font-medium">RAG Diagnostics</p>
+      </div>
+    </div>
+  );
+}
 
 function Sidebar() {
   const pathname = usePathname();
 
+  const grouped = Object.entries(SECTIONS).map(([key, title]) => ({
+    title,
+    items: NAV_ITEMS.filter((n) => n.section === key),
+  }));
+
   return (
-    <aside className="fixed left-0 top-0 h-screen w-56 flex flex-col z-40 bg-[#09090b] border-r border-zinc-800/80">
+    <aside className="fixed left-0 top-0 h-screen w-56 flex flex-col z-40 bg-[#0a0a0c]/90 backdrop-blur-xl border-r border-zinc-800/50">
 
       {/* Logo */}
-      <div className="px-4 py-5 border-b border-zinc-800/80">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: "linear-gradient(135deg,#7c3aed,#6d28d9)" }}>
-            <Activity className="w-3.5 h-3.5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-white tracking-tight leading-none">FaithTrace</p>
-            <p className="text-[9px] text-zinc-500 mt-0.5 tracking-widest uppercase font-medium">RAG Diagnostics</p>
-          </div>
-        </div>
+      <div className="px-4 py-5 border-b border-zinc-800/50 group cursor-default">
+        <Logo />
       </div>
 
-      {/* Nav section */}
-      <div className="px-2 pt-3 pb-2">
-        <p className="px-2 mb-1.5 text-[9px] font-semibold text-zinc-600 uppercase tracking-widest">Platform</p>
-        <nav className="space-y-0.5">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={clsx(
-                  "flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 group relative",
-                  active
-                    ? "text-white bg-zinc-800 border border-zinc-700/80"
-                    : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50"
-                )}
-              >
-                {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-r-full bg-violet-500" />
-                )}
-                <Icon className={clsx("w-3.5 h-3.5 flex-shrink-0", active ? "text-violet-400" : "text-zinc-600 group-hover:text-zinc-400")} />
-                <span className="flex-1">{label}</span>
-                {active && <ChevronRight className="w-3 h-3 text-zinc-600" />}
-              </Link>
-            );
-          })}
-        </nav>
+      {/* Nav sections */}
+      <div className="px-2 pt-3 pb-2 flex-1 overflow-y-auto">
+        {grouped.map(({ title, items }) => (
+          <div key={title} className="mb-3">
+            <p className="px-3 mb-1.5 text-[9px] font-semibold text-zinc-600 uppercase tracking-[0.15em]">{title}</p>
+            <nav className="space-y-0.5">
+              {items.map(({ href, label, icon: Icon }) => {
+                const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={clsx(
+                      "flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[12px] font-medium transition-all duration-200 group/item relative",
+                      active
+                        ? "text-white bg-white/[0.06] nav-glow"
+                        : "text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03]"
+                    )}
+                  >
+                    <Icon className={clsx(
+                      "w-[14px] h-[14px] flex-shrink-0 transition-colors duration-200",
+                      active ? "text-violet-400" : "text-zinc-600 group-hover/item:text-zinc-400"
+                    )} />
+                    <span className="flex-1">{label}</span>
+                    {active && <ChevronRight className="w-3 h-3 text-zinc-700" />}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        ))}
       </div>
-
-      {/* Spacer */}
-      <div className="flex-1" />
 
       {/* Footer */}
-      <div className="px-4 py-4 border-t border-zinc-800/80">
+      <div className="px-4 py-4 border-t border-zinc-800/50">
         <div className="flex items-center gap-2 mb-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          <p className="text-[10px] text-zinc-600 font-medium">All systems operational</p>
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-40" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <p className="text-[10px] text-zinc-500 font-medium">All systems online</p>
         </div>
-        <p className="text-[9px] text-zinc-700 font-mono tracking-wide">v1.0.0 · Research Build</p>
+        <p className="text-[9px] text-zinc-700 font-mono tracking-wide">v2.0.0 · 3 AI extensions</p>
       </div>
     </aside>
   );
@@ -95,7 +123,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <Sidebar />
-      <main className="ml-56 min-h-screen bg-[#09090b]">
+      <main className="ml-56 min-h-screen bg-[#09090b] page-enter">
         {children}
       </main>
     </QueryClientProvider>

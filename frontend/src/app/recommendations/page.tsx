@@ -81,8 +81,8 @@ function RecommendationCard({ rec, rank }: { rec: Recommendation; rank: number }
   return (
     <div
       className={clsx(
-        "bg-zinc-900 border rounded-xl overflow-hidden transition-all",
-        rank === 0 ? "border-violet-500/40" : "border-zinc-800"
+        "bg-zinc-900 border rounded-xl overflow-hidden transition-all card-lift",
+        rank === 0 ? "border-violet-500/40 gradient-border" : "border-zinc-800"
       )}
     >
       {rank === 0 && (
@@ -225,7 +225,7 @@ export default function RecommendationsPage() {
           <p className="text-xs text-zinc-600 mb-4">
             {recs.length} recommendation{recs.length !== 1 ? "s" : ""} across {recs.length} objectives
           </p>
-          <div className="grid gap-4">
+          <div className="grid gap-4 stagger-in">
             {recs.map((rec, i) => (
               <RecommendationCard key={rec.objective} rec={rec} rank={i} />
             ))}

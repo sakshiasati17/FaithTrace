@@ -68,7 +68,7 @@ export function VoicePanel() {
         {state === "recording" ? (
           <button
             onClick={stopRecording}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg transition-all animate-pulse"
+            className="press inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg transition-all animate-pulse"
             style={{ background: "linear-gradient(135deg,#dc2626,#b91c1c)" }}
           >
             <MicOff className="w-3.5 h-3.5" />
@@ -82,7 +82,7 @@ export function VoicePanel() {
         ) : (
           <button
             onClick={startRecording}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg transition-all"
+            className="press inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg transition-all"
             style={{ background: "linear-gradient(135deg,#d97706,#b45309)" }}
           >
             <Mic className="w-3.5 h-3.5" />

@@ -83,7 +83,7 @@ export default function InferencePage() {
       <div className="grid grid-cols-3 gap-5 mb-6">
 
         {/* ── GPU Profile ─────────────────────────────────────────────────── */}
-        <div className="col-span-1 rounded-xl bg-zinc-900 border border-zinc-800 p-5">
+        <div className="col-span-1 rounded-xl bg-zinc-900 border border-zinc-800 p-5 card-lift gradient-border">
           <div className="flex items-center gap-2 mb-4">
             <Cpu className="w-4 h-4 text-violet-400" />
             <h2 className="text-sm font-semibold text-zinc-200">GPU Profile</h2>
@@ -131,7 +131,7 @@ export default function InferencePage() {
         <div className="col-span-2 space-y-4">
 
           {/* Benchmark card */}
-          <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-5">
+          <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-5 card-lift">
             <div className="flex items-center gap-2 mb-2">
               <BarChart3 className="w-4 h-4 text-blue-400" />
               <h2 className="text-sm font-semibold text-zinc-200">Run Inference Benchmark</h2>
@@ -144,7 +144,7 @@ export default function InferencePage() {
               <button
                 onClick={() => benchmarkMut.mutate()}
                 disabled={benchmarkMut.isPending || benchmarkQueued}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="press inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 style={{ background: "linear-gradient(135deg,#2563eb,#1d4ed8)" }}
               >
                 {benchmarkMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
@@ -159,7 +159,7 @@ export default function InferencePage() {
           </div>
 
           {/* Train PyTorch classifier card */}
-          <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-5">
+          <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-5 card-lift">
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-4 h-4 text-violet-400" />
               <h2 className="text-sm font-semibold text-zinc-200">Train PyTorch Classifier</h2>
@@ -180,7 +180,7 @@ export default function InferencePage() {
               <button
                 onClick={() => trainMut.mutate({ id: trainExperimentId })}
                 disabled={!trainExperimentId || trainMut.isPending || trainQueued}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="press inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all glow-violet-sm hover:glow-violet-md"
                 style={{ background: "linear-gradient(135deg,#7c3aed,#6d28d9)" }}
               >
                 {trainMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
@@ -204,7 +204,7 @@ export default function InferencePage() {
           <Loader2 className="w-4 h-4 animate-spin" /> Loading benchmark…
         </div>
       ) : benchmark ? (
-        <div className="rounded-xl bg-zinc-900 border border-zinc-800">
+        <div className="rounded-xl bg-zinc-900 border border-zinc-800 card-lift">
           <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
             <div>
               <h2 className="text-sm font-semibold text-zinc-200">Benchmark Results</h2>

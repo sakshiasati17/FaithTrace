@@ -90,7 +90,7 @@ export default function LeaderboardPage() {
           <p className="text-xs text-zinc-600">Complete an experiment to see rankings</p>
         </div>
       ) : (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-x-auto">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-x-auto card-lift">
           <table className="w-full text-sm min-w-[1200px]">
             <thead>
               <tr className="border-b border-zinc-800">
