@@ -72,7 +72,16 @@ async def voice_command(audio: UploadFile = File(...)):
     try:
         transcription = _get_stt().transcribe_file(tmp_path)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not transcribe audio: {e}")
+        err = str(e)
+        if "ffmpeg" in err.lower() or "No such file or directory" in err:
+            detail = (
+                "ffmpeg is not installed on the server. "
+                "Docker: rebuild the image (ffmpeg now in Dockerfile). "
+                "Local dev: run  sudo apt install ffmpeg  (Linux) or  brew install ffmpeg  (Mac)."
+            )
+        else:
+            detail = f"Could not transcribe audio: {err}"
+        raise HTTPException(status_code=400, detail=detail)
     finally:
         os.unlink(tmp_path)
     intent = _get_parser().parse(transcription.text)
