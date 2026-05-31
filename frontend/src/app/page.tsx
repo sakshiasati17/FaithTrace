@@ -88,25 +88,25 @@ export default function HomePage() {
   const recallScores   = topRuns.map((r) => r.metrics?.context_recall ?? 0).filter(Boolean);
 
   return (
-    <div className="min-h-screen bg-[#09090b]">
+    <div className="min-h-screen bg-[#09090b] bg-noise">
 
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
-      <div className="border-b border-zinc-800/80 px-8 py-4 flex items-center justify-between">
+      <div className="border-b border-zinc-800/50 px-8 py-5 flex items-center justify-between relative bg-dot-grid">
         <div>
-          <h1 className="text-base font-semibold text-white tracking-tight">Overview</h1>
+          <h1 className="text-lg font-bold text-white tracking-tight">Overview</h1>
           <p className="text-xs text-zinc-500 mt-0.5">RAG pipeline diagnostics & benchmarking</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <Link
             href="/corpus"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-300 bg-zinc-800 border border-zinc-700 rounded-lg hover:bg-zinc-700 hover:text-white transition-all"
+            className="press inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-zinc-300 bg-zinc-800/80 border border-zinc-700/50 rounded-lg hover:bg-zinc-700/80 hover:text-white hover:border-zinc-600 transition-all"
           >
             <Upload className="w-3.5 h-3.5" />
             Upload Docs
           </Link>
           <Link
             href="/experiments"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white rounded-lg transition-all"
+            className="press inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white rounded-lg transition-all glow-violet-sm hover:glow-violet-md"
             style={{ background: "linear-gradient(135deg,#7c3aed,#6d28d9)" }}
           >
             <FlaskConical className="w-3.5 h-3.5" />
@@ -115,16 +115,17 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="px-8 py-7 max-w-7xl">
+      <div className="px-8 py-7 max-w-7xl relative z-10">
 
         {/* ── KPI strip ────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-4 gap-3 mb-7">
+        <div className="grid grid-cols-4 gap-3 mb-7 stagger-in">
           {[
             {
               label: "Documents",
               value: totalDocs,
               sub: `${docs.filter((d) => d.parse_status === "done").length} indexed`,
               color: "text-blue-400",
+              glow: "num-glow-blue",
               bar: docs.filter((d) => d.parse_status === "done").length / Math.max(totalDocs, 1),
               barColor: "#3b82f6",
             },
@@ -133,6 +134,7 @@ export default function HomePage() {
               value: totalExps,
               sub: `${completedExps.length} completed`,
               color: "text-violet-400",
+              glow: "num-glow-violet",
               bar: completedExps.length / Math.max(totalExps, 1),
               barColor: "#7c3aed",
             },
@@ -141,6 +143,7 @@ export default function HomePage() {
               value: completedRuns.length,
               sub: "across all experiments",
               color: "text-emerald-400",
+              glow: "num-glow-green",
               bar: 1,
               barColor: "#10b981",
             },
@@ -151,21 +154,22 @@ export default function HomePage() {
                 : "—",
               sub: bestRun ? `${bestRun.config?.retrieval_strategy ?? ""}` : "No data yet",
               color: "text-amber-400",
+              glow: "num-glow-amber",
               bar: bestRun?.metrics?.faithfulness ?? 0,
               barColor: "#f59e0b",
             },
-          ].map(({ label, value, sub, color, bar, barColor }) => (
+          ].map(({ label, value, sub, color, glow, bar, barColor }) => (
             <div
               key={label}
-              className="rounded-xl p-4 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors"
+              className="rounded-xl p-4 bg-zinc-900/80 border border-zinc-800/60 card-lift gradient-border"
             >
               <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-widest mb-3">{label}</p>
-              <p className={clsx("text-3xl font-bold tracking-tight mb-1 tabular-nums", color)}>{value}</p>
+              <p className={clsx("text-3xl font-bold tracking-tight mb-1 tabular-nums", color, glow)}>{value}</p>
               <p className="text-[11px] text-zinc-600 mb-3">{sub}</p>
-              <div className="h-0.5 bg-zinc-800 rounded-full overflow-hidden">
+              <div className="h-[3px] bg-zinc-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${Math.min(bar * 100, 100)}%`, background: barColor }}
+                  className="h-full rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${Math.min(bar * 100, 100)}%`, background: `linear-gradient(90deg, ${barColor}, ${barColor}99)` }}
                 />
               </div>
             </div>
@@ -379,21 +383,23 @@ export default function HomePage() {
         )}
 
         {/* ── Pipeline visualization ────────────────────────────────────────── */}
-        <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-5 mb-5">
-          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-5">Pipeline Architecture</p>
-          <div className="flex items-center gap-0 overflow-x-auto pb-1">
+        <div className="rounded-xl bg-zinc-900/80 border border-zinc-800/60 p-5 mb-5 relative overflow-hidden">
+          <div className="absolute inset-0 bg-dot-grid opacity-40" />
+          <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-[0.15em] mb-5 relative z-10">Pipeline Architecture</p>
+          <div className="flex items-center gap-0 overflow-x-auto pb-1 relative z-10 stagger-in">
             {PIPELINE_STEPS.map(({ icon: Icon, label, sub }, i) => (
               <div key={label} className="flex items-center min-w-0 flex-shrink-0">
                 <div className="flex flex-col items-center gap-1.5 group cursor-default px-1">
-                  <div className="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center group-hover:border-violet-500/50 group-hover:bg-zinc-700 transition-all">
-                    <Icon className="w-4 h-4 text-zinc-400 group-hover:text-violet-400 transition-colors" />
+                  <div className="w-10 h-10 rounded-xl bg-zinc-800/80 border border-zinc-700/50 flex items-center justify-center group-hover:border-violet-500/40 group-hover:bg-violet-500/10 transition-all duration-300 group-hover:glow-violet-sm">
+                    <Icon className="w-4 h-4 text-zinc-400 group-hover:text-violet-400 transition-colors duration-300" />
                   </div>
                   <p className="text-[11px] font-semibold text-zinc-300 text-center">{label}</p>
                   <p className="text-[9px] text-zinc-600 text-center whitespace-nowrap">{sub}</p>
                 </div>
                 {i < PIPELINE_STEPS.length - 1 && (
-                  <div className="flex-1 mx-1 h-px bg-zinc-800 min-w-[20px] relative">
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-zinc-700" />
+                  <div className="flex-1 mx-1.5 min-w-[24px] flex items-center">
+                    <div className="h-px flex-1 bg-gradient-to-r from-zinc-700/60 to-zinc-800/40" />
+                    <div className="w-1 h-1 rounded-full bg-zinc-600 mx-0.5" />
                   </div>
                 )}
               </div>
@@ -402,16 +408,17 @@ export default function HomePage() {
         </div>
 
         {/* ── Tech stack ───────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] text-zinc-600 font-medium uppercase tracking-widest mr-1">Stack</span>
+        <div className="flex items-center gap-2 flex-wrap stagger-in">
+          <span className="text-[10px] text-zinc-600 font-semibold uppercase tracking-[0.15em] mr-1">Stack</span>
           {[
             "FastAPI", "Celery", "PostgreSQL", "Qdrant",
             "LangChain", "OpenAI", "Ragas", "XGBoost",
+            "PyTorch", "TensorRT", "Triton", "Whisper",
             "sentence-transformers", "Next.js", "Docker",
           ].map((tech) => (
             <span
               key={tech}
-              className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-500 font-mono hover:border-zinc-700 hover:text-zinc-400 transition-colors cursor-default"
+              className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-900/80 border border-zinc-800/60 text-zinc-500 font-mono hover:border-zinc-600 hover:text-zinc-300 transition-all cursor-default"
             >
               {tech}
             </span>

@@ -187,3 +187,45 @@ export interface OptimizerJob {
   completed_at: string | null;
 }
 
+// ─── GPU / Inference Optimization ────────────────────────────────────────────
+
+export interface GPUProfile {
+  name: string;
+  vram_total_gb: number;
+  vram_available_gb: number;
+  compute_capability: [number, number];
+  recommended_precision: "fp32" | "fp16" | "int8";
+  max_batch_size: number;
+  reasoning: string;
+}
+
+export interface BenchmarkResult {
+  label: string;
+  p50_ms: number;
+  p95_ms: number;
+  p99_ms: number;
+  mean_ms: number;
+  std_ms: number;
+  throughput_qps: number;
+  num_runs: number;
+  speedup_vs_pytorch?: number;
+}
+
+export interface BenchmarkReport {
+  timestamp: string;
+  gpu: { name: string; vram_gb: number; compute_capability?: number[] };
+  results: BenchmarkResult[];
+}
+
+// ─── Voice Interface ──────────────────────────────────────────────────────────
+
+export interface VoiceCommandResult {
+  transcription: string;
+  language: string;
+  confidence: number;
+  intent: string;
+  parameters: Record<string, unknown>;
+  api_endpoint: string;
+  api_method: string;
+}
+

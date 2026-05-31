@@ -96,20 +96,20 @@ export default function DiagnosticsPage() {
       ) : (
         <>
           {/* Summary stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="grid grid-cols-3 gap-4 mb-8 stagger-in">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 card-lift gradient-border">
               <p className="text-xs text-zinc-500 mb-1">Total Queries</p>
-              <p className="text-3xl font-bold text-white">{totalQueries}</p>
+              <p className="text-3xl font-bold text-blue-400 num-glow-blue">{totalQueries}</p>
               <p className="text-xs text-zinc-600 mt-1">{summary?.run_count} runs analyzed</p>
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 card-lift gradient-border">
               <p className="text-xs text-zinc-500 mb-1">Failure Rate</p>
               <p className={clsx("text-3xl font-bold", failureRate > 30 ? "text-red-400" : failureRate > 10 ? "text-amber-400" : "text-emerald-400")}>
                 {failureRate.toFixed(1)}%
               </p>
               <p className="text-xs text-zinc-600 mt-1">{totalQueries - noFailureCount} queries with failures</p>
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 card-lift gradient-border">
               <p className="text-xs text-zinc-500 mb-1">Most Common Failure</p>
               {chartData.filter((d) => d.name !== "NO_FAILURE").length > 0 ? (
                 <>
@@ -133,7 +133,7 @@ export default function DiagnosticsPage() {
 
           <div className="grid grid-cols-2 gap-6">
             {/* Pie chart */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 card-lift">
               <h2 className="text-sm font-semibold text-zinc-300 mb-4">Failure Distribution</h2>
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
@@ -174,7 +174,7 @@ export default function DiagnosticsPage() {
             </div>
 
             {/* Failure table */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 card-lift">
               <h2 className="text-sm font-semibold text-zinc-300 mb-4">Category Breakdown</h2>
               <div className="space-y-2">
                 {chartData

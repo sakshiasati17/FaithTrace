@@ -21,6 +21,7 @@ module.exports = {
           "sans-serif",
         ],
         mono: [
+          "var(--font-mono)",
           '"JetBrains Mono"',
           '"Fira Code"',
           '"Fira Mono"',
