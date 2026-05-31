@@ -27,6 +27,7 @@ celery_app.conf.task_routes = {
     "app.workers.tasks.run_optimizer_agent": {"queue": "experiments"},
     "app.workers.tasks.train_pytorch_failure_classifier": {"queue": "diagnostics"},
     "app.workers.tasks.run_inference_benchmark": {"queue": "experiments"},
+    "app.workers.tasks.train_embedding_finetuner": {"queue": "diagnostics"},
 }
 
 
@@ -672,3 +673,34 @@ def run_inference_benchmark(self):
 
     report = bench.full_report(model, engine_paths, dummy_inputs)
     return {"status": "completed", "results_count": len(report["results"])}
+
+
+# ─── Task: train_embedding_finetuner ──────────────────────────────────────────
+
+@celery_app.task(name="app.workers.tasks.train_embedding_finetuner", bind=True, max_retries=1)
+def train_embedding_finetuner(
+    self,
+    experiment_id: str,
+    eval_set_path: str = "eval_sets/sample_eval_set.json",
+    output_dir: str = "checkpoints/embedding_finetuner",
+    num_epochs: int = 20,
+    batch_size: int = 32,
+):
+    """
+    Domain-adaptive embedding fine-tuning (Extension 4).
+
+    Mines hard negatives from experiment query results, trains
+    FineTunableEmbeddingModel with CombinedContrastiveLoss, and
+    evaluates retrieval improvements before vs after.
+    """
+    try:
+        from app.models.embedding_finetuner.integration import train_embedding_task
+        return train_embedding_task(
+            experiment_id=experiment_id,
+            eval_set_path=eval_set_path,
+            output_dir=output_dir,
+            num_epochs=num_epochs,
+            batch_size=batch_size,
+        )
+    except Exception as exc:
+        raise self.retry(exc=exc, countdown=30)

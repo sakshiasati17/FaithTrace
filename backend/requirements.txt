@@ -74,3 +74,6 @@ soundfile>=0.12.1
 # TTS>=0.22.0       — Coqui TTS (large install, optional)
 # pyttsx3>=2.90     — lightweight TTS fallback
 librosa>=0.10.2
+
+# ── Extension 4: Domain-Adaptive Embedding Fine-Tuning ───────────────────────
+sentence-transformers>=2.2.0

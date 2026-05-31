@@ -1,11 +1,13 @@
 """
-Optimization endpoints — GPU profiling, ONNX export, TensorRT benchmarks.
+Optimization endpoints — GPU profiling, ONNX export, TensorRT benchmarks, embedding fine-tuning.
 
 GET  /optimization/gpu-profile           — detect GPU and return recommended precision
 POST /optimization/export/classifier     — export trained PyTorch classifier to ONNX
 POST /optimization/benchmark             — run full precision benchmark (async via Celery)
 GET  /optimization/benchmark/latest      — retrieve latest benchmark report
 POST /optimization/train/pytorch         — train the PyTorch DistilBERT classifier
+POST /optimization/embedding/train       — domain-adaptive embedding fine-tuning (Extension 4)
+GET  /optimization/embedding/report      — latest embedding fine-tuning evaluation report
 """
 
 import json
@@ -176,3 +178,63 @@ async def triton_health(url: str = "localhost:8001"):
         return client.health_check()
     except Exception as e:
         return {"server_ready": False, "error": str(e)}
+
+
+@router.post("/embedding/train")
+async def train_embedding_finetuner(
+    experiment_id: str,
+    eval_set_path: str = "eval_sets/sample_eval_set.json",
+    output_dir: str = "checkpoints/embedding_finetuner",
+    num_epochs: int = 20,
+    batch_size: int = 32,
+):
+    """
+    Domain-adaptive embedding fine-tuning (Extension 4).
+
+    Mines hard negatives from experiment history, trains all-MiniLM-L6-v2
+    with CombinedContrastiveLoss (60% triplet + 40% InfoNCE), and evaluates
+    retrieval improvements before vs after.
+
+    Queues a Celery task — returns immediately with task_id.
+    """
+    from app.workers.tasks import train_embedding_finetuner as celery_task
+    task = celery_task.delay(
+        experiment_id=experiment_id,
+        eval_set_path=eval_set_path,
+        output_dir=output_dir,
+        num_epochs=num_epochs,
+        batch_size=batch_size,
+    )
+    return {
+        "task_id": task.id,
+        "status": "queued",
+        "message": (
+            "Embedding fine-tuning started. "
+            "Mines hard negatives → trains with contrastive loss → evaluates recall@k improvement. "
+            f"Training on experiment {experiment_id}. "
+            "Check GET /optimization/embedding/report when done."
+        ),
+    }
+
+
+@router.get("/embedding/report")
+async def get_embedding_report(
+    output_dir: str = "checkpoints/embedding_finetuner",
+):
+    """Return the latest embedding fine-tuning evaluation report."""
+    report_path = Path(output_dir) / "eval_report.json"
+    train_log_path = Path(output_dir) / "training_log.json"
+
+    if not report_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="No embedding report found. Run POST /optimization/embedding/train first.",
+        )
+
+    report = json.loads(report_path.read_text())
+    training_log = json.loads(train_log_path.read_text()) if train_log_path.exists() else []
+
+    return {
+        **report,
+        "training_log": training_log[-5:],  # last 5 epochs
+    }

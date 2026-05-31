@@ -90,6 +90,27 @@ class IntentParser:
                 "help", "", "",
                 lambda m: {},
             ),
+            (
+                r"(?:fine.?tune|train|adapt|retrain) (?:the )?embeddings?",
+                "train_embeddings",
+                "/optimization/embedding/train",
+                "POST",
+                lambda m: {},
+            ),
+            (
+                r"(?:show|get) embedding (?:report|results|evaluation|metrics)",
+                "get_embedding_report",
+                "/optimization/embedding/report",
+                "GET",
+                lambda m: {},
+            ),
+            (
+                r"(?:how (?:much|well) did|compare) (?:the )?embeddings? (?:improve|change)",
+                "get_embedding_report",
+                "/optimization/embedding/report",
+                "GET",
+                lambda m: {},
+            ),
         ]
 
     def parse(self, text: str) -> ParsedIntent:
@@ -131,5 +152,7 @@ class IntentParser:
             "Suggest improvements. "
             "Run benchmark. "
             "Show GPU info. "
+            "Fine-tune embeddings. "
+            "Show embedding report. "
             "Check status."
         )
