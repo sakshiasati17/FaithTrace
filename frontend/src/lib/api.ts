@@ -26,7 +26,7 @@ const client = axios.create({
   timeout: 30_000,
 });
 
-// Normalise backend error detail into a clean Error message for all callers
+// Normalize backend error messages so callers get a clean string
 client.interceptors.response.use(
   (res) => res,
   (err: AxiosError<{ detail?: string | { msg: string }[] }>) => {
@@ -149,7 +149,6 @@ export const optimizerApi = {
   get: (id: string): Promise<OptimizerJob> =>
     client.get(`/optimizer/${id}`).then((r) => r.data),
 };
-
 
 // ─── Inference Optimization ───────────────────────────────────────────────────
 

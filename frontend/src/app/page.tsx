@@ -258,6 +258,7 @@ export default function HomePage() {
                   { href: "/experiments", icon: FlaskConical, label: "Run experiment",       sub: "Benchmark 24 configs" },
                   { href: "/leaderboard", icon: BarChart3,    label: "View leaderboard",    sub: "Compare all results" },
                   { href: "/diagnostics", icon: Stethoscope,  label: "Diagnose failures",   sub: "Root-cause analysis" },
+                  { href: "/optimizer",   icon: Zap,          label: "Auto-optimize",        sub: "Hill-climb config search" },
                 ].map(({ href, icon: Icon, label, sub }) => (
                   <Link
                     key={href}
