@@ -412,8 +412,7 @@ export default function HomePage() {
           {[
             "FastAPI", "Celery", "PostgreSQL", "Qdrant",
             "LangChain", "OpenAI", "Ragas", "XGBoost",
-            "PyTorch", "TensorRT", "Triton", "Whisper",
-            "sentence-transformers", "Next.js", "Docker",
+            "Next.js", "Docker", "Nginx", "Redis",
           ].map((tech) => (
             <span
               key={tech}

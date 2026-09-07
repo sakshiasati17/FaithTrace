@@ -32,8 +32,7 @@ FaithTrace fills this gap with a structured experiment engine, a root-cause diag
 | **Multimodal document parsing** | Extract and index text, tables, page layouts, and spreadsheet cells as first-class retrieval units |
 | **Root-cause diagnostics** | Classify each failure as stale content, version mismatch, table miss, chart blindness, chunking error, or ranking failure |
 | **Configuration recommendation** | Recommend the best pipeline per objective: lowest cost, highest faithfulness, best latency, best for tables, best for drift-heavy corpora |
-| **Diagnostic Reasoning Agent** | LLM-powered agent (GPT-4o) that performs step-by-step root-cause analysis on failed queries with actionable fix suggestions |
-| **Autonomous Optimizer Agent** | Iterative search agent that automatically benchmarks pipeline configurations using neighbor-search to converge on the best config |
+| **Human feedback loop** | Dashboard-driven label correction feeds back into XGBoost classifier retraining |
 | **Leaderboard + trace viewer** | Side-by-side metric comparison with cited chunk/page/table highlights per answer |
 
 ---
@@ -78,15 +77,6 @@ FaithTrace treats each of these as a measurable, diagnosable, and improvable sys
                                       │Ingestion │  │Experiment│  │Evaluation│
                                       │ Worker   │  │ Worker   │  │& Diag    │
                                       └──────────┘  └──────────┘  └──────────┘
-
-                              ┌─────────────────────────────┐
-                              │       AI Agent Layer        │
-                              │                             │
-                              │ • Diagnostic Reasoning Agent│
-                              │   (GPT-4o step-by-step)     │
-                              │ • Autonomous Optimizer Agent│
-                              │   (iterative config search) │
-                              └─────────────────────────────┘
 ```
 
 ---
@@ -135,7 +125,14 @@ The diagnostics engine classifies each retrieval or generation failure into one 
 
 ---
 
-## AI Agents
+## Diagnostics
+
+### Two-Tier Failure Classifier
+The diagnostics engine uses a two-tier approach:
+1. **Heuristic classifier** — priority-ordered rule chain with metric thresholds for fast, interpretable classification
+2. **XGBoost ML classifier** — 14-feature model (5 Ragas scores + operational metrics + chunk metadata) trained on labeled query results, with human feedback overrides
+
+When the XGBoost model is trained, it takes priority; otherwise the system falls back to heuristics.
 
 ### Diagnostic Reasoning Agent
 An LLM-powered agent that uses GPT-4o to perform step-by-step root-cause analysis on failed RAG queries. Given a question, the generated answer, retrieved chunks, evaluation metrics, and the pre-classified failure category, the agent:
@@ -145,16 +142,6 @@ An LLM-powered agent that uses GPT-4o to perform step-by-step root-cause analysi
 4. Produces a plain-English summary for non-technical stakeholders
 
 Invoked on-demand via `POST /api/v1/diagnostics/run/{run_id}/query/{query_id}/reason`. Results are cached to avoid repeated API calls.
-
-### Autonomous Optimizer Agent
-An iterative search agent that automatically discovers the best RAG pipeline configuration for a given optimization goal:
-1. **Iteration 1:** Runs a broad sweep across the MVP config matrix (24 configurations)
-2. **Iteration 2+:** Analyzes the top 3 performers, generates neighbor configs (varying one axis at a time), and benchmarks only those variants
-3. **Convergence:** Stops when the target metric threshold is met, the budget is exhausted, or max iterations are reached
-
-Goal definition includes target metric (e.g., faithfulness ≥ 0.85), iteration budget, and cost cap. The agent updates its state in the database after each iteration, enabling real-time progress tracking from the frontend.
-
-Invoked via `POST /api/v1/optimizer/`. Runs as a Celery background task.
 
 ---
 
@@ -232,16 +219,15 @@ Each test item includes:
 |---|---|
 | Frontend | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
 | Backend API | Python 3.11, FastAPI, Pydantic v2, Celery, Redis |
-| RAG / LLM | LangChain, OpenAI API (GPT-4o, GPT-4o-mini), text-embedding-3-small |
-| Evaluation | Ragas, custom metric evaluators, LangSmith (optional tracing) |
-| AI Agents | GPT-4o diagnostic reasoning agent, XGBoost failure classifier, autonomous optimizer agent |
+| RAG / LLM | LangChain, OpenAI API (GPT-4o-mini), text-embedding-3-small |
+| Evaluation | Ragas (5 metrics), custom metric evaluators |
+| ML / Diagnostics | XGBoost, scikit-learn, cross-encoder reranker (ms-marco-MiniLM-L-6-v2) |
 | Vector DB | Qdrant |
 | Relational DB | PostgreSQL 16, SQLAlchemy 2.0, Alembic |
-| Object Storage | Local filesystem (dev), S3-compatible (prod) |
+| Object Storage | Local filesystem (Docker volume) |
 | Parsing | PyMuPDF, pdfplumber, unstructured, openpyxl, python-docx |
-| ML / Diagnostics | XGBoost, scikit-learn, cross-encoder reranker (ms-marco-MiniLM-L-6-v2) |
 | Containerization | Docker, Docker Compose (8 containers) |
-| Reverse Proxy | Nginx (rate limiting, SSL termination) |
+| Reverse Proxy | Nginx (rate limiting, security headers) |
 
 ---
 
@@ -257,7 +243,7 @@ Each test item includes:
 
 ## Project Milestones
 
-### MVP (Phase 1) ✅
+### MVP (Phase 1)
 - [x] Corpus ingestion pipeline for PDF, DOCX, XLSX, CSV, and HTML
 - [x] 4 retrieval strategies × 4 chunking × 4 parsing × 4 freshness = 256 pipeline configurations
 - [x] Faithfulness, context precision/recall, answer correctness/relevance via Ragas
@@ -265,18 +251,17 @@ Each test item includes:
 - [x] Leaderboard UI and config comparison view
 - [x] Docker Compose deployment (8 containers)
 
-### Phase 2 ✅
+### Phase 2
 - [x] Table-aware and structure-aware chunking
 - [x] Version-aware retrieval with effective-date metadata
 - [x] Root-cause failure classifier (XGBoost ML + heuristic fallback)
 - [x] Recommendation engine (7 objectives: best overall, lowest cost, best latency, best faithfulness, best for tables, best for drift, best for long PDFs)
 - [x] Human feedback loop with classifier retraining
 
-### Phase 3 ✅
+### Phase 3
 - [x] Vision-assisted PDF parsing (GPT-4o Vision for charts and diagrams)
 - [x] LLM-powered Diagnostic Reasoning Agent (GPT-4o step-by-step root-cause analysis)
-- [x] Autonomous Optimizer Agent (iterative config search with neighbor-expansion and convergence detection)
-- [x] Production hardening: Nginx reverse proxy, rate limiting, API key auth, Sentry integration
+- [x] Production hardening: Nginx reverse proxy, rate limiting, security headers
 
 ---
 
@@ -325,25 +310,25 @@ npm run dev
 FaithTrace/
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/endpoints/      # REST endpoints (corpus, experiments, optimizer, diagnostics, etc.)
+│   │   ├── api/v1/endpoints/      # REST endpoints (corpus, experiments, diagnostics, etc.)
 │   │   ├── core/                  # Config, security
 │   │   ├── db/                    # SQLAlchemy models, Alembic migrations
 │   │   ├── schemas/               # Pydantic request/response schemas
 │   │   ├── services/
 │   │   │   ├── ingestion/         # parser.py, chunker.py, indexer.py
-│   │   │   ├── experiment/        # runner.py, config_matrix.py, optimizer.py (agent)
+│   │   │   ├── experiment/        # runner.py, config_matrix.py
 │   │   │   ├── evaluation/        # ragas_runner.py, metrics.py
-│   │   │   ├── diagnostics/       # classifier.py, ml_classifier.py, reasoning_agent.py (agent)
+│   │   │   ├── diagnostics/       # classifier.py, ml_classifier.py, reasoning_agent.py
 │   │   │   └── recommendation/    # engine.py
-│   │   ├── workers/               # Celery tasks (ingestion, experiments, evaluation, diagnostics, optimizer)
+│   │   ├── workers/               # Celery tasks (ingestion, experiments, evaluation, diagnostics)
 │   │   └── main.py
-│   ├── alembic/versions/          # Database migrations (001–004)
+│   ├── alembic/versions/          # Database migrations
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
 │   │   ├── app/                   # Pages: dashboard, corpus, experiments, leaderboard,
-│   │   │                          #         diagnostics, recommendations, optimizer
+│   │   │                          #         diagnostics, recommendations
 │   │   ├── lib/api.ts             # Typed API client
 │   │   └── types/index.ts         # TypeScript type definitions
 │   ├── package.json
@@ -378,7 +363,7 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 - [Ragas](https://ragas.io) — RAG evaluation metrics
 - [LangChain](https://langchain.com) — RAG pipeline framework
-- [OpenAI](https://openai.com) — GPT-4o, GPT-4o-mini, text-embedding-3-small
+- [OpenAI](https://openai.com) — GPT-4o-mini, text-embedding-3-small
 - [Qdrant](https://qdrant.tech) — Vector database
 - [XGBoost](https://xgboost.readthedocs.io) — Gradient-boosted failure classification
 - [Unstructured](https://unstructured.io) — Document parsing

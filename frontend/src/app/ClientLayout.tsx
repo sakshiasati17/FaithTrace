@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Database, FlaskConical, BarChart3, Stethoscope,
-  Home, Lightbulb, ChevronRight, Zap, Cpu,
+  Home, Lightbulb, ChevronRight,
   MessageCircle,
 } from "lucide-react";
 import { clsx } from "clsx";
@@ -18,14 +18,11 @@ const NAV_ITEMS = [
   { href: "/leaderboard",     label: "Leaderboard",     icon: BarChart3,    section: "platform" },
   { href: "/diagnostics",     label: "Diagnostics",     icon: Stethoscope,  section: "analysis" },
   { href: "/recommendations", label: "Recommendations", icon: Lightbulb,    section: "analysis" },
-  { href: "/optimizer",       label: "Optimizer",       icon: Zap,          section: "agents" },
-  { href: "/inference",       label: "Inference",       icon: Cpu,          section: "agents" },
 ];
 
 const SECTIONS: Record<string, string> = {
   platform: "Platform",
   analysis: "Analysis",
-  agents:   "AI Agents",
 };
 
 function Logo() {
@@ -107,7 +104,7 @@ function Sidebar() {
           </span>
           <p className="text-[10px] text-zinc-500 font-medium">All systems online</p>
         </div>
-        <p className="text-[9px] text-zinc-700 font-mono tracking-wide">v2.0.0 · 3 AI extensions</p>
+        <p className="text-[9px] text-zinc-700 font-mono tracking-wide">v1.0.0</p>
       </div>
     </aside>
   );

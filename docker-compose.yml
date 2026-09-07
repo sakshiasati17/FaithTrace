@@ -113,26 +113,6 @@ services:
       frontend:
         condition: service_started
 
-  # ─── NVIDIA Triton Inference Server (optional, requires NVIDIA GPU) ──────────
-  # To enable: uncomment this block and ensure the host has NVIDIA drivers + nvidia-container-toolkit.
-  # triton:
-  #   image: nvcr.io/nvidia/tritonserver:24.01-py3
-  #   container_name: faithtrace-triton
-  #   ports:
-  #     - "8010:8000"   # HTTP
-  #     - "8011:8001"   # gRPC
-  #     - "8012:8002"   # Prometheus metrics
-  #   volumes:
-  #     - ./backend/app/optimization/triton_config:/models
-  #   command: tritonserver --model-repository=/models --strict-model-config=false
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: 1
-  #             capabilities: [gpu]
-
 volumes:
   postgres_data:
   qdrant_data:

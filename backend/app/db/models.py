@@ -117,13 +117,3 @@ class QueryFeedback(Base):
     query_result: Mapped["QueryResult"] = relationship("QueryResult", back_populates="feedback")
 
 
-class OptimizerJob(Base):
-    __tablename__ = "optimizer_jobs"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    name: Mapped[str] = mapped_column(String, nullable=False, default="Auto-Optimizer")
-    goal: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    state: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    status: Mapped[str] = mapped_column(String, default="pending")  # pending, running, converged, budget_exceeded, max_iterations, failed
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
