@@ -92,3 +92,55 @@ async def get_leaderboard(
 
     entries.sort(key=sort_key, reverse=reverse)
     return entries
+
+
+@router.get("/baseline-comparison")
+async def get_baseline_comparison(
+    experiment_id: str,
+    target_run_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Compare pipeline runs against the naive baseline configuration.
+
+    The baseline is: vector_only retrieval, fixed_size chunking, text_only
+    parsing, no freshness filtering. Returns per-metric deltas showing
+    absolute and relative improvement.
+
+    If target_run_id is omitted, compares the best overall run to baseline.
+    """
+    exp_result = await db.execute(select(Experiment).where(Experiment.id == experiment_id))
+    if not exp_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Experiment not found")
+
+    query = (
+        select(Run, RunMetrics)
+        .join(RunMetrics, Run.id == RunMetrics.run_id)
+        .where(Run.experiment_id == experiment_id, Run.status == "done")
+    )
+    result = await db.execute(query)
+    rows = result.all()
+
+    if not rows:
+        raise HTTPException(status_code=404, detail="No completed runs with metrics found")
+
+    runs = []
+    for run, metrics in rows:
+        runs.append({
+            "run_id": run.id,
+            "config": run.config,
+            "metrics": {
+                "faithfulness": metrics.faithfulness,
+                "answer_correctness": metrics.answer_correctness,
+                "context_recall": metrics.context_recall,
+                "context_precision": metrics.context_precision,
+                "answer_relevance": metrics.answer_relevance,
+                "latency_p50_ms": metrics.latency_p50_ms,
+                "avg_cost_usd": metrics.avg_cost_usd,
+                "freshness_validity": metrics.freshness_validity,
+                "multimodal_grounding_rate": metrics.multimodal_grounding_rate,
+            },
+        })
+
+    from app.services.evaluation.baseline import compare_run_to_baseline
+    return compare_run_to_baseline(runs, target_run_id)

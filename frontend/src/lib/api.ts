@@ -15,10 +15,6 @@ import type {
   Recommendation,
   QueryFeedback,
   FeedbackSummary,
-  OptimizerJob,
-  GPUProfile,
-  BenchmarkReport,
-  VoiceCommandResult,
 } from "@/types";
 
 const client = axios.create({
@@ -26,7 +22,7 @@ const client = axios.create({
   timeout: 30_000,
 });
 
-// Normalize backend error messages so callers get a clean string
+// Normalise backend error detail into a clean Error message for all callers
 client.interceptors.response.use(
   (res) => res,
   (err: AxiosError<{ detail?: string | { msg: string }[] }>) => {
@@ -130,69 +126,3 @@ export const recommendationsApi = {
     client.get(`/recommendations/explain/${runId}`).then((r) => r.data),
 };
 
-// ─── Optimizer ───────────────────────────────────────────────────────────────
-
-export const optimizerApi = {
-  create: (payload: {
-    name?: string;
-    target_metric?: string;
-    target_threshold?: number;
-    max_iterations?: number;
-    max_cost_usd?: number;
-    eval_set_path?: string;
-  }): Promise<OptimizerJob> =>
-    client.post("/optimizer/", payload).then((r) => r.data),
-
-  list: (): Promise<OptimizerJob[]> =>
-    client.get("/optimizer/").then((r) => r.data),
-
-  get: (id: string): Promise<OptimizerJob> =>
-    client.get(`/optimizer/${id}`).then((r) => r.data),
-};
-
-// ─── Inference Optimization ───────────────────────────────────────────────────
-
-export const optimizationApi = {
-  gpuProfile: (): Promise<GPUProfile> =>
-    client.get("/optimization/gpu-profile").then((r) => r.data),
-
-  exportClassifier: (modelPath?: string): Promise<{ status: string; onnx_path: string }> =>
-    client.post("/optimization/export/classifier", null, {
-      params: { model_path: modelPath },
-    }).then((r) => r.data),
-
-  runBenchmark: (): Promise<{ task_id: string; status: string }> =>
-    client.post("/optimization/benchmark").then((r) => r.data),
-
-  getLatestBenchmark: (): Promise<BenchmarkReport> =>
-    client.get("/optimization/benchmark/latest").then((r) => r.data),
-
-  trainPytorch: (experimentId: string, numEpochs?: number): Promise<{ task_id: string; status: string }> =>
-    client.post("/optimization/train/pytorch", null, {
-      params: { experiment_id: experimentId, num_epochs: numEpochs },
-    }).then((r) => r.data),
-
-  tritonHealth: (): Promise<{ server_ready: boolean; model_ready: boolean }> =>
-    client.get("/optimization/triton/health").then((r) => r.data),
-};
-
-// ─── Voice ────────────────────────────────────────────────────────────────────
-
-export const voiceApi = {
-  command: (audioBlob: Blob): Promise<VoiceCommandResult> => {
-    const form = new FormData();
-    form.append("audio", audioBlob, "command.wav");
-    return client.post("/voice/command", form, {
-      headers: { "Content-Type": "multipart/form-data" },
-    }).then((r) => r.data);
-  },
-
-  speak: (text: string): Promise<Blob> =>
-    client.post("/voice/speak", null, {
-      params: { text },
-      responseType: "blob",
-    }).then((r) => r.data),
-
-  health: (): Promise<{ stt_loaded: boolean; tts_loaded: boolean; whisper_model: string }> =>
-    client.get("/voice/health").then((r) => r.data),
-};

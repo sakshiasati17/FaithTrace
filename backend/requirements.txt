@@ -54,26 +54,7 @@ aiofiles>=23.2.1
 slowapi==0.1.9
 sentry-sdk[fastapi]==2.8.0
 
-# ── Extension 1: PyTorch DistilBERT Failure Classifier ──────────────────────
-torch>=2.3.0
-transformers>=4.42.0
-# tensorboard>=2.17.0  # optional: training visualisation
+# Testing
+pytest==8.2.2
+pytest-asyncio==0.23.7
 
-# ── Extension 2: TensorRT + Triton inference optimisation ────────────────────
-onnx>=1.16.0
-onnxruntime>=1.18.0
-# tensorrt — install from NVIDIA .whl, not PyPI (requires CUDA driver)
-# pycuda>=2024.1   — required for TensorRT benchmarking
-# pynvml>=11.5.0   — GPU auto-profiler (ships with nvidia-ml-py)
-tritonclient[grpc]>=2.47.0
-
-# ── Extension 3: Voice interface ─────────────────────────────────────────────
-openai-whisper>=20231117
-sounddevice>=0.4.7
-soundfile>=0.12.1
-# TTS>=0.22.0       — Coqui TTS (large install, optional)
-# pyttsx3>=2.90     — lightweight TTS fallback
-librosa>=0.10.2
-
-# ── Extension 4: Domain-Adaptive Embedding Fine-Tuning ───────────────────────
-sentence-transformers>=2.2.0

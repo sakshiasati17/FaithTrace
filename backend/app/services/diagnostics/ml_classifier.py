@@ -279,61 +279,6 @@ def is_trained() -> bool:
     return _MODEL_PATH.exists()
 
 
-def _pytorch_predict(
-    question: str,
-    retrieved_chunks: list[dict],
-    generated_answer: str,
-    metrics: dict,
-) -> Optional[tuple[str, float]]:
-    """
-    Try to classify using the trained PyTorch DistilBERT classifier.
-    Returns (failure_category_str, confidence) or None if model not available.
-
-    Preferred over XGBoost when available — captures semantic patterns that
-    tabular features cannot (e.g. context topically related but subtly wrong).
-    """
-    _PT_PATH = Path(os.getenv("PYTORCH_CLASSIFIER_PATH", "/app/storage/ml_models/pytorch_classifier/best_model.pt"))
-    if not _PT_PATH.exists():
-        return None
-
-    try:
-        import torch
-        from transformers import AutoTokenizer
-        from app.models.failure_classifier.model import FailureClassifier
-        from app.models.failure_classifier.dataset import LABEL_NAMES
-
-        device = torch.device("cpu")  # CPU-safe for API workers; GPU workers can override
-        model = FailureClassifier(num_classes=6)
-        ckpt = torch.load(_PT_PATH, map_location=device)
-        model.load_state_dict(ckpt["model_state_dict"])
-        model.eval()
-
-        tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-        context_text = " ".join(c.get("content", "") for c in retrieved_chunks[:3])[:300]
-        text = f"{question} [SEP] {context_text} [SEP] {generated_answer}"
-
-        encoding = tokenizer(text, max_length=512, padding="max_length", truncation=True, return_tensors="pt")
-        ragas = torch.tensor([[
-            float(metrics.get("faithfulness", 0.5) or 0.5),
-            float(metrics.get("answer_relevance", 0.5) or 0.5),
-            float(metrics.get("context_recall", 0.5) or 0.5),
-            float(metrics.get("context_precision", 0.5) or 0.5),
-            float(metrics.get("answer_correctness", 0.5) or 0.5),
-        ]], dtype=torch.float32)
-
-        with torch.no_grad():
-            logits = model(encoding["input_ids"], encoding["attention_mask"], ragas)
-            probs = torch.softmax(logits, dim=1)
-            pred_idx = int(logits.argmax(dim=1).item())
-            confidence = float(probs[0][pred_idx].item())
-
-        label = LABEL_NAMES[pred_idx] if pred_idx < len(LABEL_NAMES) else "no_failure"
-        return label, confidence
-    except Exception as exc:
-        logger.debug("PyTorch classifier unavailable, falling back to XGBoost: %s", exc)
-        return None
-
-
 def predict(
     metrics: dict,
     retrieved_chunks: list[dict],
@@ -344,25 +289,12 @@ def predict(
     """
     Predict the failure category for a single query.
 
-    Priority:
-      1. PyTorch DistilBERT classifier (if checkpoint exists) — semantic understanding
-      2. XGBoost classifier (if trained) — tabular RAGAS features
-      3. Returns None → caller falls back to heuristics
+    Uses XGBoost classifier if trained, otherwise returns None
+    and the caller falls back to heuristics.
 
     Returns:
         Tuple of (FailureCategory, confidence) or None.
     """
-    # Try PyTorch first when question/answer text is provided
-    if question and generated_answer:
-        pt_result = _pytorch_predict(question, retrieved_chunks, generated_answer, metrics)
-        if pt_result is not None:
-            label_str, confidence = pt_result
-            try:
-                return FailureCategory(label_str), confidence
-            except ValueError:
-                pass  # label not in FailureCategory enum, fall through
-
-    # Fall back to XGBoost
     bundle = _load_model()
     if bundle is None:
         return None
