@@ -16,25 +16,27 @@ from io import BytesIO
 
 import pytest
 
-_has_fastapi = True
-_has_celery = True
-try:
-    import fastapi
-except ImportError:
-    _has_fastapi = False
-try:
-    import celery
-except ImportError:
-    _has_celery = False
+def _can_import(*modules):
+    for m in modules:
+        try:
+            __import__(m)
+        except ImportError:
+            return False
+    return True
 
-skip_no_fastapi = pytest.mark.skipif(not _has_fastapi, reason="fastapi not installed")
-skip_no_celery = pytest.mark.skipif(not _has_celery, reason="celery not installed")
+_has_corpus_deps = _can_import("fastapi", "sqlalchemy", "qdrant_client")
+_has_indexer_deps = _can_import("fastapi", "sqlalchemy", "langchain_openai", "qdrant_client")
+_has_celery_deps = _can_import("celery", "sqlalchemy")
+
+skip_no_corpus = pytest.mark.skipif(not _has_corpus_deps, reason="corpus deps not installed (fastapi+sqlalchemy+qdrant)")
+skip_no_indexer = pytest.mark.skipif(not _has_indexer_deps, reason="indexer deps not installed (fastapi+sqlalchemy+langchain_openai+qdrant)")
+skip_no_celery = pytest.mark.skipif(not _has_celery_deps, reason="celery deps not installed (celery+sqlalchemy)")
 
 
 class TestQdrantFailures:
     """Test behavior when Qdrant is unavailable or times out."""
 
-    @skip_no_fastapi
+    @skip_no_indexer
     def test_ensure_collection_survives_qdrant_timeout(self):
         """ensure_collection should raise when Qdrant is unreachable."""
         with patch("app.services.ingestion.indexer._get_client") as mock_client:
@@ -45,7 +47,7 @@ class TestQdrantFailures:
             with pytest.raises(ConnectionError):
                 ensure_collection()
 
-    @skip_no_fastapi
+    @skip_no_indexer
     def test_upsert_chunks_raises_on_qdrant_failure(self):
         """upsert_chunks should propagate Qdrant errors (triggers Celery retry)."""
         with patch("app.services.ingestion.indexer._get_client") as mock_client, \
@@ -64,7 +66,7 @@ class TestQdrantFailures:
             with pytest.raises(ConnectionError):
                 upsert_chunks(chunks, doc_id="test-doc")
 
-    @skip_no_fastapi
+    @skip_no_indexer
     def test_delete_doc_chunks_raises_on_qdrant_failure(self):
         """delete_doc_chunks should propagate errors."""
         with patch("app.services.ingestion.indexer._get_client") as mock_client:
@@ -74,7 +76,7 @@ class TestQdrantFailures:
             with pytest.raises(ConnectionError):
                 delete_doc_chunks("test-doc-id")
 
-    @skip_no_fastapi
+    @skip_no_indexer
     def test_reindex_catches_qdrant_delete_failure(self):
         """reindex_document endpoint catches Qdrant delete errors gracefully."""
         from app.services.ingestion.indexer import delete_doc_chunks
@@ -83,7 +85,7 @@ class TestQdrantFailures:
             with pytest.raises(ConnectionError):
                 delete_doc_chunks("doc-123")
 
-    @skip_no_fastapi
+    @skip_no_indexer
     def test_fetch_all_chunks_empty_on_qdrant_failure(self):
         """fetch_all_chunks should raise when Qdrant is unreachable."""
         with patch("app.services.ingestion.indexer._get_client") as mock_client:
@@ -97,7 +99,7 @@ class TestQdrantFailures:
 class TestMalformedDocuments:
     """Test handling of invalid or malformed document uploads."""
 
-    @skip_no_fastapi
+    @skip_no_indexer
     def test_unsupported_file_extension(self):
         """Upload endpoint should reject unsupported file types."""
         from app.api.v1.endpoints.corpus import ALLOWED_EXTENSIONS
@@ -107,7 +109,7 @@ class TestMalformedDocuments:
         assert ".pdf" in ALLOWED_EXTENSIONS
         assert ".xlsx" in ALLOWED_EXTENSIONS
 
-    @skip_no_fastapi
+    @skip_no_indexer
     def test_detect_file_type_unknown(self):
         """Unknown extensions should return 'unknown' type."""
         from app.api.v1.endpoints.corpus import _detect_file_type
@@ -115,7 +117,7 @@ class TestMalformedDocuments:
         assert _detect_file_type("script.py") == "unknown"
         assert _detect_file_type("noext") == "unknown"
 
-    @skip_no_fastapi
+    @skip_no_indexer
     def test_detect_file_type_valid(self):
         """Valid extensions should return correct types."""
         from app.api.v1.endpoints.corpus import _detect_file_type
@@ -125,7 +127,7 @@ class TestMalformedDocuments:
         assert _detect_file_type("doc.docx") == "docx"
         assert _detect_file_type("data.csv") == "csv"
 
-    @skip_no_fastapi
+    @skip_no_indexer
     def test_default_strategy_spreadsheet(self):
         """Spreadsheet files should use spreadsheet_aware parsing."""
         from app.api.v1.endpoints.corpus import _default_strategy
@@ -159,7 +161,7 @@ class TestIngestionRetryBehavior:
         from app.workers.tasks import ingest_document
         assert ingest_document.max_retries == 3
 
-    @skip_no_fastapi
+    @skip_no_indexer
     def test_reindex_is_idempotent(self):
         """
         Verify reindex_document calls delete_doc_chunks BEFORE re-ingesting.
@@ -244,6 +246,22 @@ class TestDiagnosticsGracefulDegradation:
         metrics = {"faithfulness": None, "context_recall": None}
         diagnosis = _heuristic_diagnose(result, {}, metrics)
         assert diagnosis is not None
+
+    def test_heuristic_preserves_zero_scores(self):
+        """A legitimate 0.0 score must NOT be treated as None/missing."""
+        from app.services.diagnostics.classifier import _heuristic_diagnose, FailureCategory
+        from app.services.experiment.runner import QueryResult
+
+        result = QueryResult(
+            query_id="test", question="?", generated_answer="answer",
+            retrieved_chunks=[], latency_ms=0,
+            input_tokens=0, output_tokens=0, cost_usd=0,
+        )
+        metrics = {"faithfulness": 0.0, "context_recall": 0.0}
+        diagnosis = _heuristic_diagnose(result, {}, metrics)
+        assert diagnosis.evidence["faithfulness"] == 0.0
+        assert diagnosis.evidence["context_recall"] == 0.0
+        assert diagnosis.primary_failure == FailureCategory.LOW_RECALL_RETRIEVAL
 
 
 class TestFeatureExtraction:

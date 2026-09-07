@@ -91,10 +91,14 @@ def _has_version_mismatch(result: QueryResult, eval_item: dict) -> bool:
 
 def _heuristic_diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisResult:
     """Deterministic heuristic classifier (fallback when ML model not trained)."""
-    faithfulness = float(metrics.get("faithfulness") or 1.0)
-    context_recall = float(metrics.get("context_recall") or 1.0)
-    context_precision = float(metrics.get("context_precision") or 1.0)
-    answer_correctness = float(metrics.get("answer_correctness") or 1.0)
+    _f = metrics.get("faithfulness")
+    faithfulness = 1.0 if _f is None else float(_f)
+    _cr = metrics.get("context_recall")
+    context_recall = 1.0 if _cr is None else float(_cr)
+    _cp = metrics.get("context_precision")
+    context_precision = 1.0 if _cp is None else float(_cp)
+    _ac = metrics.get("answer_correctness")
+    answer_correctness = 1.0 if _ac is None else float(_ac)
     modality = eval_item.get("modality", "text")
 
     primary = FailureCategory.NO_FAILURE
