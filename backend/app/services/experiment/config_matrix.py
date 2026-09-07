@@ -48,10 +48,12 @@ def build_matrix(
     ]
 
 
-def build_mvp_matrix(embedding_model: str = "text-embedding-3-small", llm_model: str = "gpt-4o") -> list[PipelineConfig]:
+def build_mvp_matrix(embedding_model: str = "text-embedding-3-small", llm_model: str = "gpt-4o-mini") -> list[PipelineConfig]:
     """
     Curated MVP matrix: 3 retrieval × 2 chunking × 2 parsing × 2 freshness = 24 configs.
     Covers the most informative combinations for Phase 1 benchmarking.
+    Uses gpt-4o-mini by default — 3x faster and 10x cheaper than gpt-4o for
+    optimizer sweeps. Switch to gpt-4o for the final best-config validation run.
     """
     return build_matrix(
         retrieval=["vector_only", "hybrid", "hybrid_reranker"],
