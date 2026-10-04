@@ -463,7 +463,10 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
                 experiment.status = "failed"
                 db.commit()
         except Exception:
-            pass
+            logger.exception(
+                "Experiment %s: could not mark experiment failed after error: %s",
+                experiment_id, exc,
+            )
         # Rate limit errors need longer recovery time (60s base, doubles each retry)
         try:
             from openai import RateLimitError
@@ -560,6 +563,10 @@ def evaluate_run(self, run_id: str, eval_set_path: str | None = None):
         rm.temporal_citation_accuracy = metrics.temporal_citation_accuracy
         rm.multimodal_grounding_rate = metrics.multimodal_grounding_rate
         # root_cause_diagnostic_accuracy is written by diagnose_run, after diagnoses exist.
+        logger.info(
+            "Run %s: scored queries per Ragas metric (of %d): %s",
+            run_id, len(ok_rows), metrics.scored_counts,
+        )
         run.evaluated_at = datetime.utcnow()
         db.commit()
 
@@ -572,6 +579,7 @@ def evaluate_run(self, run_id: str, eval_set_path: str | None = None):
             "faithfulness": metrics.faithfulness,
             "queries_evaluated": len(ok_rows),
             "queries_errored": error_count,
+            "queries_scored": metrics.scored_counts,
         }
 
     except Exception as exc:
@@ -671,21 +679,33 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
 
         # Update query result rows with diagnosis
         qr_by_id = {qr.query_id: qr for qr in ok_rows}
+        unscored_count = 0
         for diagnosis in diagnoses:
             qr = qr_by_id.get(diagnosis.query_id)
             if qr:
-                qr.failure_category = diagnosis.primary_failure.value
+                # None: metrics unscored and no metric-free rule fired.
+                if diagnosis.primary_failure is None:
+                    unscored_count += 1
+                qr.failure_category = (
+                    diagnosis.primary_failure.value if diagnosis.primary_failure is not None else None
+                )
                 qr.diagnosis_evidence = {
                     **diagnosis.evidence,
                     "confidence": diagnosis.confidence,
                     "secondary_failures": [f.value for f in diagnosis.secondary_failures],
                 }
         db.commit()
+        if unscored_count:
+            logger.warning(
+                "Run %s: %d of %d queries left undiagnosed (metrics not scored)",
+                run_id, unscored_count, len(ok_rows),
+            )
 
         # Root-cause diagnostic accuracy: stored diagnoses vs ground-truth
-        # failure_type labels (None when no item is labelled).
+        # failure_type labels (None when no item is labelled). Undiagnosed
+        # queries are left out, like errored ones.
         diag_accuracy = compute_diagnostic_accuracy(
-            {qr.query_id: qr.failure_category for qr in ok_rows},
+            {qr.query_id: qr.failure_category for qr in ok_rows if qr.failure_category is not None},
             eval_set,
         )
         rm = db.execute(
@@ -708,6 +728,7 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
             "run_id": run_id,
             "diagnoses_written": len(diagnoses),
             "queries_errored": error_count,
+            "queries_undiagnosed": unscored_count,
             "root_cause_diagnostic_accuracy": diag_accuracy,
         }
 
@@ -841,11 +862,17 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str | None
         all_metrics, all_chunks, all_eval_items, all_labels = [], [], [], []
         label_counts = {src: 0 for src in LABEL_SOURCES}
         label_counts.update(skipped_unanswerable=0, skipped_no_label=0, skipped_errored=0)
+        skipped_unscored = 0
         for qr in qr_rows:
             if _is_errored(qr):
                 label_counts["skipped_errored"] += 1
                 continue
             evidence = qr.diagnosis_evidence or {}
+            if evidence.get("missing_metrics"):
+                # Labelled by a metric-free rule; its metric features are unknown,
+                # and training on them as 0.0 would teach the model a fake signal.
+                skipped_unscored += 1
+                continue
             metrics = {
                 "faithfulness":       evidence.get("faithfulness", 0.0),
                 "context_recall":     evidence.get("context_recall", 0.0),
@@ -870,6 +897,11 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str | None
             all_eval_items.append(eval_item)
             all_labels.append(label)
 
+        if skipped_unscored:
+            logger.warning(
+                "Experiment %s: %d labelled queries left out of training (metrics not scored)",
+                experiment_id, skipped_unscored,
+            )
         dominant_source, label_source_note = describe_label_sources(label_counts)
         logger.info("Classifier training for %s: %s (skipped: %d unanswerable, %d unlabeled, %d errored)",
                     experiment_id, label_source_note, label_counts["skipped_unanswerable"],
@@ -879,6 +911,7 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str | None
                 "error": "No usable training labels after skipping errored, unanswerable "
                          "and unlabeled query results.",
                 "label_sources": label_counts,
+                "skipped_unscored": skipped_unscored,
             }
 
         summary = ml_train(all_metrics, all_chunks, all_eval_items, all_labels)
@@ -895,6 +928,7 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str | None
             "label_sources": label_counts,
             "dominant_label_source": dominant_source,
             "label_source_summary": label_source_note,
+            "skipped_unscored": skipped_unscored,
             **summary,
         }
 

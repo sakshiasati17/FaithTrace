@@ -354,6 +354,11 @@ export default function RunTracePage({ params }: { params: { id: string; runId: 
                         {diag.failure_category}
                       </span>
                     )}
+                    {diag && !diag.failure_category && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded border bg-zinc-800 text-zinc-400 border-zinc-700">
+                        not scored
+                      </span>
+                    )}
                     <span className="text-xs text-zinc-600">{Math.round(qr.latency_ms)}ms</span>
                     <span className="text-xs text-zinc-600">${qr.cost_usd.toFixed(4)}</span>
                     {isExpanded
@@ -399,8 +404,9 @@ export default function RunTracePage({ params }: { params: { id: string; runId: 
                           <div className="flex flex-wrap gap-3 text-xs">
                             <span>
                               <span className="text-zinc-500">Primary:</span>{" "}
-                              <span className={clsx("font-medium px-1.5 py-0.5 rounded border text-[10px]", failureStyle)}>
-                                {diag.failure_category}
+                              <span className={clsx("font-medium px-1.5 py-0.5 rounded border text-[10px]",
+                                diag.failure_category ? failureStyle : "bg-zinc-800 text-zinc-400 border-zinc-700")}>
+                                {diag.failure_category ?? "not scored"}
                               </span>
                             </span>
                             <span className="text-zinc-500">Confidence: <span className="text-zinc-300">{(diag.confidence * 100).toFixed(0)}%</span></span>
