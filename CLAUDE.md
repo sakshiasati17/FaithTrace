@@ -39,12 +39,14 @@ cp .env.example .env            # set OPENAI_API_KEY
 docker compose up -d --build    # UI http://localhost, API docs http://localhost/docs
 
 cd backend && pip install -r requirements.txt && pytest -q
+# Concurrency test for the experiment status needs PostgreSQL (skipped otherwise):
+#   FAITHTRACE_TEST_PG_URL=postgresql+psycopg2://user:pw@localhost:5432/faithtrace_test pytest -q
 # If system pip fails building langdetect/antlr4/iopath ("install_layout"), use a venv:
 #   python -m venv .venv && .venv/bin/pip install -U pip setuptools wheel && .venv/bin/pip install -r backend/requirements.txt
 cd frontend && npm ci && npm test -- --run && npm run build
 ```
 
-New DB columns/tables need an Alembic migration in `backend/alembic/versions` (next is `006_...`).
+New DB columns/tables need an Alembic migration in `backend/alembic/versions` (next is `007_...`).
 
 ## Working rules (do not disrupt the current project)
 
@@ -61,11 +63,11 @@ New DB columns/tables need an Alembic migration in `backend/alembic/versions` (n
 
 1. **No real data.** No documents in repo; `sample_eval_set.json` and the golden set are the same 5 invented questions; `procurement_policy_eval.json` is 10 text-only questions. `scripts/` scripts listed in its README don't exist. Add a public `corpus/`, a verified eval set (60–100 questions incl. table, chart, spreadsheet, temporal pairs, unanswerable) and `scripts/seed.py`.
 2. ~~**Diagnosis correctness.**~~ Fixed in PR #19 (`fix/diagnosis-correctness`). Eval items are matched by `id` (`classifier.index_eval_set`); `root_cause_diagnostic_accuracy` is computed in `diagnose_run` from stored diagnoses vs `failure_type` labels and is `None` when nothing is labelled. Retrain old classifier models.
-3. **Errors scored as answers.** `runner.py` turns exceptions into `"Error: ..."` answers that get scored and diagnosed. Record per-query error status; exclude from metrics.
+3. ~~**Errors scored as answers.**~~ Fixed in PR #23 (`fix/query-error-handling`): queries carry `status`/`error_message`; errored rows are excluded from metrics and diagnosis; a run with >50% errored queries is `failed`.
 4. ~~**BM25 ignores filters.**~~ Fixed in `fix/hybrid-filters`. BM25 candidates pass `runner.chunk_passes_filters` (same rules as the Qdrant filter, which now also checks `effective_to`); chunks are fetched once per `run_pipeline`.
 5. ~~**Reranker never runs.**~~ Fixed in `fix/reranker`. `sentence-transformers` is pinned; the cross-encoder (`RERANKER_MODEL`) loads once per process; each chunk carries `reranked` (and `rerank_error` on failure) in `retrieved_chunks`, and failures are logged.
 6. **Parsing fixed at upload.** `corpus._default_strategy` never selects `text_table_vision`, so no image chunks exist. ~~`spreadsheet_aware` filter used `"spreadsheet"`~~ (fixed in `fix/hybrid-filters`: now `"spreadsheet_cell"`).
 7. **Chunking axis is a no-op.** Ingestion always chunks `recursive`; runner never reads `chunking_strategy`.
 8. ~~**Eval set is a file path.**~~ Fixed in `feat/eval-set-upload`: `eval_sets` table + `/api/v1/eval-sets` upload (JSON/CSV, validated); experiments store `eval_set_id`/`eval_set_path` (restricted to `eval_sets/`); workers use `tasks.load_eval_set_for`; one default `eval_sets/faithtrace_v1.json`.
-9. **Lifecycle/cost.** Experiment marked `done` before evaluation/diagnosis finish; `MAX_COST_PER_RUN_USD` unused; all experiments search all documents.
-10. **Honesty/CI.** Frontend status indicators are hard-coded; no CI workflow; no results committed.
+9. ~~**Lifecycle/cost.**~~ Fixed in `fix/experiment-lifecycle`: experiment status `pending → running → evaluating → diagnosing → done | failed`, recomputed from runs' `evaluated_at`/`diagnosed_at` under a row lock (`tasks.refresh_experiment_status`); `MAX_COST_PER_RUN_USD` stops a run's queries (`"budget exceeded"`, run `failed`); optional `experiments.document_ids` scopes retrieval via `runner.chunk_passes_filters`.
+10. **Honesty/CI.** ~~Hard-coded status indicators, no CI~~ fixed in PR #20 (`/api/v1/system/status`, `.github/workflows/ci.yml`). Still open: no results committed.
