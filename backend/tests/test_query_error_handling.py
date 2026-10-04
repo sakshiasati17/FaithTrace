@@ -48,6 +48,14 @@ def _heuristic_only():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _no_status_refresh():
+    """The DB here is a mock fed a fixed query sequence; the experiment status
+    refresh is covered against a real DB in test_experiment_lifecycle.py."""
+    with patch("app.workers.tasks.refresh_experiment_status", return_value=None):
+        yield
+
+
 # ─── Runner ───────────────────────────────────────────────────────────────────
 
 class TestRunnerRecordsErrors:
