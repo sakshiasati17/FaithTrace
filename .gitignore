@@ -29,6 +29,11 @@ storage/
 *.docx
 *.xlsx
 *.csv
+# The demo corpus is committed on purpose
+!corpus/*.pdf
+!corpus/*.docx
+!corpus/*.xlsx
+!corpus/*.csv
 
 # Database
 *.sqlite
