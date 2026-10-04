@@ -6,6 +6,7 @@ and records per-query results for downstream evaluation and diagnostics.
 Uses LangChain for retrieval and LLM orchestration.
 """
 
+import functools
 import logging
 import time
 from dataclasses import dataclass, field
@@ -233,6 +234,45 @@ def _sort_by_recency(chunks: list[dict]) -> list[dict]:
     return sorted(chunks, key=lambda c: c.get("effective_from") or 0, reverse=True)
 
 
+# ─── Reranker ────────────────────────────────────────────────────────────────
+
+@functools.lru_cache(maxsize=None)
+def _get_cross_encoder(model_name: str):
+    """Load a cross-encoder once per process (lazily, on first use)."""
+    from sentence_transformers import CrossEncoder
+
+    logger.info("Loading reranker model %s", model_name)
+    return CrossEncoder(model_name)
+
+
+def _rerank_docs(docs: list, question: str, top_k: int) -> list:
+    """
+    Rerank retrieved docs with a cross-encoder and keep the top_k by score.
+
+    Every returned doc gets metadata["reranked"] (True/False). On failure the
+    original docs are returned unchanged, marked reranked=False with
+    metadata["rerank_error"], and a warning is logged.
+    """
+    model_name = settings.RERANKER_MODEL
+    try:
+        model = _get_cross_encoder(model_name)
+        scores = model.predict(
+            [(question, d.page_content or "") for d in docs], show_progress_bar=False
+        )
+        ranked = sorted(zip(docs, scores), key=lambda pair: float(pair[1]), reverse=True)
+        out = []
+        for doc, score in ranked[:top_k]:
+            doc.metadata = {**(doc.metadata or {}), "reranked": True, "rerank_score": float(score)}
+            out.append(doc)
+        return out
+    except Exception as e:
+        logger.warning("Reranker %s failed; using un-reranked docs", model_name, exc_info=True)
+        error = f"{type(e).__name__}: {e}"
+        for doc in docs:
+            doc.metadata = {**(doc.metadata or {}), "reranked": False, "rerank_error": error}
+        return docs
+
+
 # ─── Main runner ─────────────────────────────────────────────────────────────
 
 def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResult]:
@@ -303,18 +343,7 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
                     lc_docs = vector_ret.invoke(question)
 
                 if config.retrieval_strategy == "hybrid_reranker" and lc_docs:
-                    try:
-                        from langchain.retrievers.document_compressors import CrossEncoderReranker
-                        from langchain.retrievers import ContextualCompressionRetriever
-                        from langchain_community.cross_encoders import HuggingFaceCrossEncoder
-
-                        model = HuggingFaceCrossEncoder(model_name="cross-encoder/ms-marco-MiniLM-L-6-v2")
-                        compressor = CrossEncoderReranker(model=model, top_n=config.top_k)
-                        # Apply reranker directly to docs
-                        reranked = compressor.compress_documents(lc_docs, question)
-                        lc_docs = reranked if reranked else lc_docs
-                    except Exception:
-                        pass  # reranker is optional enhancement
+                    lc_docs = _rerank_docs(lc_docs, question, config.top_k)
 
             else:
                 retriever = _build_vector_retriever(
