@@ -227,6 +227,109 @@ def _to_runner_result(qr):
 
 # ─── Task: ingest_document ────────────────────────────────────────────────────
 
+# Parser metadata that is per element; dropped when elements are merged.
+_ELEMENT_METADATA_KEYS = ("element_type", "heading_level", "para_index")
+
+
+def _is_heading(raw: dict) -> bool:
+    """A parser text element that is a heading (HTML Title, docx Heading style)."""
+    meta = raw.get("metadata") or {}
+    return meta.get("element_type") == "Title" or str(meta.get("heading_level") or "").startswith("Heading")
+
+
+def _text_units(raw_chunks: list[dict], chunk_strategy: str) -> list[tuple[str, dict]]:
+    """
+    The text blocks a chunking strategy splits, as (content, raw chunk) pairs.
+
+    Most strategies split each parser text chunk on its own. structure_aware
+    needs the document's sections, which the parser may hand over as one
+    element per heading/paragraph (HTML via unstructured, docx): consecutive
+    text elements of a page are joined, headings written as "## " lines so
+    the chunker splits at them. PDF pages are already one block each.
+    """
+    texts = [(r.get("content", ""), r) for r in raw_chunks
+             if r.get("chunk_type", "text") == "text" and r.get("content", "").strip()]
+    if chunk_strategy != "structure_aware":
+        return texts
+
+    units: list[tuple[str, dict]] = []
+    parts: list[str] = []
+    first: dict | None = None
+    prev = None
+
+    def flush():
+        if first is not None:
+            meta = {k: v for k, v in (first.get("metadata") or {}).items() if k not in _ELEMENT_METADATA_KEYS}
+            units.append(("\n\n".join(parts), {**first, "metadata": meta}))
+
+    for raw in raw_chunks:
+        if raw.get("chunk_type", "text") != "text" or not raw.get("content", "").strip():
+            prev = None  # an atomic chunk ends the run of text elements
+            continue
+        content = raw["content"].strip()
+        if prev is None or raw.get("page") != prev.get("page"):
+            flush()
+            parts, first = [], raw
+        parts.append(f"## {content}" if _is_heading(raw) else content)
+        prev = raw
+    flush()
+    return units
+
+
+def build_index_chunks(raw_chunks: list[dict], doc, chunk_strategies: list[str]) -> tuple[list[dict], dict]:
+    """
+    Turn parser output into the chunks to index for a document.
+
+    Text is split once per chunking strategy (see _text_units) and every piece
+    is tagged chunk_strategy=<strategy>; table, spreadsheet_cell and image
+    chunks are atomic, stored once and tagged chunk_strategy="atomic" (runner
+    retrieves them for every strategy). Returns (chunks, counts per tag), the
+    counts covering every strategy in chunk_strategies plus "atomic".
+    """
+    from app.services.ingestion import chunker as chunker_mod
+
+    common = {
+        "doc_version": doc.version_label,
+        "effective_from": doc.effective_from.isoformat() if doc.effective_from else None,
+        "effective_to": doc.effective_to.isoformat() if doc.effective_to else None,
+        "filename": doc.filename,
+    }
+    chunks: list[dict] = []
+    counts = {name: 0 for name in chunk_strategies}
+    counts[chunker_mod.ATOMIC] = 0
+
+    for chunk_strategy in chunk_strategies:
+        for content, raw in _text_units(raw_chunks, chunk_strategy):
+            for sc in chunker_mod.chunk(content, strategy=chunk_strategy):
+                chunks.append({
+                    "content": sc["content"],
+                    "chunk_type": "text",
+                    "chunk_strategy": chunk_strategy,
+                    "page": raw.get("page"),
+                    "table_id": None,
+                    **common,
+                    "metadata": {**raw.get("metadata", {}), **sc.get("metadata", {})},
+                })
+                counts[chunk_strategy] += 1
+
+    for raw in raw_chunks:
+        chunk_type = raw.get("chunk_type", "text")
+        if chunk_type == "text" or not raw.get("content", "").strip():
+            continue
+        chunks.append({
+            "content": raw["content"],
+            "chunk_type": chunk_type,
+            "chunk_strategy": chunker_mod.ATOMIC,
+            "page": raw.get("page"),
+            "table_id": raw.get("table_id"),
+            **common,
+            "metadata": raw.get("metadata", {}),
+        })
+        counts[chunker_mod.ATOMIC] += 1
+
+    return chunks, counts
+
+
 @celery_app.task(name="app.workers.tasks.ingest_document", bind=True, max_retries=3)
 def ingest_document(self, document_id: str, strategy: str):
     """Parse, chunk, embed, and index a document."""
@@ -245,8 +348,10 @@ def ingest_document(self, document_id: str, strategy: str):
         doc.parse_status = "running"
         db.commit()
 
-        # 1. Ensure Qdrant collection exists
+        # 1. Ensure Qdrant collection exists; read the chunking strategies
+        # before parsing so a bad setting fails before any paid vision call.
         indexer_mod.ensure_collection()
+        chunk_strategies = chunker_mod.parse_strategies(settings.INGEST_CHUNKING_STRATEGIES)
 
         # 2. Parse the document. Vision parsing is paid per page, so its
         # output is cached next to the file and reused by Celery retries
@@ -263,48 +368,14 @@ def ingest_document(self, document_id: str, strategy: str):
             if strategy == "text_table_vision":
                 cache_path.write_text(json.dumps({"chunks": raw_chunks, "report": parse_report}))
 
-        # 3. Chunk text-type chunks; pass through table/spreadsheet chunks as-is
-        all_chunks = []
-        for raw in raw_chunks:
-            chunk_type = raw.get("chunk_type", "text")
-            content = raw.get("content", "")
+        # 3. Chunk text with every configured strategy; table/spreadsheet/image
+        # chunks are atomic and stored once for all strategies.
+        all_chunks, chunks_by_strategy = build_index_chunks(raw_chunks, doc, chunk_strategies)
 
-            if not content.strip():
-                continue
-
-            if chunk_type == "text":
-                # Apply chunking strategy to text chunks
-                chunk_strategy = "recursive"
-                sub_chunks = chunker_mod.chunk(content, strategy=chunk_strategy)
-                for sc in sub_chunks:
-                    enriched = {
-                        "content": sc["content"],
-                        "chunk_type": "text",
-                        "page": raw.get("page"),
-                        "table_id": None,
-                        "doc_version": doc.version_label,
-                        "effective_from": doc.effective_from.isoformat() if doc.effective_from else None,
-                        "effective_to": doc.effective_to.isoformat() if doc.effective_to else None,
-                        "filename": doc.filename,
-                        "metadata": {**raw.get("metadata", {}), **sc.get("metadata", {})},
-                    }
-                    all_chunks.append(enriched)
-            else:
-                # Table, spreadsheet_cell, image chunks are atomic
-                enriched = {
-                    "content": content,
-                    "chunk_type": chunk_type,
-                    "page": raw.get("page"),
-                    "table_id": raw.get("table_id"),
-                    "doc_version": doc.version_label,
-                    "effective_from": doc.effective_from.isoformat() if doc.effective_from else None,
-                    "effective_to": doc.effective_to.isoformat() if doc.effective_to else None,
-                    "filename": doc.filename,
-                    "metadata": raw.get("metadata", {}),
-                }
-                all_chunks.append(enriched)
-
-        # 4. Upsert to Qdrant
+        # 4. Replace this document's chunks in Qdrant. Point ids are random, so
+        # a retry after a partial upsert (or a re-ingest) would otherwise
+        # duplicate chunks; delete first to keep exactly one set.
+        indexer_mod.delete_doc_chunks(document_id)
         if all_chunks:
             indexer_mod.upsert_chunks(all_chunks, doc_id=document_id)
 
@@ -313,22 +384,45 @@ def ingest_document(self, document_id: str, strategy: str):
         doc.doc_metadata = {
             **(doc.doc_metadata or {}),
             "chunks_indexed": len(all_chunks),
+            "chunks_by_strategy": chunks_by_strategy,
+            "chunking_strategies": chunk_strategies,
             "strategy": strategy,
             **parse_report,
         }
         db.commit()
-        return {"document_id": document_id, "chunks_indexed": len(all_chunks)}
+        return {
+            "document_id": document_id,
+            "chunks_indexed": len(all_chunks),
+            "chunks_by_strategy": chunks_by_strategy,
+        }
 
     except Exception as exc:
-        logger.error("Ingestion of document %s failed: %s", document_id, exc)
+        final = _retries_exhausted(self)
+        logger.error(
+            "Ingestion of document %s failed (attempt %d of %d)%s: %s",
+            document_id, self.request.retries + 1, self.max_retries + 1,
+            "" if final else "; retrying", exc,
+        )
         try:
             doc = db.get(Document, document_id)
             if doc:
-                doc.parse_status = "failed"
-                doc.index_status = "failed"
+                # Only report "failed" once no retry is coming; while a retry is
+                # pending the document is still being processed.
+                if final:
+                    doc.parse_status = "failed"
+                    doc.index_status = "failed"
+                else:
+                    doc.parse_status = "running"
+                doc.doc_metadata = {
+                    **(doc.doc_metadata or {}),
+                    "last_error": f"{type(exc).__name__}: {exc}"[:500],
+                    "attempts": self.request.retries + 1,
+                }
                 db.commit()
         except Exception as status_exc:
-            logger.error("Could not mark document %s as failed: %s", document_id, status_exc)
+            logger.error("Could not record ingestion error for document %s: %s", document_id, status_exc)
+        if final:
+            raise exc
         raise self.retry(exc=exc, countdown=2 ** self.request.retries)
     finally:
         db.close()
@@ -341,7 +435,9 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
     """Execute all pipeline runs for an experiment."""
     from app.db.session import get_sync_db
     from app.db.models import Experiment, Run, QueryResult as QueryResultModel
-    from app.services.experiment.runner import BUDGET_EXCEEDED, PipelineConfig, run_pipeline
+    from app.services.experiment.runner import (
+        BUDGET_EXCEEDED, PipelineConfig, chunking_strategy_not_indexed, run_pipeline,
+    )
     from dataclasses import fields
 
     db = get_sync_db()
@@ -366,6 +462,10 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
         ).scalars().all()
 
         run_errors: dict[str, int] = {}
+        # Chunking strategy -> reason it is not indexed (None when it is),
+        # checked once per strategy for the experiment's document scope.
+        not_indexed: dict[str, str | None] = {}
+        not_indexed_runs: dict[str, str] = {}
         for run in runs:
             try:
                 run.status = "running"
@@ -378,6 +478,21 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
                     for k in config_dict
                     if k in {f.name for f in fields(PipelineConfig)}
                 })
+
+                # A strategy with no text chunks indexed would answer from atomic
+                # chunks only; fail the run visibly instead of scoring that.
+                if config.chunking_strategy not in not_indexed:
+                    not_indexed[config.chunking_strategy] = chunking_strategy_not_indexed(
+                        config.chunking_strategy, experiment.document_ids
+                    )
+                reason = not_indexed[config.chunking_strategy]
+                if reason:
+                    run.status = "failed"
+                    run.completed_at = datetime.utcnow()
+                    db.commit()
+                    not_indexed_runs[run.id] = reason
+                    logger.error("Run %s marked failed: %s", run.id, reason)
+                    continue
 
                 # Execute pipeline (stops issuing queries past the cost limit)
                 results = run_pipeline(
@@ -454,6 +569,7 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
             "status": final_status,
             "runs_processed": len(runs),
             "query_errors_by_run": run_errors,
+            "runs_not_indexed": not_indexed_runs,
         }
 
     except Exception as exc:

@@ -291,6 +291,8 @@ class TestRunExperimentStatus:
              patch.object(tasks, "_load_eval_set", return_value=EVAL_SET), \
              patch("app.services.experiment.runner.run_pipeline",
                    return_value=self._results(statuses)), \
+             patch("app.services.experiment.runner.chunking_strategy_not_indexed",
+                   return_value=None), \
              patch.object(tasks.evaluate_run, "delay") as eval_delay:
             out = tasks.run_experiment.run("exp_1", "eval.json")
         return out, run, db, eval_delay

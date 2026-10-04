@@ -76,12 +76,23 @@ def _has_nontext_chunk(result: QueryResult) -> bool:
     )
 
 
+def is_vision_chunk(chunk: dict) -> bool:
+    """
+    Whether a chunk came from GPT-4o vision (charts/diagrams). Retrieved chunks
+    are flat (metadata fields at the top level); a nested metadata.source is
+    also accepted.
+    """
+    nested = chunk.get("metadata")
+    return (
+        chunk.get("chunk_type") == "image"
+        or chunk.get("source") == "gpt4o_vision"
+        or (isinstance(nested, dict) and nested.get("source") == "gpt4o_vision")
+    )
+
+
 def _has_vision_chunk(result: QueryResult) -> bool:
     """Check if any retrieved chunk came from GPT-4o vision (charts/diagrams)."""
-    return any(
-        c.get("chunk_type") == "image" or c.get("metadata", {}).get("source") == "gpt4o_vision"
-        for c in result.retrieved_chunks
-    )
+    return any(is_vision_chunk(c) for c in result.retrieved_chunks)
 
 
 def _has_version_mismatch(result: QueryResult, eval_item: dict) -> bool:

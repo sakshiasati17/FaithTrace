@@ -116,7 +116,10 @@ class TestVectorFilter:
 
     def test_vector_retriever_filter_unchanged_without_scope(self):
         _, _, build_vector = _run(_config("vector_only"), document_ids=None)
-        assert build_vector.call_args.args[2] is None
+        # Only the chunking-strategy condition remains: no doc_id restriction.
+        qdrant_filter = build_vector.call_args.args[2]
+        assert _doc_conditions(qdrant_filter) == []
+        assert qdrant_filter.must == runner._build_chunking_filter("recursive").must
 
     def test_doc_filter_merges_with_freshness_and_chunk_type(self):
         f = runner._build_chunk_type_filter(

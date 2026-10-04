@@ -6,6 +6,7 @@ Dates stored as Unix epoch integers for Qdrant range filter support.
 """
 
 import uuid
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -21,6 +22,8 @@ from qdrant_client.models import (
 from langchain_openai import OpenAIEmbeddings
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Payload key LangChain's Qdrant vector store reads Document.metadata from.
 METADATA_PAYLOAD_KEY = "metadata"
@@ -41,11 +44,21 @@ def ensure_collection() -> None:
     """Create the Qdrant collection if it doesn't exist."""
     client = _get_client()
     existing = [c.name for c in client.get_collections().collections]
-    if settings.QDRANT_COLLECTION not in existing:
+    if settings.QDRANT_COLLECTION in existing:
+        return
+    try:
         client.create_collection(
             collection_name=settings.QDRANT_COLLECTION,
             vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
         )
+    except Exception:
+        # Two ingest workers can race to create the collection; the loser gets
+        # 409 Conflict. That is fine as long as the collection exists now.
+        existing = [c.name for c in client.get_collections().collections]
+        if settings.QDRANT_COLLECTION not in existing:
+            raise
+        logger.info("Collection %s was created concurrently; continuing",
+                    settings.QDRANT_COLLECTION)
 
 
 def _dt_to_epoch(dt_str: Optional[str]) -> Optional[int]:
@@ -88,6 +101,8 @@ def upsert_chunks(chunks: list[dict], doc_id: str) -> None:
             "table_id": chunk.get("table_id"),
             "filename": chunk.get("filename", ""),
             "content": chunk["content"],
+            # Text chunking strategy (or "atomic"); runner filters on it.
+            "chunk_strategy": chunk.get("chunk_strategy"),
             # Store dates as epoch integers for range filtering
             "effective_from": _dt_to_epoch(chunk.get("effective_from")),
             "effective_to": _dt_to_epoch(chunk.get("effective_to")),
