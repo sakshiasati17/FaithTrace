@@ -21,6 +21,7 @@ langchain-text-splitters==0.2.4
 langgraph==0.1.19
 openai==1.37.1
 rank-bm25==0.2.2
+sentence-transformers==6.1.0  # cross-encoder reranker (hybrid_reranker)
 
 # Evaluation
 ragas==0.1.14

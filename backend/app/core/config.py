@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
 
+    # Cross-encoder used by the hybrid_reranker retrieval strategy (downloaded from
+    # Hugging Face on first use, then cached per process)
+    RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
     # OpenAI spend guard — max cost per experiment run (USD)
     MAX_COST_PER_RUN_USD: float = 5.0
 
