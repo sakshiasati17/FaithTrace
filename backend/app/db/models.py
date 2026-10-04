@@ -28,6 +28,19 @@ class Document(Base):
     doc_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+class EvalSet(Base):
+    __tablename__ = "eval_sets"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True, default="", server_default="")
+    source: Mapped[str] = mapped_column(String, nullable=False, default="upload", server_default="upload")  # upload | builtin
+    filename: Mapped[str | None] = mapped_column(String, nullable=True)
+    items: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    item_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class Experiment(Base):
     __tablename__ = "experiments"
 
@@ -37,6 +50,10 @@ class Experiment(Base):
     status: Mapped[str] = mapped_column(String, default="pending")  # pending, running, done, failed
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Eval set the experiment runs against: an uploaded set (preferred) or a
+    # built-in file under eval_sets/ (legacy). Both null on pre-005 rows.
+    eval_set_id: Mapped[str | None] = mapped_column(String, ForeignKey("eval_sets.id"), nullable=True)
+    eval_set_path: Mapped[str | None] = mapped_column(String, nullable=True)
 
     runs: Mapped[list["Run"]] = relationship("Run", back_populates="experiment")
 
