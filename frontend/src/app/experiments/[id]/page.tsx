@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { ErrorState } from "@/components/ui/ErrorState";
 import Link from "next/link";
 import { experimentsApi, evaluationApi } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -25,13 +26,18 @@ function ConfigPill({ label, value }: { label: string; value: string }) {
 export default function ExperimentDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
 
-  const { data: exp, isLoading } = useQuery<Experiment>({
+  const { data: exp, isLoading, isError, error, refetch } = useQuery<Experiment>({
     queryKey: ["experiment", id],
     queryFn: () => experimentsApi.get(id),
     refetchInterval: (query) => experimentRefetchInterval(query.state.data),
   });
 
-  const { data: leaderboard } = useQuery({
+  const {
+    data: leaderboard,
+    isError: leaderboardError,
+    error: leaderboardErr,
+    refetch: refetchLeaderboard,
+  } = useQuery({
     queryKey: ["leaderboard", id],
     queryFn: () => evaluationApi.getLeaderboard(id),
     enabled: exp?.status === "done",
@@ -41,6 +47,15 @@ export default function ExperimentDetailPage({ params }: { params: { id: string 
     return (
       <div className="max-w-6xl mx-auto px-8 py-10">
         <div className="py-20 text-center text-sm text-zinc-600">Loading experiment…</div>
+      </div>
+    );
+  }
+
+  // A failed request is not "not found": show the error and allow a retry.
+  if (isError && !exp) {
+    return (
+      <div className="max-w-6xl mx-auto px-8 py-10">
+        <ErrorState title="Failed to load experiment" error={error} onRetry={() => refetch()} />
       </div>
     );
   }
@@ -101,6 +116,15 @@ export default function ExperimentDetailPage({ params }: { params: { id: string 
             <MetricCard label="Latency p50" value={leaderboard[0].metrics?.latency_p50_ms} unit="ms" lowerIsBetter />
           </div>
         </div>
+      )}
+
+      {leaderboardError && (
+        <ErrorState
+          className="mb-6"
+          title="Failed to load run metrics"
+          error={leaderboardErr}
+          onRetry={() => refetchLeaderboard()}
+        />
       )}
 
       {/* Runs table */}

@@ -10,6 +10,7 @@ Strategy:
 """
 
 import logging
+import math
 from enum import Enum
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -34,7 +35,9 @@ class FailureCategory(str, Enum):
 @dataclass
 class DiagnosisResult:
     query_id: str
-    primary_failure: FailureCategory
+    # None when the query could not be diagnosed (key metrics unscored and no
+    # metric-free rule fired); evidence then has {"skipped": "not scored"}.
+    primary_failure: FailureCategory | None
     secondary_failures: list[FailureCategory] = field(default_factory=list)
     confidence: float = 0.7
     evidence: dict = field(default_factory=dict)
@@ -48,6 +51,10 @@ def _has_temporal_violation(result: QueryResult, eval_item: dict) -> bool:
     try:
         query_epoch = int(datetime.fromisoformat(valid_from_str).timestamp())
     except (ValueError, TypeError):
+        logger.warning(
+            "Query %s: unparseable valid_from %r; temporal rule not checked",
+            result.query_id, valid_from_str,
+        )
         return False
 
     for chunk in result.retrieved_chunks:
@@ -89,19 +96,45 @@ def _has_version_mismatch(result: QueryResult, eval_item: dict) -> bool:
     return False
 
 
+# Ragas metrics the metric-based rules read. A query missing any of these
+# cannot be labelled NO_FAILURE.
+KEY_METRICS = ("faithfulness", "context_recall", "context_precision", "answer_correctness")
+
+
+def _metric_or_none(metrics: dict, key: str) -> float | None:
+    """A finite metric value, or None when it is missing/unscored (never a default)."""
+    value = metrics.get(key)
+    if value is None:
+        return None
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
+
+
+def missing_key_metrics(metrics: dict) -> list[str]:
+    """The KEY_METRICS that have no usable score in ``metrics``."""
+    return [k for k in KEY_METRICS if _metric_or_none(metrics, k) is None]
+
+
 def _heuristic_diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisResult:
-    """Deterministic heuristic classifier (fallback when ML model not trained)."""
-    _f = metrics.get("faithfulness")
-    faithfulness = 1.0 if _f is None else float(_f)
-    _cr = metrics.get("context_recall")
-    context_recall = 1.0 if _cr is None else float(_cr)
-    _cp = metrics.get("context_precision")
-    context_precision = 1.0 if _cp is None else float(_cp)
-    _ac = metrics.get("answer_correctness")
-    answer_correctness = 1.0 if _ac is None else float(_ac)
+    """
+    Deterministic heuristic classifier (fallback when ML model not trained).
+
+    Rules are checked in priority order. The temporal/version/modality rules
+    do not need metrics. A metric rule whose metric is unscored cannot be
+    decided, so checking stops there: lower-priority rules (and NO_FAILURE)
+    would be guesses. If no rule fired, ``primary_failure`` is None and the
+    evidence says ``{"skipped": "not scored"}``.
+    """
+    faithfulness = _metric_or_none(metrics, "faithfulness")
+    context_recall = _metric_or_none(metrics, "context_recall")
+    context_precision = _metric_or_none(metrics, "context_precision")
+    answer_correctness = _metric_or_none(metrics, "answer_correctness")
     modality = eval_item.get("modality", "text")
 
-    primary = FailureCategory.NO_FAILURE
+    primary: FailureCategory | None = None
     secondary = []
     evidence = {
         "faithfulness": faithfulness,
@@ -136,26 +169,46 @@ def _heuristic_diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> 
         primary = FailureCategory.TABLE_RETRIEVAL_MISS
         evidence["no_nontext_chunk_retrieved"] = True
 
+    elif context_recall is None:
+        pass  # undecidable
+
     elif context_recall < 0.3:
         primary = FailureCategory.LOW_RECALL_RETRIEVAL
-        if faithfulness < 0.4:
+        if faithfulness is not None and faithfulness < 0.4:
             secondary.append(FailureCategory.UNSUPPORTED_SYNTHESIS)
+
+    elif faithfulness is None:
+        pass  # undecidable
 
     elif faithfulness < 0.4:
         primary = FailureCategory.UNSUPPORTED_SYNTHESIS
-        if context_precision < 0.3:
+        if context_precision is not None and context_precision < 0.3:
             secondary.append(FailureCategory.IRRELEVANT_CONTEXT_POLLUTION)
+
+    elif context_precision is None:
+        pass  # undecidable
 
     elif context_precision < 0.3 and faithfulness > 0.5:
         primary = FailureCategory.IRRELEVANT_CONTEXT_POLLUTION
+
+    elif answer_correctness is None:
+        pass  # undecidable
 
     elif answer_correctness < 0.4 and context_recall > 0.5:
         # Content was retrieved but answer is wrong → likely boundary/synthesis issue
         primary = FailureCategory.CHUNKING_BOUNDARY_ERROR
 
+    else:
+        primary = FailureCategory.NO_FAILURE
+
     evidence["chunks_retrieved"] = len(result.retrieved_chunks)
     evidence["has_nontext_chunk"] = has_nontext
     evidence["has_vision_chunk"] = has_vision
+    missing = missing_key_metrics(metrics)
+    if missing:
+        evidence["missing_metrics"] = missing
+    if primary is None:
+        evidence["skipped"] = "not scored"
 
     return DiagnosisResult(
         query_id=result.query_id,
@@ -182,34 +235,43 @@ def diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisRe
         DiagnosisResult with primary/secondary failure categories and confidence
     """
     # --- Try ML classifier first ---
-    try:
-        from app.services.diagnostics.ml_classifier import predict as ml_predict
-        ml_result = ml_predict(metrics, result.retrieved_chunks, eval_item)
-        if ml_result is not None:
-            primary_failure, confidence = ml_result
-            # Build lightweight evidence dict for ML path
-            evidence = {
-                "faithfulness": metrics.get("faithfulness"),
-                "context_recall": metrics.get("context_recall"),
-                "context_precision": metrics.get("context_precision"),
-                "answer_correctness": metrics.get("answer_correctness"),
-                "modality": eval_item.get("modality", "text"),
-                "chunks_retrieved": len(result.retrieved_chunks),
-                "classifier": "xgboost",
-            }
-            logger.debug(
-                "ML classifier: query=%s → %s (conf=%.2f)",
-                result.query_id, primary_failure, confidence,
-            )
-            return DiagnosisResult(
-                query_id=result.query_id,
-                primary_failure=primary_failure,
-                secondary_failures=[],
-                confidence=confidence,
-                evidence=evidence,
-            )
-    except Exception as exc:
-        logger.warning("ML classifier error, falling back to heuristics: %s", exc)
+    # The ML features treat a missing metric as 0.0, so only use it when the
+    # key metrics were actually scored.
+    missing = missing_key_metrics(metrics)
+    if missing:
+        logger.info(
+            "Query %s: metrics not scored (%s); using metric-free rules only",
+            result.query_id, ", ".join(missing),
+        )
+    else:
+        try:
+            from app.services.diagnostics.ml_classifier import predict as ml_predict
+            ml_result = ml_predict(metrics, result.retrieved_chunks, eval_item)
+            if ml_result is not None:
+                primary_failure, confidence = ml_result
+                # Build lightweight evidence dict for ML path
+                evidence = {
+                    "faithfulness": metrics.get("faithfulness"),
+                    "context_recall": metrics.get("context_recall"),
+                    "context_precision": metrics.get("context_precision"),
+                    "answer_correctness": metrics.get("answer_correctness"),
+                    "modality": eval_item.get("modality", "text"),
+                    "chunks_retrieved": len(result.retrieved_chunks),
+                    "classifier": "xgboost",
+                }
+                logger.debug(
+                    "ML classifier: query=%s → %s (conf=%.2f)",
+                    result.query_id, primary_failure, confidence,
+                )
+                return DiagnosisResult(
+                    query_id=result.query_id,
+                    primary_failure=primary_failure,
+                    secondary_failures=[],
+                    confidence=confidence,
+                    evidence=evidence,
+                )
+        except Exception as exc:
+            logger.warning("ML classifier error, falling back to heuristics: %s", exc)
 
     # --- Fall back to heuristic classifier ---
     heuristic = _heuristic_diagnose(result, eval_item, metrics)

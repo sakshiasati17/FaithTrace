@@ -105,8 +105,11 @@ class RecommendationResponse(BaseModel):
     objective: str
     best_config: dict
     run_id: str
-    score: float
+    # None when status is not "ok" (no run could be recommended).
+    score: Optional[float] = None
     rationale: str
+    # "ok" | "no_eligible_runs" | "error"
+    status: str = "ok"
 
 
 class LeaderboardEntry(BaseModel):

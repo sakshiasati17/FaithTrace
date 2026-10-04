@@ -147,7 +147,15 @@ async def get_failure_summary(experiment_id: str, db: AsyncSession = Depends(get
         .where(QueryResult.run_id.in_(run_ids), or_(QueryResult.status.is_(None), ~is_errored))
         .group_by(QueryResult.failure_category)
     )
-    counts = {row[0] or "NO_FAILURE": row[1] for row in counts_result.all()}
+    # A NULL category on a non-errored row means it was not diagnosed (metrics
+    # not scored, or diagnosis not run yet): report it apart, not as NO_FAILURE.
+    counts = {}
+    undiagnosed = 0
+    for category, count in counts_result.all():
+        if category is None:
+            undiagnosed += count
+        else:
+            counts[category] = count
 
     # Total queries
     total_result = await db.execute(
@@ -165,6 +173,7 @@ async def get_failure_summary(experiment_id: str, db: AsyncSession = Depends(get
         "failure_counts": counts,
         "total_queries": total,
         "errored_queries": errored,
+        "undiagnosed_queries": undiagnosed,
         "run_count": len(run_ids),
     }
 

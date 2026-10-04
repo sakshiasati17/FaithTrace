@@ -68,6 +68,7 @@ async def get_recommendations(experiment_id: str, db: AsyncSession = Depends(get
             run_id=rec.run_id,
             score=rec.score,
             rationale=rec.rationale,
+            status=rec.status,
         )
         for rec in recommendations
     ]
@@ -88,15 +89,18 @@ async def explain_recommendation(run_id: str, db: AsyncSession = Depends(get_db)
     run, metrics = row
     config = run.config
 
+    def fmt(value, spec: str) -> str:
+        return "n/a" if value is None else format(value, spec)
+
     rationale = (
         f"Configuration: retrieval={config.get('retrieval_strategy')}, "
         f"chunking={config.get('chunking_strategy')}, "
         f"parsing={config.get('parsing_strategy')}, "
         f"freshness={config.get('freshness_policy')}. "
-        f"Key metrics: faithfulness={metrics.faithfulness:.3f}, "
-        f"context_recall={metrics.context_recall:.3f}, "
-        f"latency_p50={metrics.latency_p50_ms:.0f}ms, "
-        f"cost=${metrics.avg_cost_usd:.4f}/query."
+        f"Key metrics: faithfulness={fmt(metrics.faithfulness, '.3f')}, "
+        f"context_recall={fmt(metrics.context_recall, '.3f')}, "
+        f"latency_p50={fmt(metrics.latency_p50_ms, '.0f')}ms, "
+        f"cost=${fmt(metrics.avg_cost_usd, '.4f')}/query."
     )
 
     return {"run_id": run_id, "rationale": rationale, "config": config}
