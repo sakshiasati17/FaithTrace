@@ -76,5 +76,5 @@ New DB columns/tables need an Alembic migration in `backend/alembic/versions` (n
     - `DELETE /corpus/{id}` returns 503 and keeps the row if Qdrant chunk deletion fails (no orphaned chunks).
     - Feedback `correct_label` must be a `FailureCategory` (or null); feedback on errored queries is 422.
     - Reasoning agent marks unparseable output `parse_error` (not cached, retried), confidence defaults to `None`; `/reason` rejects errored queries, sends `UNDIAGNOSED` for undiagnosed ones, tolerates duplicate query ids.
-    - `train_failure_classifier` labels: feedback > eval-set `failure_type` (UNANSWERABLE skipped) > classifier; result reports `label_sources` and `dominant_label_source`.
+    - `train_failure_classifier` labels: feedback > eval-set `failure_type` (only to name a failure the classifier observed; a run judged NO_FAILURE stays NO_FAILURE; UNANSWERABLE skipped) > classifier; result reports `label_sources` and `dominant_label_source`.
     - Leaderboard returns 422 for an unknown `sort_by`.

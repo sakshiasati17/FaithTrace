@@ -367,6 +367,20 @@ class TestResolveTrainingLabel:
         assert self._resolve(_fb(correct_label="BOGUS"), {}, "STALE_ANSWER") \
             == ("STALE_ANSWER", "classifier")
 
+    def test_eval_set_does_not_relabel_a_successful_run(self):
+        # failure_type is what the question probes, not what happened: a run the
+        # classifier judged NO_FAILURE stays NO_FAILURE.
+        assert self._resolve(None, {"failure_type": "WRONG_VERSION"}, "NO_FAILURE") \
+            == ("NO_FAILURE", "classifier")
+
+    def test_eval_set_no_failure_does_not_hide_an_observed_failure(self):
+        assert self._resolve(None, {"failure_type": "NO_FAILURE"}, "STALE_ANSWER") \
+            == ("STALE_ANSWER", "classifier")
+
+    def test_eval_set_ignored_when_run_undiagnosed(self):
+        assert self._resolve(None, {"failure_type": "WRONG_VERSION"}, None) \
+            == (None, "skipped_no_label")
+
     def test_unanswerable_skipped(self):
         assert self._resolve(None, {"failure_type": "UNANSWERABLE"}, "LOW_RECALL_RETRIEVAL") \
             == (None, "skipped_unanswerable")
