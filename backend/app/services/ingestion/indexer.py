@@ -22,6 +22,9 @@ from langchain_openai import OpenAIEmbeddings
 
 from app.core.config import settings
 
+# Payload key LangChain's Qdrant vector store reads Document.metadata from.
+METADATA_PAYLOAD_KEY = "metadata"
+
 
 def _get_client() -> QdrantClient:
     return QdrantClient(url=settings.QDRANT_URL)
@@ -94,6 +97,11 @@ def upsert_chunks(chunks: list[dict], doc_id: str) -> None:
             for k, v in chunk["metadata"].items():
                 if k not in payload:
                     payload[k] = v
+        # LangChain's Qdrant vector store builds Document.metadata from the
+        # payload's "metadata" key only, so keep a copy of the fields there;
+        # without it vector-retrieved chunks lose chunk_type, doc_version,
+        # source, etc. The top-level keys stay for Qdrant filters.
+        payload[METADATA_PAYLOAD_KEY] = {k: v for k, v in payload.items() if k != "content"}
 
         points.append(
             PointStruct(
@@ -149,7 +157,8 @@ def fetch_all_chunks(doc_ids: Optional[list[str]] = None) -> list[dict]:
             with_vectors=False,
         )
         for r in records:
-            results.append(r.payload)
+            # Drop the nested copy for LangChain; callers use the top-level keys.
+            results.append({k: v for k, v in (r.payload or {}).items() if k != METADATA_PAYLOAD_KEY})
         if next_offset is None:
             break
         offset = next_offset
