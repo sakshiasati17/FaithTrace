@@ -133,6 +133,8 @@ class _Worker:
                          side_effect=lambda run_id, *a: self.diagnose_queue.append(run_id)),
             patch("app.services.evaluation.ragas_runner.run_ragas_evaluation",
                   side_effect=lambda results, eval_set: [GOOD_METRICS] * len(results)),
+            # No Qdrant in tests: every chunking strategy counts as indexed.
+            patch("app.services.experiment.runner.chunking_strategy_not_indexed", return_value=None),
         ]
 
     def _call(self, fn, *args, pipeline=None):

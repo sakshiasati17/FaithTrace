@@ -88,6 +88,8 @@ def upsert_chunks(chunks: list[dict], doc_id: str) -> None:
             "table_id": chunk.get("table_id"),
             "filename": chunk.get("filename", ""),
             "content": chunk["content"],
+            # Text chunking strategy (or "atomic"); runner filters on it.
+            "chunk_strategy": chunk.get("chunk_strategy"),
             # Store dates as epoch integers for range filtering
             "effective_from": _dt_to_epoch(chunk.get("effective_from")),
             "effective_to": _dt_to_epoch(chunk.get("effective_to")),

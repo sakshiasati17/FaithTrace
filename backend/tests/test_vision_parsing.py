@@ -364,7 +364,11 @@ class TestIngestDocument:
 
         result, upsert, _ = self._run(doc, [text, image], stats)
 
-        assert result["chunks_indexed"] == 2
+        # The short text is one chunk per default chunking strategy; the image once.
+        assert result["chunks_indexed"] == 4
+        assert result["chunks_by_strategy"] == {
+            "fixed_size": 1, "recursive": 1, "structure_aware": 1, "atomic": 1,
+        }
         indexed = upsert.call_args.args[0]
         img = next(c for c in indexed if c["chunk_type"] == "image")
         assert img["content"] == CHART_TEXT  # atomic, not re-chunked

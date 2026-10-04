@@ -103,6 +103,13 @@ _ALLOWED_CHUNK_TYPES: dict[str, tuple[str, ...]] = {
     "spreadsheet_aware": ("spreadsheet_cell", "text"),
 }
 
+# chunk_strategy payload tags (see ingestion/chunker.py): text chunks carry the
+# chunking strategy they were split with; table/image/spreadsheet chunks are
+# "atomic" and serve every strategy. Chunks indexed before tagging have no
+# chunk_strategy: their text was chunked recursive.
+_ATOMIC_CHUNK_STRATEGY = "atomic"
+_LEGACY_CHUNK_STRATEGY = "recursive"
+
 # Freshness policies that restrict chunks to those effective on the query date.
 _DATE_FILTERED_POLICIES = ("effective_date_filter", "version_aware")
 
@@ -128,25 +135,48 @@ def _query_epoch(freshness_policy: str, eval_item: dict) -> Optional[int]:
         return None
 
 
+def _chunk_strategy_matches(payload: dict, chunking_strategy: Optional[str]) -> bool:
+    """
+    Whether a chunk belongs to the chunking strategy's chunk set (always True
+    for chunking_strategy None). Mirrors _build_chunking_filter:
+
+    - chunk_strategy == chunking_strategy, or chunk_strategy == "atomic"
+    - untagged (legacy) chunks: text counts as recursive; any other chunk
+      type was never split, so it serves every strategy
+    """
+    if chunking_strategy is None:
+        return True
+    tag = payload.get("chunk_strategy")
+    if tag in (None, []):  # missing/null/empty, as Qdrant's IsEmpty
+        return chunking_strategy == _LEGACY_CHUNK_STRATEGY or payload.get("chunk_type") != "text"
+    return tag in (chunking_strategy, _ATOMIC_CHUNK_STRATEGY)
+
+
 def chunk_passes_filters(
     payload: dict,
     parsing_strategy: str,
     freshness_policy: str,
     eval_item: dict,
     document_ids: Optional[list[str]] = None,
+    chunking_strategy: Optional[str] = None,
 ) -> bool:
     """
     Whether a chunk payload passes the retrieval filters for this config and
     question. Mirrors the Qdrant filter built by _build_document_filter +
-    _build_freshness_filter + _build_chunk_type_filter:
+    _build_freshness_filter + _build_chunk_type_filter + _build_chunking_filter:
 
     - doc_id must be in document_ids, unless document_ids is None (all documents)
+    - the chunk must be in chunking_strategy's chunk set, unless it is None
+      (see _chunk_strategy_matches)
     - chunk_type must be in _allowed_chunk_types(parsing_strategy), if restricted
     - under effective_date_filter / version_aware with a valid query date:
       effective_from <= query date (a missing effective_from does not match,
       as in a Qdrant range condition) and effective_to is null or >= query date
     """
     if document_ids is not None and payload.get("doc_id") not in document_ids:
+        return False
+
+    if not _chunk_strategy_matches(payload, chunking_strategy):
         return False
 
     allowed = _allowed_chunk_types(parsing_strategy)
@@ -189,6 +219,41 @@ def _build_chunk_type_filter(parsing_strategy: str, existing_filter=None):
     return Filter(must=list(existing_filter.must or []) + list(chunk_filter.must or []))
 
 
+def _chunking_condition(chunking_strategy: str):
+    """Qdrant condition selecting chunking_strategy's chunk set (see _chunk_strategy_matches)."""
+    from qdrant_client.models import (
+        Filter, FieldCondition, MatchValue, IsEmptyCondition, PayloadField,
+    )
+
+    untagged = IsEmptyCondition(is_empty=PayloadField(key="chunk_strategy"))
+    should = [
+        FieldCondition(key="chunk_strategy", match=MatchValue(value=chunking_strategy)),
+        FieldCondition(key="chunk_strategy", match=MatchValue(value=_ATOMIC_CHUNK_STRATEGY)),
+        # Untagged non-text chunks were never split: every strategy uses them.
+        Filter(must=[untagged], must_not=[FieldCondition(key="chunk_type", match=MatchValue(value="text"))]),
+    ]
+    if chunking_strategy == _LEGACY_CHUNK_STRATEGY:
+        should.append(untagged)  # untagged text chunks were chunked recursive
+    return Filter(should=should)
+
+
+def _build_chunking_filter(chunking_strategy: Optional[str], existing_filter=None):
+    """
+    Restrict retrieval to the chunks of one chunking strategy, plus atomic
+    chunks. None means no restriction.
+    """
+    from qdrant_client.models import Filter
+
+    if chunking_strategy is None:
+        return existing_filter
+
+    condition = _chunking_condition(chunking_strategy)
+    if existing_filter is None:
+        return Filter(must=[condition])
+    # Merge: both filters must hold
+    return Filter(must=list(existing_filter.must or []) + [condition])
+
+
 def _build_document_filter(document_ids: Optional[list[str]], existing_filter=None):
     """
     Restrict retrieval to chunks whose payload doc_id is in document_ids.
@@ -206,6 +271,50 @@ def _build_document_filter(document_ids: Optional[list[str]], existing_filter=No
         return doc_filter
     # Merge: both filters must hold
     return Filter(must=list(existing_filter.must or []) + list(doc_filter.must or []))
+
+
+def _has_text_chunk(client, qdrant_filter) -> bool:
+    """Whether any text chunk matches qdrant_filter (one scroll of at most 1 point)."""
+    from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+    text_only = FieldCondition(key="chunk_type", match=MatchValue(value="text"))
+    must = [text_only] + (list(qdrant_filter.must or []) if qdrant_filter is not None else [])
+    records, _ = client.scroll(
+        collection_name=settings.QDRANT_COLLECTION,
+        scroll_filter=Filter(must=must),
+        limit=1,
+        with_payload=False,
+        with_vectors=False,
+    )
+    return bool(records)
+
+
+def chunking_strategy_not_indexed(
+    chunking_strategy: str,
+    document_ids: Optional[list[str]] = None,
+    client=None,
+) -> Optional[str]:
+    """
+    Why a run with this chunking strategy cannot be run as configured, or None.
+
+    Returns a reason when the documents in scope (document_ids, None = all)
+    have text chunks, but none chunked with chunking_strategy: the run would
+    otherwise answer from atomic chunks only and look like a weak strategy.
+    Scopes with no text chunks at all (e.g. only spreadsheets) return None.
+    """
+    if client is None:
+        from qdrant_client import QdrantClient
+        client = QdrantClient(url=settings.QDRANT_URL)
+
+    scope = _build_document_filter(document_ids)
+    if _has_text_chunk(client, _build_chunking_filter(chunking_strategy, scope)):
+        return None
+    if not _has_text_chunk(client, scope):
+        return None
+    return (
+        f"chunking strategy {chunking_strategy!r} not indexed; "
+        "set INGEST_CHUNKING_STRATEGIES and reindex"
+    )
 
 
 def _build_vector_retriever(embedding_model: str, top_k: int, qdrant_filter=None, parsing_strategy: str = "text_table"):
@@ -264,10 +373,12 @@ def _build_bm25_retriever(
     eval_item: dict,
     cache: dict,
     document_ids: Optional[list[str]] = None,
+    chunking_strategy: Optional[str] = None,
 ):
     """
     Build a BM25 retriever over the chunks that pass the same document,
-    chunk-type and freshness filters as the vector path (chunk_passes_filters).
+    chunking, chunk-type and freshness filters as the vector path
+    (chunk_passes_filters).
 
     `cache` lives for one run_pipeline call: the corpus is fetched from Qdrant
     once, and a retriever is built once per distinct query date (the only
@@ -289,7 +400,8 @@ def _build_bm25_retriever(
         docs = [
             d for d in corpus
             if chunk_passes_filters(
-                d.metadata, parsing_strategy, freshness_policy, eval_item, document_ids
+                d.metadata, parsing_strategy, freshness_policy, eval_item, document_ids,
+                chunking_strategy,
             )
         ]
         retrievers[key] = BM25Retriever.from_documents(docs, k=top_k) if docs else None
@@ -467,9 +579,12 @@ def run_pipeline(
         error_message = None
 
         try:
-            # Build document + freshness filter for this eval item
-            qdrant_filter = _build_document_filter(
-                document_ids, _build_freshness_filter(config.freshness_policy, eval_item)
+            # Build chunking + document + freshness filter for this eval item
+            qdrant_filter = _build_chunking_filter(
+                config.chunking_strategy,
+                _build_document_filter(
+                    document_ids, _build_freshness_filter(config.freshness_policy, eval_item)
+                ),
             )
 
             # Build retriever
@@ -483,7 +598,7 @@ def run_pipeline(
             elif config.retrieval_strategy == "bm25":
                 bm25 = _build_bm25_retriever(
                     config.top_k, config.parsing_strategy, config.freshness_policy,
-                    eval_item, bm25_cache, document_ids,
+                    eval_item, bm25_cache, document_ids, config.chunking_strategy,
                 )
                 if bm25:
                     lc_docs = _copy_docs(bm25.invoke(question))
@@ -499,7 +614,7 @@ def run_pipeline(
                 )
                 bm25_ret = _build_bm25_retriever(
                     config.top_k, config.parsing_strategy, config.freshness_policy,
-                    eval_item, bm25_cache, document_ids,
+                    eval_item, bm25_cache, document_ids, config.chunking_strategy,
                 )
 
                 if bm25_ret:
