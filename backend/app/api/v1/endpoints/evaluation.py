@@ -26,9 +26,18 @@ async def trigger_evaluate_run(run_id: str, db: AsyncSession = Depends(get_db)):
     if run.status != "done":
         raise HTTPException(status_code=400, detail=f"Run status is '{run.status}', must be 'done'")
 
+    # Re-score against the run's own experiment eval set, not a global default.
+    experiment = await db.get(Experiment, run.experiment_id)
+    eval_set_id = experiment.eval_set_id if experiment else None
+    eval_set_path = experiment.eval_set_path if experiment else None
+
     from app.workers.tasks import evaluate_run
-    evaluate_run.delay(run_id)
-    return {"message": f"Evaluation enqueued for run {run_id}"}
+    evaluate_run.delay(run_id, eval_set_path)
+    return {
+        "message": f"Evaluation enqueued for run {run_id}",
+        "eval_set_id": eval_set_id,
+        "eval_set_path": eval_set_path,
+    }
 
 
 @router.get("/run/{run_id}/metrics", response_model=RunMetricsResponse)
