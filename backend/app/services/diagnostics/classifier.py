@@ -217,13 +217,68 @@ def diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> DiagnosisRe
     return heuristic
 
 
+def eval_item_id(item: dict) -> str | None:
+    """Return an eval item's identifier. Eval sets use "id"; "query_id" is accepted as a fallback."""
+    return item.get("id") or item.get("query_id")
+
+
+def index_eval_set(eval_set: list[dict]) -> dict[str, dict]:
+    """Map eval item id -> eval item. Items without an id are skipped."""
+    return {
+        item_id: item
+        for item in eval_set
+        if (item_id := eval_item_id(item))
+    }
+
+
 def diagnose_run(
     results: list[QueryResult],
     eval_set: list[dict],
     run_metrics: list[dict],
 ) -> list[DiagnosisResult]:
-    """Diagnose all queries in a run."""
-    return [
-        diagnose(result, eval_item, metric)
-        for result, eval_item, metric in zip(results, eval_set, run_metrics)
-    ]
+    """
+    Diagnose all queries in a run.
+
+    Each result is matched to its eval item by ``result.query_id`` == eval item id
+    (a missing item yields an empty dict). ``run_metrics`` is aligned with
+    ``results`` by position (it is produced from ``results`` in order); missing
+    entries are treated as empty metrics.
+    """
+    eval_by_id = index_eval_set(eval_set)
+    diagnoses = []
+    for i, result in enumerate(results):
+        eval_item = eval_by_id.get(result.query_id, {})
+        metric = run_metrics[i] if i < len(run_metrics) else {}
+        diagnoses.append(diagnose(result, eval_item, metric or {}))
+    return diagnoses
+
+
+def compute_diagnostic_accuracy(
+    predictions: dict[str, str | None],
+    eval_set: list[dict],
+) -> float | None:
+    """
+    Root-cause diagnostic accuracy: the fraction of labelled eval items whose
+    predicted failure category matches the ground-truth ``failure_type``.
+
+    Args:
+        predictions: query_id -> predicted failure category (e.g. the stored
+            ``QueryResult.failure_category``)
+        eval_set: eval items; only those with a ``failure_type`` label count
+
+    Returns:
+        Accuracy in [0, 1], or None when no predicted query has a label.
+    """
+    eval_by_id = index_eval_set(eval_set)
+    labelled = 0
+    correct = 0
+    for query_id, predicted in predictions.items():
+        gt_label = eval_by_id.get(query_id, {}).get("failure_type")
+        if not gt_label:
+            continue
+        labelled += 1
+        if predicted == gt_label:
+            correct += 1
+    if labelled == 0:
+        return None
+    return correct / labelled
