@@ -174,7 +174,8 @@ export interface DiagnosticReasoning {
   root_cause: string;
   fix_suggestion: string;
   stakeholder_summary: string;
-  confidence: number;
+  confidence: number | null;  // null when the model gave none
+  parse_error?: boolean;      // model output was not valid JSON; not cached server-side
 }
 
 export interface QueryDiagnosis {

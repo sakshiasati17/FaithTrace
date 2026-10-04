@@ -83,7 +83,8 @@ class TestBaselineComparison:
     def test_baseline_config_is_naive(self):
         from app.services.evaluation.baseline import BASELINE_CONFIG
         assert BASELINE_CONFIG.retrieval_strategy == "vector_only"
-        assert BASELINE_CONFIG.chunking_strategy == "fixed_size"
+        # recursive: the MVP preset has no fixed_size configs (see test_api_integrity)
+        assert BASELINE_CONFIG.chunking_strategy == "recursive"
         assert BASELINE_CONFIG.parsing_strategy == "text_only"
         assert BASELINE_CONFIG.freshness_policy == "none"
         assert BASELINE_CONFIG.reranker_enabled is False
@@ -92,13 +93,19 @@ class TestBaselineComparison:
         from app.services.evaluation.baseline import is_baseline_config
         assert is_baseline_config({
             "retrieval_strategy": "vector_only",
+            "chunking_strategy": "recursive",
+            "parsing_strategy": "text_only",
+            "freshness_policy": "none",
+        })
+        assert not is_baseline_config({
+            "retrieval_strategy": "vector_only",
             "chunking_strategy": "fixed_size",
             "parsing_strategy": "text_only",
             "freshness_policy": "none",
         })
         assert not is_baseline_config({
             "retrieval_strategy": "hybrid",
-            "chunking_strategy": "fixed_size",
+            "chunking_strategy": "recursive",
             "parsing_strategy": "text_only",
             "freshness_policy": "none",
         })
@@ -136,7 +143,7 @@ class TestBaselineComparison:
         from app.services.evaluation.baseline import compare_run_to_baseline
         runs = [
             {"run_id": "baseline", "config": {
-                "retrieval_strategy": "vector_only", "chunking_strategy": "fixed_size",
+                "retrieval_strategy": "vector_only", "chunking_strategy": "recursive",
                 "parsing_strategy": "text_only", "freshness_policy": "none"},
              "metrics": {"faithfulness": 0.5, "answer_correctness": 0.4,
                          "context_recall": 0.4, "context_precision": 0.4,

@@ -590,7 +590,7 @@ class TestBaselineOverallScore:
     def test_missing_metrics_do_not_count_as_zero(self):
         from app.services.evaluation.baseline import compare_run_to_baseline
 
-        baseline_cfg = {"retrieval_strategy": "vector_only", "chunking_strategy": "fixed_size",
+        baseline_cfg = {"retrieval_strategy": "vector_only", "chunking_strategy": "recursive",
                         "parsing_strategy": "text_only", "freshness_policy": "none"}
         runs = [
             {"run_id": "base", "config": baseline_cfg,
@@ -608,7 +608,7 @@ class TestBaselineOverallScore:
     def test_no_scored_comparison_run_is_an_error(self):
         from app.services.evaluation.baseline import compare_run_to_baseline
 
-        baseline_cfg = {"retrieval_strategy": "vector_only", "chunking_strategy": "fixed_size",
+        baseline_cfg = {"retrieval_strategy": "vector_only", "chunking_strategy": "recursive",
                         "parsing_strategy": "text_only", "freshness_policy": "none"}
         runs = [
             {"run_id": "base", "config": baseline_cfg, "metrics": {"faithfulness": 0.5}},
