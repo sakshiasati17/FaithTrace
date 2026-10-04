@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
 
+    # Vision page parsing (text_table_vision, opt-in per PDF upload). Each page
+    # sent is one paid vision call; pages past VISION_MAX_PAGES are not sent.
+    VISION_MODEL: str = "gpt-4o"
+    VISION_MAX_PAGES: int = 20
+
     # Cross-encoder used by the hybrid_reranker retrieval strategy (downloaded from
     # Hugging Face on first use, then cached per process)
     RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"

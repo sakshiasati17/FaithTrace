@@ -12,6 +12,9 @@ export interface Document {
   parse_status: ParseStatus;
   index_status: ParseStatus;
   created_at: string;
+  /** Parsing strategy used for ingestion (e.g. text_table, text_table_vision). */
+  parsing_strategy?: string | null;
+  doc_metadata?: Record<string, unknown>;
 }
 
 // ─── Experiment / Run ─────────────────────────────────────────────────────────

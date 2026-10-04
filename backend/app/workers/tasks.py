@@ -248,9 +248,20 @@ def ingest_document(self, document_id: str, strategy: str):
         # 1. Ensure Qdrant collection exists
         indexer_mod.ensure_collection()
 
-        # 2. Parse the document
+        # 2. Parse the document. Vision parsing is paid per page, so its
+        # output is cached next to the file and reused by Celery retries
+        # (a reindex starts with retries == 0 and parses afresh).
         file_path = Path(doc.storage_path)
-        raw_chunks = parser_mod.parse_document(file_path, strategy)
+        parse_report: dict = {}
+        cache_path = file_path.parent / f"parsed_{strategy}.json"
+        if strategy == "text_table_vision" and self.request.retries and cache_path.exists():
+            cached = json.loads(cache_path.read_text())
+            raw_chunks, parse_report = cached["chunks"], cached.get("report", {})
+            logger.info("Reusing cached vision parse for document %s (retry %d)", document_id, self.request.retries)
+        else:
+            raw_chunks = parser_mod.parse_document(file_path, strategy, report=parse_report)
+            if strategy == "text_table_vision":
+                cache_path.write_text(json.dumps({"chunks": raw_chunks, "report": parse_report}))
 
         # 3. Chunk text-type chunks; pass through table/spreadsheet chunks as-is
         all_chunks = []
@@ -303,19 +314,21 @@ def ingest_document(self, document_id: str, strategy: str):
             **(doc.doc_metadata or {}),
             "chunks_indexed": len(all_chunks),
             "strategy": strategy,
+            **parse_report,
         }
         db.commit()
         return {"document_id": document_id, "chunks_indexed": len(all_chunks)}
 
     except Exception as exc:
+        logger.error("Ingestion of document %s failed: %s", document_id, exc)
         try:
             doc = db.get(Document, document_id)
             if doc:
                 doc.parse_status = "failed"
                 doc.index_status = "failed"
                 db.commit()
-        except Exception:
-            pass
+        except Exception as status_exc:
+            logger.error("Could not mark document %s as failed: %s", document_id, status_exc)
         raise self.retry(exc=exc, countdown=2 ** self.request.retries)
     finally:
         db.close()

@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { corpusApi } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { VisionOption, StrategyBadge, buildUploadForm, visionErrorCount } from "@/components/corpus/VisionOption";
 import { Upload, Trash2, FileText, File, RefreshCw, X, Database } from "lucide-react";
 import { clsx } from "clsx";
 import type { Document } from "@/types";
@@ -29,7 +30,8 @@ export default function CorpusPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [form, setForm] = useState({ version_label: "v1", effective_from: "", effective_to: "" });
+  const emptyForm = { version_label: "v1", effective_from: "", effective_to: "", enable_vision: false };
+  const [form, setForm] = useState(emptyForm);
 
   const { data: docs = [] as Document[], isLoading } = useQuery<Document[]>({
     queryKey: ["corpus"],
@@ -53,11 +55,7 @@ export default function CorpusPage() {
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
 
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("version_label", form.version_label);
-    if (form.effective_from) fd.append("effective_from", form.effective_from);
-    if (form.effective_to) fd.append("effective_to", form.effective_to);
+    const fd = buildUploadForm(file, form);
 
     setUploading(true);
     setUploadError(null);
@@ -65,7 +63,7 @@ export default function CorpusPage() {
       await corpusApi.upload(fd);
       qc.invalidateQueries({ queryKey: ["corpus"] });
       if (fileInputRef.current) fileInputRef.current.value = "";
-      setForm({ version_label: "v1", effective_from: "", effective_to: "" });
+      setForm(emptyForm);
     } catch (err: any) {
       setUploadError(err?.response?.data?.detail ?? "Upload failed");
     } finally {
@@ -136,6 +134,11 @@ export default function CorpusPage() {
             </div>
           </div>
 
+          <VisionOption
+            checked={form.enable_vision}
+            onChange={(enable_vision) => setForm((f) => ({ ...f, enable_vision }))}
+          />
+
           {uploadError && (
             <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
               <X className="w-3.5 h-3.5 flex-shrink-0" />
@@ -177,7 +180,7 @@ export default function CorpusPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-800">
-                {["Filename", "Type", "Version", "Effective From", "Parse", "Index", "Uploaded", ""].map((h) => (
+                {["Filename", "Type", "Strategy", "Version", "Effective From", "Parse", "Index", "Uploaded", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     {h}
                   </th>
@@ -205,6 +208,12 @@ export default function CorpusPage() {
                       <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded font-mono">
                         {doc.file_type}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <StrategyBadge
+                        strategy={doc.parsing_strategy}
+                        visionErrors={visionErrorCount(doc.doc_metadata)}
+                      />
                     </td>
                     <td className="px-4 py-3 text-zinc-400 text-xs font-mono">{doc.version_label}</td>
                     <td className="px-4 py-3 text-zinc-500 text-xs">
