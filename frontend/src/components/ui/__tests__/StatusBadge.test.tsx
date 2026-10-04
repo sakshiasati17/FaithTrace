@@ -49,4 +49,17 @@ describe("StatusBadge", () => {
     const dot = container.querySelector(".animate-pulse");
     expect(dot).toBeInTheDocument();
   });
+
+  it.each([
+    ["evaluating", "text-amber-400"],
+    ["diagnosing", "text-violet-400"],
+  ])("renders %s with its own style, label and pulsing dot", (status, color) => {
+    const { container } = render(<StatusBadge status={status} />);
+    expect(screen.getByText(status)).toBeInTheDocument();
+    const badge = container.querySelector("span");
+    expect(badge?.className).toContain(color);
+    expect(badge?.className).not.toContain("text-zinc-400");
+    expect(badge?.getAttribute("title")).toBeTruthy();
+    expect(container.querySelector(".animate-pulse")).toBeInTheDocument();
+  });
 });

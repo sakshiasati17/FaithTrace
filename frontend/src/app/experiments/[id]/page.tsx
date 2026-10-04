@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { ArrowLeft, ChevronRight, Clock } from "lucide-react";
 import { clsx } from "clsx";
+import { experimentRefetchInterval } from "@/lib/status";
 import type { Experiment, Run } from "@/types";
 
 function formatDate(iso: string) {
@@ -27,11 +28,7 @@ export default function ExperimentDetailPage({ params }: { params: { id: string 
   const { data: exp, isLoading } = useQuery<Experiment>({
     queryKey: ["experiment", id],
     queryFn: () => experimentsApi.get(id),
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      if (!data) return false;
-      return data.status === "running" || data.status === "pending" ? 5000 : false;
-    },
+    refetchInterval: (query) => experimentRefetchInterval(query.state.data),
   });
 
   const { data: leaderboard } = useQuery({
@@ -81,6 +78,9 @@ export default function ExperimentDetailPage({ params }: { params: { id: string 
           <p className="text-xs text-zinc-600 mt-1 flex items-center gap-1">
             <Clock className="w-3 h-3" /> Created {formatDate(exp.created_at)}
             {exp.completed_at && ` · Completed ${formatDate(exp.completed_at)}`}
+            {exp.document_ids
+              ? ` · Searches ${exp.document_ids.length} document${exp.document_ids.length === 1 ? "" : "s"}`
+              : " · Searches all documents"}
           </p>
         </div>
         <div className="text-right">

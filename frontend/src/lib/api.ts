@@ -8,6 +8,7 @@ import axios, { AxiosError } from "axios";
 import type {
   Document,
   Experiment,
+  ExperimentCreatePayload,
   Run,
   RunMetrics,
   QueryDiagnosis,
@@ -89,7 +90,7 @@ export const experimentsApi = {
   get: (id: string): Promise<Experiment> =>
     client.get(`/experiments/${id}`).then((r) => r.data),
 
-  create: (payload: Partial<Experiment>): Promise<Experiment> =>
+  create: (payload: ExperimentCreatePayload): Promise<Experiment> =>
     client.post("/experiments/", payload).then((r) => r.data),
 
   getRuns: (experimentId: string): Promise<Run[]> =>
