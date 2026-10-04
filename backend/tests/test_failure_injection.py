@@ -177,18 +177,17 @@ class TestIngestionRetryBehavior:
         )
 
     @skip_no_celery
-    def test_ingest_task_does_not_delete_before_retry(self):
+    def test_ingest_task_deletes_before_upsert(self):
         """
-        Document the known gap: ingest_document does NOT call
-        delete_doc_chunks, so Celery retries can create duplicates.
+        The former known gap is fixed: ingest_document deletes the document's
+        chunks before upserting, so a Celery retry cannot create duplicates.
+        (Behaviour is tested in test_ingest_robustness.py.)
         """
         import inspect
         from app.workers.tasks import ingest_document
 
         source = inspect.getsource(ingest_document)
-        assert "delete_doc_chunks" not in source, (
-            "If this fails, the gap was fixed — update the test and the docs."
-        )
+        assert source.index("delete_doc_chunks") < source.index("upsert_chunks")
 
 
 class TestDiagnosticsGracefulDegradation:
@@ -207,7 +206,8 @@ class TestDiagnosticsGracefulDegradation:
             assert result is None
 
     def test_heuristic_fallback_always_works(self):
-        """The heuristic classifier should always produce a result."""
+        """The heuristic classifier should always produce a result: a category
+        when the query was scored, and an explicit "not scored" otherwise."""
         from app.services.diagnostics.classifier import _heuristic_diagnose, FailureCategory
         from app.services.experiment.runner import QueryResult
 
@@ -216,8 +216,15 @@ class TestDiagnosticsGracefulDegradation:
             retrieved_chunks=[], latency_ms=100,
             input_tokens=10, output_tokens=10, cost_usd=0.001,
         )
-        diagnosis = _heuristic_diagnose(result, {}, {})
+        scored = {"faithfulness": 0.9, "context_recall": 0.9,
+                  "context_precision": 0.9, "answer_correctness": 0.9}
+        diagnosis = _heuristic_diagnose(result, {}, scored)
         assert diagnosis.primary_failure in list(FailureCategory)
+
+        # Unscored: no category is invented (previously NO_FAILURE).
+        diagnosis = _heuristic_diagnose(result, {}, {})
+        assert diagnosis.primary_failure is None
+        assert diagnosis.evidence["skipped"] == "not scored"
 
     def test_heuristic_handles_missing_metrics(self):
         """Heuristic should not crash on empty metrics dict."""

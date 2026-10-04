@@ -3,6 +3,8 @@ LLM-powered diagnostic reasoning agent.
 
 Uses GPT-4o to reason step-by-step about why a RAG query failed.
 Results are cached in diagnosis_evidence["reasoning"] to avoid repeated API calls.
+A result the model did not return as a JSON object is marked "parse_error": true
+and must not be cached, so the next call retries.
 
 Design: on-demand only (expensive). Called via POST /diagnostics/.../reason.
 """
@@ -28,6 +30,7 @@ _FAILURE_DESCRIPTIONS = {
     "IRRELEVANT_CONTEXT_POLLUTION": "irrelevant chunks diluted the context and confused the model",
     "UNSUPPORTED_SYNTHESIS": "the model generated an answer not supported by the retrieved context",
     "NO_FAILURE": "no significant failure detected — the answer quality is acceptable",
+    "UNDIAGNOSED": "no failure category has been assigned yet — determine the failure (if any) from the evidence",
 }
 
 _SYSTEM_PROMPT = """You are a senior RAG (Retrieval-Augmented Generation) systems engineer.
@@ -143,24 +146,29 @@ async def reason(
     try:
         result = json.loads(raw)
     except json.JSONDecodeError:
+        result = None
+    if not isinstance(result, dict):
         logger.warning("Reasoning agent returned invalid JSON: %s", raw[:200])
         result = {
             "reasoning_steps": ["Could not parse structured response from model."],
             "root_cause": raw[:500],
             "fix_suggestion": "Review the raw model output above.",
             "stakeholder_summary": "Automated analysis was unable to produce a structured result.",
-            "confidence": 0.3,
+            "confidence": None,
+            "parse_error": True,
         }
 
-    # Normalise — ensure all expected keys exist
+    # Normalise — ensure all expected keys exist. A missing confidence stays
+    # None: the model did not give one, so none is reported.
     result.setdefault("reasoning_steps", [])
     result.setdefault("root_cause", "")
     result.setdefault("fix_suggestion", "")
     result.setdefault("stakeholder_summary", "")
-    result.setdefault("confidence", 0.5)
+    result.setdefault("confidence", None)
+    result.setdefault("parse_error", False)
 
     logger.info(
-        "Reasoning agent completed: category=%s confidence=%.2f",
-        failure_category, result.get("confidence", 0),
+        "Reasoning agent completed: category=%s confidence=%s parse_error=%s",
+        failure_category, result.get("confidence"), result.get("parse_error"),
     )
     return result

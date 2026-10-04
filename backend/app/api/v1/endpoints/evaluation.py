@@ -66,7 +66,10 @@ async def get_leaderboard(
         "multimodal_grounding_rate",
     ]
     if sort_by not in valid_sort_fields:
-        sort_by = "faithfulness"
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown sort_by {sort_by!r}; valid fields: {', '.join(valid_sort_fields)}",
+        )
 
     # Fetch all runs with metrics
     query = (
@@ -112,7 +115,7 @@ async def get_baseline_comparison(
     """
     Compare pipeline runs against the naive baseline configuration.
 
-    The baseline is: vector_only retrieval, fixed_size chunking, text_only
+    The baseline is: vector_only retrieval, recursive chunking, text_only
     parsing, no freshness filtering. Returns per-metric deltas showing
     absolute and relative improvement.
 

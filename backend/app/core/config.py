@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     VISION_MODEL: str = "gpt-4o"
     VISION_MAX_PAGES: int = 20
 
+    # Chunking strategies text is indexed with at ingest (comma-separated:
+    # fixed_size, recursive, semantic, structure_aware). Every strategy listed
+    # is embedded and stored, so embedding cost grows with each one; semantic
+    # also calls the embeddings API while chunking, so it is off by default.
+    # Runs whose chunking_strategy is not indexed are failed (reindex after
+    # changing this).
+    INGEST_CHUNKING_STRATEGIES: str = "fixed_size,recursive,structure_aware"
+
     # Cross-encoder used by the hybrid_reranker retrieval strategy (downloaded from
     # Hugging Face on first use, then cached per process)
     RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"

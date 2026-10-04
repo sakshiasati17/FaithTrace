@@ -1,5 +1,6 @@
 "use client";
 
+import { isScored } from "@/lib/metrics";
 import {
   BarChart,
   Bar,
@@ -29,11 +30,11 @@ export function LeaderboardBar({
   topK = 10,
 }: LeaderboardBarProps) {
   const data = entries
-    .filter((e) => e.metrics?.[metric] != null)
+    .filter((e) => isScored(e.metrics?.[metric]))
     .slice(0, topK)
     .map((e, i) => ({
       name: `#${i + 1} ${e.config?.retrieval_strategy ?? ""}`,
-      value: e.metrics?.[metric] ?? 0,
+      value: e.metrics[metric] as number,
       run_id: e.run_id,
     }));
 

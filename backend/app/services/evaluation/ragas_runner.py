@@ -6,18 +6,39 @@ answer relevance, answer correctness) into a callable interface that
 takes FaithTrace QueryResult objects and returns per-query scores.
 """
 
+import logging
 import math
 
 from app.services.experiment.runner import QueryResult
 
+logger = logging.getLogger(__name__)
 
-def _sanitize_float(val) -> float:
-    """Convert NaN/inf to 0.0 so Postgres JSON columns don't choke."""
+# Ragas metric keys in each per-query score dict.
+METRIC_KEYS = [
+    "faithfulness", "context_precision", "context_recall",
+    "answer_relevancy", "answer_correctness",
+]
+
+
+def _sanitize_float(val) -> float | None:
+    """
+    Return a finite float, or None when the score is unknown.
+
+    Ragas yields NaN for a metric it could not compute on a row; that is
+    "not scored", not 0.0. None also keeps Postgres JSON columns valid.
+    """
+    if val is None:
+        return None
     try:
-        f = float(val or 0.0)
-        return f if math.isfinite(f) else 0.0
+        f = float(val)
     except (TypeError, ValueError):
-        return 0.0
+        return None
+    return f if math.isfinite(f) else None
+
+
+def unscored(n: int) -> list[dict]:
+    """Per-query score dicts for ``n`` queries where every metric is unknown."""
+    return [{k: None for k in METRIC_KEYS} for _ in range(n)]
 
 
 def build_ragas_dataset(results: list[QueryResult], eval_set: list[dict]) -> dict:
@@ -103,14 +124,23 @@ def run_ragas_evaluation(results: list[QueryResult], eval_set: list[dict]) -> li
         result_df = result.to_pandas()
         per_query_scores = result_df.to_dict(orient="records")
 
-        # Ensure each score dict has all metric keys
-        metric_keys = [
-            "faithfulness", "context_precision", "context_recall",
-            "answer_relevancy", "answer_correctness"
+        # Each score dict has every metric key; a missing or NaN score is None.
+        cleaned = [
+            {k: _sanitize_float(row.get(k)) for k in METRIC_KEYS}
+            for row in per_query_scores
         ]
-        cleaned = []
-        for row in per_query_scores:
-            cleaned.append({k: _sanitize_float(row.get(k, 0.0)) for k in metric_keys})
+        if len(cleaned) != len(results):
+            logger.error(
+                "Ragas returned %d score rows for %d queries; treating all as unscored",
+                len(cleaned), len(results),
+            )
+            return unscored(len(results))
+        for k in METRIC_KEYS:
+            missing = sum(1 for row in cleaned if row[k] is None)
+            if missing:
+                logger.warning(
+                    "Ragas could not score %s for %d of %d queries", k, missing, len(cleaned),
+                )
         return cleaned
 
     except Exception as e:
@@ -123,14 +153,11 @@ def run_ragas_evaluation(results: list[QueryResult], eval_set: list[dict]) -> li
         except ImportError:
             pass
 
-        # Return zero scores for all other evaluation failures (import errors,
-        # dataset format issues, etc.) so the pipeline doesn't hard-crash.
-        zero_scores = {
-            "faithfulness": 0.0,
-            "context_precision": 0.0,
-            "context_recall": 0.0,
-            "answer_relevancy": 0.0,
-            "answer_correctness": 0.0,
-        }
-        return [zero_scores.copy() for _ in results]
+        # Any other failure (dataset format, judge errors, ...) leaves every
+        # query unscored. Scores of 0.0 would look like real, terrible answers.
+        logger.error(
+            "Ragas evaluation failed for %d queries; Ragas metrics are unscored: %s: %s",
+            len(results), type(e).__name__, e, exc_info=True,
+        )
+        return unscored(len(results))
 

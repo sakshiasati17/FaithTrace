@@ -6,6 +6,43 @@ Note: Table and spreadsheet chunks from the parser are already atomic units
 and should bypass the chunker entirely — only apply to text-type chunks.
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Text chunking strategies (the chunking_strategy axis of the config matrix).
+CHUNKING_STRATEGIES = ("fixed_size", "recursive", "semantic", "structure_aware")
+
+# chunk_strategy tag of chunks stored once for every strategy (table, image,
+# spreadsheet_cell): they are never split, so every chunking strategy uses them.
+ATOMIC = "atomic"
+
+# Text chunks indexed before chunk_strategy tagging were all chunked recursive.
+LEGACY_CHUNK_STRATEGY = "recursive"
+
+
+def parse_strategies(value: str) -> list[str]:
+    """
+    Parse a comma-separated strategy list (INGEST_CHUNKING_STRATEGIES).
+
+    Order is kept and duplicates dropped. Unknown names are logged and
+    ignored; ValueError if no known strategy is left.
+    """
+    strategies: list[str] = []
+    for name in (part.strip() for part in (value or "").split(",")):
+        if not name or name in strategies:
+            continue
+        if name not in CHUNKING_STRATEGIES:
+            logger.error(
+                "Ignoring unknown chunking strategy %r in INGEST_CHUNKING_STRATEGIES (known: %s)",
+                name, ", ".join(CHUNKING_STRATEGIES),
+            )
+            continue
+        strategies.append(name)
+    if not strategies:
+        raise ValueError(f"INGEST_CHUNKING_STRATEGIES lists no known chunking strategy: {value!r}")
+    return strategies
+
 
 def chunk(text: str, strategy: str = "recursive", **kwargs) -> list[dict]:
     """
@@ -195,8 +232,15 @@ def _structure_aware_chunk(text: str) -> list[dict]:
 
     import re
 
-    # Match markdown headings (# H1, ## H2, etc.) or ALL-CAPS heading lines
-    heading_pattern = re.compile(r"^(#{1,4}\s.+|[A-Z][A-Z\s]{3,})$", re.MULTILINE)
+    # Match markdown headings (# H1, ## H2, etc.), ALL-CAPS heading lines, or
+    # numbered section headings such as "Section 1 – Definitions." (legal and
+    # policy text). The separator after the number keeps cross-references like
+    # "Section 2(a)(1)" from counting as headings.
+    heading_pattern = re.compile(
+        r"^(#{1,4}\s.+|[A-Z][A-Z\s]{3,}"
+        r"|(?:Section|Article|Part|Chapter)\s+\d+\s*[–—:.-]\s+\S.{0,100})$",
+        re.MULTILINE,
+    )
     matches = list(heading_pattern.finditer(text))
 
     if not matches:
@@ -204,6 +248,10 @@ def _structure_aware_chunk(text: str) -> list[dict]:
         return _recursive_chunk(text)
 
     sections = []
+    # Text before the first heading is its own section (not dropped).
+    preamble = text[: matches[0].start()]
+    if preamble.strip():
+        sections.append((None, preamble.strip(), text.find(preamble.strip())))
     for i, match in enumerate(matches):
         start = match.start()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
@@ -215,7 +263,8 @@ def _structure_aware_chunk(text: str) -> list[dict]:
     for section_title, section_text, section_start in sections:
         sub_chunks = _recursive_chunk(section_text)
         for sc in sub_chunks:
-            sc["metadata"]["section_title"] = section_title
+            if section_title is not None:
+                sc["metadata"]["section_title"] = section_title
             sc["metadata"]["strategy"] = "structure_aware"
             sc["start_index"] += section_start
             sc["end_index"] += section_start

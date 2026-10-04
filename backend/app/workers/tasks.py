@@ -227,6 +227,109 @@ def _to_runner_result(qr):
 
 # ─── Task: ingest_document ────────────────────────────────────────────────────
 
+# Parser metadata that is per element; dropped when elements are merged.
+_ELEMENT_METADATA_KEYS = ("element_type", "heading_level", "para_index")
+
+
+def _is_heading(raw: dict) -> bool:
+    """A parser text element that is a heading (HTML Title, docx Heading style)."""
+    meta = raw.get("metadata") or {}
+    return meta.get("element_type") == "Title" or str(meta.get("heading_level") or "").startswith("Heading")
+
+
+def _text_units(raw_chunks: list[dict], chunk_strategy: str) -> list[tuple[str, dict]]:
+    """
+    The text blocks a chunking strategy splits, as (content, raw chunk) pairs.
+
+    Most strategies split each parser text chunk on its own. structure_aware
+    needs the document's sections, which the parser may hand over as one
+    element per heading/paragraph (HTML via unstructured, docx): consecutive
+    text elements of a page are joined, headings written as "## " lines so
+    the chunker splits at them. PDF pages are already one block each.
+    """
+    texts = [(r.get("content", ""), r) for r in raw_chunks
+             if r.get("chunk_type", "text") == "text" and r.get("content", "").strip()]
+    if chunk_strategy != "structure_aware":
+        return texts
+
+    units: list[tuple[str, dict]] = []
+    parts: list[str] = []
+    first: dict | None = None
+    prev = None
+
+    def flush():
+        if first is not None:
+            meta = {k: v for k, v in (first.get("metadata") or {}).items() if k not in _ELEMENT_METADATA_KEYS}
+            units.append(("\n\n".join(parts), {**first, "metadata": meta}))
+
+    for raw in raw_chunks:
+        if raw.get("chunk_type", "text") != "text" or not raw.get("content", "").strip():
+            prev = None  # an atomic chunk ends the run of text elements
+            continue
+        content = raw["content"].strip()
+        if prev is None or raw.get("page") != prev.get("page"):
+            flush()
+            parts, first = [], raw
+        parts.append(f"## {content}" if _is_heading(raw) else content)
+        prev = raw
+    flush()
+    return units
+
+
+def build_index_chunks(raw_chunks: list[dict], doc, chunk_strategies: list[str]) -> tuple[list[dict], dict]:
+    """
+    Turn parser output into the chunks to index for a document.
+
+    Text is split once per chunking strategy (see _text_units) and every piece
+    is tagged chunk_strategy=<strategy>; table, spreadsheet_cell and image
+    chunks are atomic, stored once and tagged chunk_strategy="atomic" (runner
+    retrieves them for every strategy). Returns (chunks, counts per tag), the
+    counts covering every strategy in chunk_strategies plus "atomic".
+    """
+    from app.services.ingestion import chunker as chunker_mod
+
+    common = {
+        "doc_version": doc.version_label,
+        "effective_from": doc.effective_from.isoformat() if doc.effective_from else None,
+        "effective_to": doc.effective_to.isoformat() if doc.effective_to else None,
+        "filename": doc.filename,
+    }
+    chunks: list[dict] = []
+    counts = {name: 0 for name in chunk_strategies}
+    counts[chunker_mod.ATOMIC] = 0
+
+    for chunk_strategy in chunk_strategies:
+        for content, raw in _text_units(raw_chunks, chunk_strategy):
+            for sc in chunker_mod.chunk(content, strategy=chunk_strategy):
+                chunks.append({
+                    "content": sc["content"],
+                    "chunk_type": "text",
+                    "chunk_strategy": chunk_strategy,
+                    "page": raw.get("page"),
+                    "table_id": None,
+                    **common,
+                    "metadata": {**raw.get("metadata", {}), **sc.get("metadata", {})},
+                })
+                counts[chunk_strategy] += 1
+
+    for raw in raw_chunks:
+        chunk_type = raw.get("chunk_type", "text")
+        if chunk_type == "text" or not raw.get("content", "").strip():
+            continue
+        chunks.append({
+            "content": raw["content"],
+            "chunk_type": chunk_type,
+            "chunk_strategy": chunker_mod.ATOMIC,
+            "page": raw.get("page"),
+            "table_id": raw.get("table_id"),
+            **common,
+            "metadata": raw.get("metadata", {}),
+        })
+        counts[chunker_mod.ATOMIC] += 1
+
+    return chunks, counts
+
+
 @celery_app.task(name="app.workers.tasks.ingest_document", bind=True, max_retries=3)
 def ingest_document(self, document_id: str, strategy: str):
     """Parse, chunk, embed, and index a document."""
@@ -245,8 +348,10 @@ def ingest_document(self, document_id: str, strategy: str):
         doc.parse_status = "running"
         db.commit()
 
-        # 1. Ensure Qdrant collection exists
+        # 1. Ensure Qdrant collection exists; read the chunking strategies
+        # before parsing so a bad setting fails before any paid vision call.
         indexer_mod.ensure_collection()
+        chunk_strategies = chunker_mod.parse_strategies(settings.INGEST_CHUNKING_STRATEGIES)
 
         # 2. Parse the document. Vision parsing is paid per page, so its
         # output is cached next to the file and reused by Celery retries
@@ -263,48 +368,14 @@ def ingest_document(self, document_id: str, strategy: str):
             if strategy == "text_table_vision":
                 cache_path.write_text(json.dumps({"chunks": raw_chunks, "report": parse_report}))
 
-        # 3. Chunk text-type chunks; pass through table/spreadsheet chunks as-is
-        all_chunks = []
-        for raw in raw_chunks:
-            chunk_type = raw.get("chunk_type", "text")
-            content = raw.get("content", "")
+        # 3. Chunk text with every configured strategy; table/spreadsheet/image
+        # chunks are atomic and stored once for all strategies.
+        all_chunks, chunks_by_strategy = build_index_chunks(raw_chunks, doc, chunk_strategies)
 
-            if not content.strip():
-                continue
-
-            if chunk_type == "text":
-                # Apply chunking strategy to text chunks
-                chunk_strategy = "recursive"
-                sub_chunks = chunker_mod.chunk(content, strategy=chunk_strategy)
-                for sc in sub_chunks:
-                    enriched = {
-                        "content": sc["content"],
-                        "chunk_type": "text",
-                        "page": raw.get("page"),
-                        "table_id": None,
-                        "doc_version": doc.version_label,
-                        "effective_from": doc.effective_from.isoformat() if doc.effective_from else None,
-                        "effective_to": doc.effective_to.isoformat() if doc.effective_to else None,
-                        "filename": doc.filename,
-                        "metadata": {**raw.get("metadata", {}), **sc.get("metadata", {})},
-                    }
-                    all_chunks.append(enriched)
-            else:
-                # Table, spreadsheet_cell, image chunks are atomic
-                enriched = {
-                    "content": content,
-                    "chunk_type": chunk_type,
-                    "page": raw.get("page"),
-                    "table_id": raw.get("table_id"),
-                    "doc_version": doc.version_label,
-                    "effective_from": doc.effective_from.isoformat() if doc.effective_from else None,
-                    "effective_to": doc.effective_to.isoformat() if doc.effective_to else None,
-                    "filename": doc.filename,
-                    "metadata": raw.get("metadata", {}),
-                }
-                all_chunks.append(enriched)
-
-        # 4. Upsert to Qdrant
+        # 4. Replace this document's chunks in Qdrant. Point ids are random, so
+        # a retry after a partial upsert (or a re-ingest) would otherwise
+        # duplicate chunks; delete first to keep exactly one set.
+        indexer_mod.delete_doc_chunks(document_id)
         if all_chunks:
             indexer_mod.upsert_chunks(all_chunks, doc_id=document_id)
 
@@ -313,22 +384,45 @@ def ingest_document(self, document_id: str, strategy: str):
         doc.doc_metadata = {
             **(doc.doc_metadata or {}),
             "chunks_indexed": len(all_chunks),
+            "chunks_by_strategy": chunks_by_strategy,
+            "chunking_strategies": chunk_strategies,
             "strategy": strategy,
             **parse_report,
         }
         db.commit()
-        return {"document_id": document_id, "chunks_indexed": len(all_chunks)}
+        return {
+            "document_id": document_id,
+            "chunks_indexed": len(all_chunks),
+            "chunks_by_strategy": chunks_by_strategy,
+        }
 
     except Exception as exc:
-        logger.error("Ingestion of document %s failed: %s", document_id, exc)
+        final = _retries_exhausted(self)
+        logger.error(
+            "Ingestion of document %s failed (attempt %d of %d)%s: %s",
+            document_id, self.request.retries + 1, self.max_retries + 1,
+            "" if final else "; retrying", exc,
+        )
         try:
             doc = db.get(Document, document_id)
             if doc:
-                doc.parse_status = "failed"
-                doc.index_status = "failed"
+                # Only report "failed" once no retry is coming; while a retry is
+                # pending the document is still being processed.
+                if final:
+                    doc.parse_status = "failed"
+                    doc.index_status = "failed"
+                else:
+                    doc.parse_status = "running"
+                doc.doc_metadata = {
+                    **(doc.doc_metadata or {}),
+                    "last_error": f"{type(exc).__name__}: {exc}"[:500],
+                    "attempts": self.request.retries + 1,
+                }
                 db.commit()
         except Exception as status_exc:
-            logger.error("Could not mark document %s as failed: %s", document_id, status_exc)
+            logger.error("Could not record ingestion error for document %s: %s", document_id, status_exc)
+        if final:
+            raise exc
         raise self.retry(exc=exc, countdown=2 ** self.request.retries)
     finally:
         db.close()
@@ -341,7 +435,9 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
     """Execute all pipeline runs for an experiment."""
     from app.db.session import get_sync_db
     from app.db.models import Experiment, Run, QueryResult as QueryResultModel
-    from app.services.experiment.runner import BUDGET_EXCEEDED, PipelineConfig, run_pipeline
+    from app.services.experiment.runner import (
+        BUDGET_EXCEEDED, PipelineConfig, chunking_strategy_not_indexed, run_pipeline,
+    )
     from dataclasses import fields
 
     db = get_sync_db()
@@ -366,6 +462,10 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
         ).scalars().all()
 
         run_errors: dict[str, int] = {}
+        # Chunking strategy -> reason it is not indexed (None when it is),
+        # checked once per strategy for the experiment's document scope.
+        not_indexed: dict[str, str | None] = {}
+        not_indexed_runs: dict[str, str] = {}
         for run in runs:
             try:
                 run.status = "running"
@@ -378,6 +478,21 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
                     for k in config_dict
                     if k in {f.name for f in fields(PipelineConfig)}
                 })
+
+                # A strategy with no text chunks indexed would answer from atomic
+                # chunks only; fail the run visibly instead of scoring that.
+                if config.chunking_strategy not in not_indexed:
+                    not_indexed[config.chunking_strategy] = chunking_strategy_not_indexed(
+                        config.chunking_strategy, experiment.document_ids
+                    )
+                reason = not_indexed[config.chunking_strategy]
+                if reason:
+                    run.status = "failed"
+                    run.completed_at = datetime.utcnow()
+                    db.commit()
+                    not_indexed_runs[run.id] = reason
+                    logger.error("Run %s marked failed: %s", run.id, reason)
+                    continue
 
                 # Execute pipeline (stops issuing queries past the cost limit)
                 results = run_pipeline(
@@ -454,6 +569,7 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
             "status": final_status,
             "runs_processed": len(runs),
             "query_errors_by_run": run_errors,
+            "runs_not_indexed": not_indexed_runs,
         }
 
     except Exception as exc:
@@ -463,7 +579,10 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
                 experiment.status = "failed"
                 db.commit()
         except Exception:
-            pass
+            logger.exception(
+                "Experiment %s: could not mark experiment failed after error: %s",
+                experiment_id, exc,
+            )
         # Rate limit errors need longer recovery time (60s base, doubles each retry)
         try:
             from openai import RateLimitError
@@ -560,6 +679,21 @@ def evaluate_run(self, run_id: str, eval_set_path: str | None = None):
         rm.temporal_citation_accuracy = metrics.temporal_citation_accuracy
         rm.multimodal_grounding_rate = metrics.multimodal_grounding_rate
         # root_cause_diagnostic_accuracy is written by diagnose_run, after diagnoses exist.
+
+        # Keep each query's Ragas scores so diagnose_run can reuse them instead
+        # of paying for a second Ragas evaluation of the same answers.
+        if len(metrics.per_query_scores) == len(ok_rows):
+            for qr, scores in zip(ok_rows, metrics.per_query_scores):
+                qr.diagnosis_evidence = {**(qr.diagnosis_evidence or {}), "scores": scores}
+        else:
+            logger.warning(
+                "Run %s: got %d per-query score rows for %d queries; not saving them",
+                run_id, len(metrics.per_query_scores), len(ok_rows),
+            )
+        logger.info(
+            "Run %s: scored queries per Ragas metric (of %d): %s",
+            run_id, len(ok_rows), metrics.scored_counts,
+        )
         run.evaluated_at = datetime.utcnow()
         db.commit()
 
@@ -572,6 +706,7 @@ def evaluate_run(self, run_id: str, eval_set_path: str | None = None):
             "faithfulness": metrics.faithfulness,
             "queries_evaluated": len(ok_rows),
             "queries_errored": error_count,
+            "queries_scored": metrics.scored_counts,
         }
 
     except Exception as exc:
@@ -656,36 +791,65 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
 
         diagnoses = []
         if results:
-            # Get per-query Ragas scores for diagnostics
-            try:
-                per_query_scores = run_ragas_evaluation(results, eval_set)
-            except Exception as exc:
+            # Reuse the per-query Ragas scores evaluate_run saved; re-score only
+            # when they are missing (e.g. rows evaluated before this was added).
+            stored_scores = [(qr.diagnosis_evidence or {}).get("scores") for qr in ok_rows]
+            if all(isinstance(s, dict) for s in stored_scores):
+                per_query_scores = stored_scores
+            else:
+                missing = sum(1 for s in stored_scores if not isinstance(s, dict))
                 logger.warning(
-                    "Ragas scoring failed for run %s; diagnosing without per-query metrics: %s",
-                    run_id, exc,
+                    "Run %s: %d of %d queries have no saved Ragas scores; re-scoring the run",
+                    run_id, missing, len(ok_rows),
                 )
-                per_query_scores = [{}] * len(results)
+                try:
+                    per_query_scores = run_ragas_evaluation(results, eval_set)
+                except Exception as exc:
+                    logger.warning(
+                        "Ragas scoring failed for run %s; diagnosing without per-query metrics: %s",
+                        run_id, exc,
+                    )
+                    per_query_scores = [{}] * len(results)
 
             # Run diagnostics
             diagnoses = classifier_diagnose_run(results, eval_set, per_query_scores)
 
         # Update query result rows with diagnosis
         qr_by_id = {qr.query_id: qr for qr in ok_rows}
+        scores_by_id = (
+            {r.query_id: sc for r, sc in zip(results, per_query_scores)} if results else {}
+        )
+        unscored_count = 0
         for diagnosis in diagnoses:
             qr = qr_by_id.get(diagnosis.query_id)
             if qr:
-                qr.failure_category = diagnosis.primary_failure.value
+                # None: metrics unscored and no metric-free rule fired.
+                if diagnosis.primary_failure is None:
+                    unscored_count += 1
+                qr.failure_category = (
+                    diagnosis.primary_failure.value if diagnosis.primary_failure is not None else None
+                )
+                scores = scores_by_id.get(diagnosis.query_id) or {}
                 qr.diagnosis_evidence = {
                     **diagnosis.evidence,
+                    # Ragas reports "answer_relevancy"; training reads "answer_relevance".
+                    "answer_relevance": scores.get("answer_relevancy"),
+                    "scores": scores,
                     "confidence": diagnosis.confidence,
                     "secondary_failures": [f.value for f in diagnosis.secondary_failures],
                 }
         db.commit()
+        if unscored_count:
+            logger.warning(
+                "Run %s: %d of %d queries left undiagnosed (metrics not scored)",
+                run_id, unscored_count, len(ok_rows),
+            )
 
         # Root-cause diagnostic accuracy: stored diagnoses vs ground-truth
-        # failure_type labels (None when no item is labelled).
+        # failure_type labels (None when no item is labelled). Undiagnosed
+        # queries are left out, like errored ones.
         diag_accuracy = compute_diagnostic_accuracy(
-            {qr.query_id: qr.failure_category for qr in ok_rows},
+            {qr.query_id: qr.failure_category for qr in ok_rows if qr.failure_category is not None},
             eval_set,
         )
         rm = db.execute(
@@ -708,6 +872,7 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
             "run_id": run_id,
             "diagnoses_written": len(diagnoses),
             "queries_errored": error_count,
+            "queries_undiagnosed": unscored_count,
             "root_cause_diagnostic_accuracy": diag_accuracy,
         }
 
@@ -722,14 +887,76 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
 
 # ─── Task: train_failure_classifier ──────────────────────────────────────────
 
+LABEL_SOURCES = ("feedback", "eval_set", "classifier")
+# Eval items with this failure_type have no correct answer; they are not a failure mode.
+UNANSWERABLE_FAILURE_TYPE = "UNANSWERABLE"
+
+
+def resolve_training_label(feedback, eval_item: dict, classifier_label: str | None) -> tuple[str | None, str]:
+    """
+    Pick the training label for one query result and say where it came from.
+
+    Priority:
+      1. human feedback: positive rating -> NO_FAILURE, else a valid correct_label;
+      2. the eval item's ground-truth failure_type, when it is a FailureCategory
+         (UNANSWERABLE items are skipped: returns (None, "skipped_unanswerable")),
+         but only to name an observed failure: failure_type describes the failure a
+         question is designed to probe, not what happened in this run. If the
+         classifier judged this run NO_FAILURE (or failure_type is NO_FAILURE),
+         the observed outcome wins;
+      3. the classifier's stored label (circular: the model re-learns the heuristic).
+    Returns (None, "skipped_no_label") when nothing valid is available.
+    """
+    from app.services.diagnostics.classifier import FailureCategory
+    valid = {c.value for c in FailureCategory}
+
+    if feedback is not None:
+        if feedback.rating == "positive":
+            return FailureCategory.NO_FAILURE.value, "feedback"
+        if feedback.correct_label in valid:
+            return feedback.correct_label, "feedback"
+        if feedback.correct_label:
+            logger.warning("Ignoring feedback %s with invalid correct_label %r",
+                           getattr(feedback, "id", None), feedback.correct_label)
+
+    failure_type = (eval_item or {}).get("failure_type")
+    if failure_type == UNANSWERABLE_FAILURE_TYPE:
+        return None, "skipped_unanswerable"
+    observed_failure = classifier_label in valid and classifier_label != FailureCategory.NO_FAILURE.value
+    if (failure_type in valid and failure_type != FailureCategory.NO_FAILURE.value
+            and observed_failure):
+        return failure_type, "eval_set"
+
+    if classifier_label in valid:
+        return classifier_label, "classifier"
+    return None, "skipped_no_label"
+
+
+def describe_label_sources(counts: dict[str, int]) -> tuple[str | None, str]:
+    """Return (dominant source, one-line summary) for per-source label counts."""
+    used = {src: counts.get(src, 0) for src in LABEL_SOURCES}
+    total = sum(used.values())
+    if total == 0:
+        return None, "No training labels."
+    dominant = max(LABEL_SOURCES, key=lambda src: used[src])
+    parts = ", ".join(f"{used[src]} {src}" for src in LABEL_SOURCES)
+    note = f"Training labels: {parts}. Dominant source: {dominant} ({used[dominant] / total:.0%})."
+    if dominant == "classifier":
+        note += (" Accuracy is mostly measured against the classifier's own labels"
+                 " (circular); add failure_type labels or feedback.")
+    return dominant, note
+
+
 @celery_app.task(name="app.workers.tasks.train_failure_classifier", bind=True, max_retries=1)
 def train_failure_classifier(self, experiment_id: str, eval_set_path: str | None = None):
     """
     Train the XGBoost failure classifier on all labeled query results from
     a completed experiment.
 
-    Collects (features, label) pairs from every QueryResult that has a
-    non-null failure_category, then trains and persists the model.
+    Collects (features, label) pairs from every diagnosed, non-errored
+    QueryResult, then trains and persists the model. Labels come from
+    resolve_training_label (feedback > eval set failure_type > classifier);
+    the result reports per-source counts and the dominant source.
     """
     from app.db.session import get_sync_db
     from app.db.models import Experiment, Run, QueryResult as QueryResultModel, QueryFeedback
@@ -783,8 +1010,19 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str | None
         positive_feedback = sum(1 for fb in fb_rows if fb.rating == "positive")
 
         all_metrics, all_chunks, all_eval_items, all_labels = [], [], [], []
+        label_counts = {src: 0 for src in LABEL_SOURCES}
+        label_counts.update(skipped_unanswerable=0, skipped_no_label=0, skipped_errored=0)
+        skipped_unscored = 0
         for qr in qr_rows:
+            if _is_errored(qr):
+                label_counts["skipped_errored"] += 1
+                continue
             evidence = qr.diagnosis_evidence or {}
+            if evidence.get("missing_metrics"):
+                # Labelled by a metric-free rule; its metric features are unknown,
+                # and training on them as 0.0 would teach the model a fake signal.
+                skipped_unscored += 1
+                continue
             metrics = {
                 "faithfulness":       evidence.get("faithfulness", 0.0),
                 "context_recall":     evidence.get("context_recall", 0.0),
@@ -796,22 +1034,35 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str | None
             }
             eval_item = eval_by_id.get(qr.query_id, {})
 
-            # Determine label: human feedback > heuristic/ML classifier label
-            fb = feedback_by_qr_id.get(qr.id)
-            if fb and fb.rating == "positive":
-                # User confirmed answer was correct → NO_FAILURE
-                label = "NO_FAILURE"
-            elif fb and fb.correct_label:
-                # User provided correct failure label → use it
-                label = fb.correct_label
-            else:
-                # Fall back to classifier-assigned label
-                label = qr.failure_category
+            # Label: human feedback > eval set ground truth > classifier label
+            label, source = resolve_training_label(
+                feedback_by_qr_id.get(qr.id), eval_item, qr.failure_category,
+            )
+            label_counts[source] += 1
+            if label is None:
+                continue
 
             all_metrics.append(metrics)
             all_chunks.append(qr.retrieved_chunks or [])
             all_eval_items.append(eval_item)
             all_labels.append(label)
+
+        if skipped_unscored:
+            logger.warning(
+                "Experiment %s: %d labelled queries left out of training (metrics not scored)",
+                experiment_id, skipped_unscored,
+            )
+        dominant_source, label_source_note = describe_label_sources(label_counts)
+        logger.info("Classifier training for %s: %s (skipped: %d unanswerable, %d unlabeled, %d errored)",
+                    experiment_id, label_source_note, label_counts["skipped_unanswerable"],
+                    label_counts["skipped_no_label"], label_counts["skipped_errored"])
+        if not all_labels:
+            return {
+                "error": "No usable training labels after skipping errored, unanswerable "
+                         "and unlabeled query results.",
+                "label_sources": label_counts,
+                "skipped_unscored": skipped_unscored,
+            }
 
         summary = ml_train(all_metrics, all_chunks, all_eval_items, all_labels)
 
@@ -824,6 +1075,10 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str | None
             "samples_used": len(all_labels),
             "feedback_overrides": feedback_overrides,
             "positive_feedback_used": positive_feedback,
+            "label_sources": label_counts,
+            "dominant_label_source": dominant_source,
+            "label_source_summary": label_source_note,
+            "skipped_unscored": skipped_unscored,
             **summary,
         }
 

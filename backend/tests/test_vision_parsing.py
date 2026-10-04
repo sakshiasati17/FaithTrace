@@ -337,6 +337,7 @@ class TestIngestDocument:
         with patch("app.db.session.get_sync_db", return_value=db), \
              patch("app.services.ingestion.parser.parse_document", side_effect=fake_parse) as parse, \
              patch("app.services.ingestion.indexer.ensure_collection"), \
+             patch("app.services.ingestion.indexer.delete_doc_chunks"), \
              patch("app.services.ingestion.indexer.upsert_chunks") as upsert:
             ingest_document.push_request(retries=retries)
             try:
@@ -364,7 +365,11 @@ class TestIngestDocument:
 
         result, upsert, _ = self._run(doc, [text, image], stats)
 
-        assert result["chunks_indexed"] == 2
+        # The short text is one chunk per default chunking strategy; the image once.
+        assert result["chunks_indexed"] == 4
+        assert result["chunks_by_strategy"] == {
+            "fixed_size": 1, "recursive": 1, "structure_aware": 1, "atomic": 1,
+        }
         indexed = upsert.call_args.args[0]
         img = next(c for c in indexed if c["chunk_type"] == "image")
         assert img["content"] == CHART_TEXT  # atomic, not re-chunked

@@ -37,8 +37,8 @@ Experiments move through `pending → running → evaluating → diagnosing → 
 
 Full matrix: 4 × 4 × 4 × 4 = 256 configurations. MVP preset: 24 (3 retrieval × 2 chunking × 2 parsing × 2 freshness).
 
-- **Chunking.** Each document's text is indexed once per strategy in `INGEST_CHUNKING_STRATEGIES` (default `fixed_size,recursive,structure_aware`; `semantic` calls the embeddings API while chunking, so it is opt-in). A run whose strategy was not indexed fails with a clear reason instead of silently answering from other chunks.
-- **Vision.** Image chunks exist only for PDFs uploaded with **Enable vision parsing** (`enable_vision=true`): up to `VISION_MAX_PAGES` pages go to `VISION_MODEL`. It costs money, so it is off by default and needs `OPENAI_API_KEY`.
+- **Chunking.** Each document's text is indexed once per strategy in `INGEST_CHUNKING_STRATEGIES` (default `fixed_size,recursive,structure_aware`; `semantic` calls the embeddings API while chunking, so it is opt-in). Each listed strategy is embedded separately, so embedding cost and index size grow with it. A run whose strategy was not indexed fails with a clear reason instead of silently answering from other chunks; documents indexed before this change count as `recursive` until reindexed.
+- **Vision.** Image chunks exist only for PDFs uploaded with **Enable vision parsing** (`enable_vision=true`): up to `VISION_MAX_PAGES` pages go to `VISION_MODEL`. It costs money, so it is off by default and needs `OPENAI_API_KEY`. Only `text_table_vision` runs retrieve image chunks; `text_table` retrieves text and tables.
 - **Freshness.** Vector and BM25 retrieval apply the same date, chunk-type, chunking and document-scope rules (`runner.chunk_passes_filters`).
 - **Cost.** `MAX_COST_PER_RUN_USD` stops a run's remaining queries once exceeded; the run is marked `failed` with the reason.
 

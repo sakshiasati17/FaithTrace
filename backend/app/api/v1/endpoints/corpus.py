@@ -228,13 +228,21 @@ async def delete_document(document_id: str, db: AsyncSession = Depends(get_db)):
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Remove from Qdrant
+    # Remove from Qdrant first. If that fails, keep the row: deleting it would
+    # leave chunks that every future experiment retrieves with no document to
+    # trace them to. The caller can retry the delete.
     try:
         from app.services.ingestion.indexer import delete_doc_chunks
         delete_doc_chunks(document_id)
     except Exception as exc:
-        # Non-fatal: proceed with DB deletion
-        logger.warning("Could not delete chunks of %s from Qdrant: %s", document_id, exc)
+        logger.error("Could not delete chunks of %s from Qdrant; document kept: %s", document_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Could not delete the document's chunks from the vector index; "
+                "the document was not deleted. Retry when the index is available."
+            ),
+        )
 
     # Remove stored file
     try:

@@ -9,6 +9,7 @@ import {
   Tooltip,
 } from "recharts";
 import type { RunMetrics } from "@/types";
+import { isScored } from "@/lib/metrics";
 
 interface MetricsRadarProps {
   metrics: Partial<RunMetrics>;
@@ -16,15 +17,16 @@ interface MetricsRadarProps {
 }
 
 export function MetricsRadar({ metrics, runLabel }: MetricsRadarProps) {
+  // Unscored (null) metrics are left off the chart rather than drawn as 0.
   const data = [
-    { metric: "Faithfulness", value: metrics.faithfulness ?? 0 },
-    { metric: "Ctx Recall", value: metrics.context_recall ?? 0 },
-    { metric: "Ctx Precision", value: metrics.context_precision ?? 0 },
-    { metric: "Ans Relevance", value: metrics.answer_relevance ?? 0 },
-    { metric: "Ans Correctness", value: metrics.answer_correctness ?? 0 },
-    { metric: "Freshness", value: metrics.freshness_validity ?? 0 },
-    { metric: "Multimodal", value: metrics.multimodal_grounding_rate ?? 0 },
-  ];
+    { metric: "Faithfulness", value: metrics.faithfulness },
+    { metric: "Ctx Recall", value: metrics.context_recall },
+    { metric: "Ctx Precision", value: metrics.context_precision },
+    { metric: "Ans Relevance", value: metrics.answer_relevance },
+    { metric: "Ans Correctness", value: metrics.answer_correctness },
+    { metric: "Freshness", value: metrics.freshness_validity },
+    { metric: "Multimodal", value: metrics.multimodal_grounding_rate },
+  ].filter((d): d is { metric: string; value: number } => isScored(d.value));
 
   return (
     <div className="w-full">
