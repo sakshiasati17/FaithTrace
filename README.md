@@ -1,5 +1,7 @@
 # FaithTrace
 
+[![CI](https://github.com/sakshiasati17/FaithTrace/actions/workflows/ci.yml/badge.svg?branch=sakshi%2Fmain)](https://github.com/sakshiasati17/FaithTrace/actions/workflows/ci.yml)
+
 **RAG Diagnostics Platform — Temporal Drift + Multimodal Failure Detection**
 
 ---
