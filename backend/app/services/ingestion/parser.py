@@ -8,8 +8,22 @@ Dispatches parsing strategy based on file type:
 - HTML: clean text extraction with structure preservation
 """
 
+import logging
 from pathlib import Path
-from typing import Protocol
+from typing import Optional, Protocol
+
+logger = logging.getLogger(__name__)
+
+# Prompt sent with each rendered PDF page in the text_table_vision strategy.
+VISION_PROMPT = (
+    "Analyze this document page. Extract ALL information including:\n"
+    "1. Any tables — output each as a markdown table\n"
+    "2. Any charts, diagrams, or figures — describe them in detail "
+    "with all visible data points, labels, and values\n"
+    "3. Any visual layouts (flowcharts, org charts) — describe structure and content\n"
+    "If the page is just plain text, reply with: PLAIN_TEXT_ONLY\n"
+    "Be exhaustive. Include every number, label, and data point visible."
+)
 
 
 class ParsedDocument(Protocol):
@@ -20,15 +34,21 @@ class ParsedDocument(Protocol):
     metadata: dict
 
 
-def parse_document(file_path: Path, strategy: str = "text_only") -> list[dict]:
+def parse_document(file_path: Path, strategy: str = "text_only", report: Optional[dict] = None) -> list[dict]:
     """
     Parse a document into structured chunks.
 
     Strategies:
         text_only           Plain text extraction
         text_table          Text + structured table extraction
-        text_table_vision   Text + tables + vision page understanding (Phase 3)
+        text_table_vision   Text + tables + vision page understanding (PDF only;
+                            calls settings.VISION_MODEL for up to
+                            settings.VISION_MAX_PAGES pages)
         spreadsheet_aware   Workbook-level cell and sheet extraction
+
+    If ``report`` is given, parsers that do costly or lossy work record what
+    happened in it (the vision path adds a "vision" entry with pages sent,
+    skipped and failed).
 
     Returns:
         List of chunk dicts, each with keys:
@@ -37,7 +57,7 @@ def parse_document(file_path: Path, strategy: str = "text_only") -> list[dict]:
     suffix = file_path.suffix.lower()
 
     if suffix == ".pdf":
-        return _parse_pdf(file_path, strategy)
+        return _parse_pdf(file_path, strategy, report)
     elif suffix in (".docx", ".doc"):
         return _parse_docx(file_path, strategy)
     elif suffix in (".xlsx", ".csv"):
@@ -48,9 +68,9 @@ def parse_document(file_path: Path, strategy: str = "text_only") -> list[dict]:
     raise ValueError(f"Unsupported file type: {suffix}")
 
 
-def _parse_pdf(path: Path, strategy: str) -> list[dict]:
+def _parse_pdf(path: Path, strategy: str, report: Optional[dict] = None) -> list[dict]:
     if strategy == "text_table_vision":
-        return _parse_pdf_with_vision(path)
+        return _parse_pdf_with_vision(path, report)
 
     import fitz  # PyMuPDF
 
@@ -78,136 +98,15 @@ def _parse_pdf(path: Path, strategy: str) -> list[dict]:
 
     if strategy == "text_table":
         # Also extract tables using pdfplumber
-        try:
-            import pdfplumber
-            with pdfplumber.open(str(path)) as pdf_doc:
-                for page_num, page in enumerate(pdf_doc.pages):
-                    tables = page.extract_tables()
-                    for table_idx, table in enumerate(tables):
-                        if not table:
-                            continue
-                        # Serialize table as markdown
-                        md_rows = []
-                        for row in table:
-                            cells = [str(cell or "").strip() for cell in row]
-                            md_rows.append("| " + " | ".join(cells) + " |")
-                        if len(md_rows) > 1:
-                            # Insert separator after header
-                            separator = "| " + " | ".join(["---"] * len(table[0])) + " |"
-                            md_rows.insert(1, separator)
-                        md_content = "\n".join(md_rows)
-                        table_id = f"table_{page_num + 1}_{table_idx}"
-                        chunks.append({
-                            "content": md_content,
-                            "chunk_type": "table",
-                            "page": page_num + 1,
-                            "table_id": table_id,
-                            "metadata": {
-                                "filename": filename,
-                                "page_count": page_count,
-                                "strategy": strategy,
-                                "table_index": table_idx,
-                            },
-                        })
-        except Exception:
-            pass  # pdfplumber failure is non-fatal; text chunks still returned
+        chunks.extend(_extract_pdf_tables(path, filename, page_count, strategy))
 
     doc.close()
     return chunks
 
 
-def _parse_pdf_with_vision(path: Path) -> list[dict]:
-    """
-    Text + table + vision page understanding.
-
-    For each page: extract text and tables (like text_table), then render
-    the page as an image and send it to GPT-4o vision to describe any
-    charts, diagrams, or visual layouts that text extraction misses.
-    Falls back to text_table if vision calls fail.
-    """
-    import fitz
-    import base64
-
-    from openai import OpenAI
-    from app.core.config import settings
-
-    doc = fitz.open(str(path))
+def _extract_pdf_tables(path: Path, filename: str, page_count: int, strategy: str) -> list[dict]:
+    """Extract PDF tables with pdfplumber as markdown table chunks."""
     chunks = []
-    filename = path.name
-    page_count = len(doc)
-
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
-
-    for page_num, page in enumerate(doc):
-        # 1. Text extraction (same as text_table)
-        text = page.get_text("text").strip()
-        if text:
-            chunks.append({
-                "content": text,
-                "chunk_type": "text",
-                "page": page_num + 1,
-                "table_id": None,
-                "metadata": {
-                    "filename": filename,
-                    "page_count": page_count,
-                    "strategy": "text_table_vision",
-                },
-            })
-
-        # 2. Render page as image and send to GPT-4o vision
-        try:
-            pix = page.get_pixmap(dpi=150)
-            img_bytes = pix.tobytes("png")
-            b64_img = base64.b64encode(img_bytes).decode("utf-8")
-
-            response = client.chat.completions.create(
-                model=settings.OPENAI_MODEL,
-                messages=[{
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": (
-                                "Analyze this document page. Extract ALL information including:\n"
-                                "1. Any tables — output each as a markdown table\n"
-                                "2. Any charts, diagrams, or figures — describe them in detail "
-                                "with all visible data points, labels, and values\n"
-                                "3. Any visual layouts (flowcharts, org charts) — describe structure and content\n"
-                                "If the page is just plain text, reply with: PLAIN_TEXT_ONLY\n"
-                                "Be exhaustive. Include every number, label, and data point visible."
-                            ),
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/png;base64,{b64_img}"},
-                        },
-                    ],
-                }],
-                max_tokens=2000,
-                temperature=0,
-            )
-
-            vision_content = response.choices[0].message.content or ""
-            if vision_content.strip() and "PLAIN_TEXT_ONLY" not in vision_content:
-                # Determine chunk type from content
-                has_table = "|" in vision_content and "---" in vision_content
-                chunk_type = "table" if has_table else "image"
-                chunks.append({
-                    "content": vision_content,
-                    "chunk_type": chunk_type,
-                    "page": page_num + 1,
-                    "table_id": f"vision_{page_num + 1}" if has_table else None,
-                    "metadata": {
-                        "filename": filename,
-                        "page_count": page_count,
-                        "strategy": "text_table_vision",
-                        "source": "gpt4o_vision",
-                    },
-                })
-        except Exception:
-            pass  # Vision failure is non-fatal; text chunks still returned
-
-    # 3. Also extract tables via pdfplumber (same as text_table)
     try:
         import pdfplumber
         with pdfplumber.open(str(path)) as pdf_doc:
@@ -216,11 +115,13 @@ def _parse_pdf_with_vision(path: Path) -> list[dict]:
                 for table_idx, table in enumerate(tables):
                     if not table:
                         continue
+                    # Serialize table as markdown
                     md_rows = []
                     for row in table:
                         cells = [str(cell or "").strip() for cell in row]
                         md_rows.append("| " + " | ".join(cells) + " |")
                     if len(md_rows) > 1:
+                        # Insert separator after header
                         separator = "| " + " | ".join(["---"] * len(table[0])) + " |"
                         md_rows.insert(1, separator)
                     md_content = "\n".join(md_rows)
@@ -232,14 +133,148 @@ def _parse_pdf_with_vision(path: Path) -> list[dict]:
                         "metadata": {
                             "filename": filename,
                             "page_count": page_count,
-                            "strategy": "text_table_vision",
+                            "strategy": strategy,
                             "table_index": table_idx,
                         },
                     })
-    except Exception:
-        pass
+    except Exception as exc:
+        # Non-fatal: text chunks are still returned, but say so.
+        logger.warning("pdfplumber table extraction failed for %s: %s", filename, exc)
+    return chunks
 
-    doc.close()
+
+def _make_vision_client(api_key: str):
+    """OpenAI client for page vision calls (a function so tests can replace it)."""
+    from openai import OpenAI
+    return OpenAI(api_key=api_key)
+
+
+def _describe_page(client, model: str, png_bytes: bytes) -> str:
+    """Send one rendered page to the vision model and return its description."""
+    import base64
+
+    b64_img = base64.b64encode(png_bytes).decode("utf-8")
+    response = client.chat.completions.create(
+        model=model,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": VISION_PROMPT},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64_img}"}},
+            ],
+        }],
+        max_tokens=2000,
+        temperature=0,
+    )
+    return response.choices[0].message.content or ""
+
+
+def _parse_pdf_with_vision(path: Path, report: Optional[dict] = None) -> list[dict]:
+    """
+    Text + table + vision page understanding.
+
+    For each page: extract text (like text_table); for the first
+    settings.VISION_MAX_PAGES pages, also render the page as an image and send
+    it to settings.VISION_MODEL to describe charts, diagrams, tables and visual
+    layouts that text extraction misses. Then extract tables with pdfplumber.
+
+    Every vision chunk has chunk_type "image" and metadata.source
+    "gpt4o_vision" (what diagnostics look for); metadata.vision_has_table
+    marks descriptions that contain a markdown table. A failed vision call is
+    logged and recorded in ``report``; the other pages still parse.
+    """
+    import fitz
+    from app.core.config import settings
+
+    if not settings.OPENAI_API_KEY:
+        raise RuntimeError("text_table_vision parsing requires OPENAI_API_KEY")
+
+    doc = fitz.open(str(path))
+    chunks = []
+    filename = path.name
+    page_count = len(doc)
+    max_pages = max(0, settings.VISION_MAX_PAGES)
+    model = settings.VISION_MODEL
+    stats = {
+        "model": model,
+        "max_pages": max_pages,
+        "pages_sent": 0,
+        "pages_skipped": 0,
+        "plain_text_pages": 0,
+        "vision_chunks": 0,
+        "errors": [],
+    }
+
+    client = _make_vision_client(settings.OPENAI_API_KEY) if page_count and max_pages else None
+
+    try:
+        for page_num, page in enumerate(doc):
+            # 1. Text extraction (same as text_table)
+            text = page.get_text("text").strip()
+            if text:
+                chunks.append({
+                    "content": text,
+                    "chunk_type": "text",
+                    "page": page_num + 1,
+                    "table_id": None,
+                    "metadata": {
+                        "filename": filename,
+                        "page_count": page_count,
+                        "strategy": "text_table_vision",
+                    },
+                })
+
+            # 2. Render page as image and send to the vision model (bounded)
+            if page_num >= max_pages:
+                stats["pages_skipped"] += 1
+                continue
+            stats["pages_sent"] += 1
+            try:
+                png_bytes = page.get_pixmap(dpi=150).tobytes("png")
+                vision_content = _describe_page(client, model, png_bytes)
+            except Exception as exc:
+                logger.warning("Vision parsing failed for %s page %d: %s", filename, page_num + 1, exc)
+                stats["errors"].append({"page": page_num + 1, "error": f"{type(exc).__name__}: {exc}"[:300]})
+                continue
+
+            if not vision_content.strip() or "PLAIN_TEXT_ONLY" in vision_content:
+                stats["plain_text_pages"] += 1
+                continue
+            has_table = "|" in vision_content and "---" in vision_content
+            chunks.append({
+                "content": vision_content,
+                "chunk_type": "image",
+                "page": page_num + 1,
+                "table_id": f"vision_{page_num + 1}",
+                "metadata": {
+                    "filename": filename,
+                    "page_count": page_count,
+                    "strategy": "text_table_vision",
+                    "source": "gpt4o_vision",
+                    "vision_model": model,
+                    "vision_has_table": has_table,
+                },
+            })
+            stats["vision_chunks"] += 1
+    finally:
+        doc.close()
+
+    if stats["pages_skipped"]:
+        logger.info(
+            "Vision parsing of %s: sent %d of %d pages (VISION_MAX_PAGES=%d), skipped %d",
+            filename, stats["pages_sent"], page_count, max_pages, stats["pages_skipped"],
+        )
+    if stats["errors"]:
+        logger.error(
+            "Vision parsing of %s: %d of %d pages failed",
+            filename, len(stats["errors"]), stats["pages_sent"],
+        )
+
+    # 3. Also extract tables via pdfplumber (same as text_table)
+    chunks.extend(_extract_pdf_tables(path, filename, page_count, "text_table_vision"))
+
+    if report is not None:
+        report["vision"] = stats
     return chunks
 
 
@@ -368,7 +403,8 @@ def _parse_html(path: Path) -> list[dict]:
                     "table_id": f"table_{elem_idx}" if chunk_type == "table" else None,
                     "metadata": {"filename": filename, "element_type": type(elem).__name__},
                 })
-    except Exception:
+    except Exception as exc:
+        logger.info("unstructured HTML parsing unavailable for %s (%s); using basic strip", filename, exc)
         # Fallback: basic HTML strip
         from html.parser import HTMLParser
 
