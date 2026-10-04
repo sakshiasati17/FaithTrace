@@ -63,7 +63,7 @@ New DB columns/tables need an Alembic migration in `backend/alembic/versions` (n
 2. ~~**Diagnosis correctness.**~~ Fixed in PR #19 (`fix/diagnosis-correctness`). Eval items are matched by `id` (`classifier.index_eval_set`); `root_cause_diagnostic_accuracy` is computed in `diagnose_run` from stored diagnoses vs `failure_type` labels and is `None` when nothing is labelled. Retrain old classifier models.
 3. **Errors scored as answers.** `runner.py` turns exceptions into `"Error: ..."` answers that get scored and diagnosed. Record per-query error status; exclude from metrics.
 4. **BM25 ignores filters.** `_build_bm25_retriever` skips freshness and chunk-type filters, so hybrid configs leak stale chunks. Also rebuilt per question.
-5. **Reranker never runs.** `sentence-transformers` is missing from requirements; failure is hidden by `except: pass`.
+5. ~~**Reranker never runs.**~~ Fixed in `fix/reranker`. `sentence-transformers` is pinned; the cross-encoder (`RERANKER_MODEL`) loads once per process; each chunk carries `reranked` (and `rerank_error` on failure) in `retrieved_chunks`, and failures are logged.
 6. **Parsing fixed at upload.** `corpus._default_strategy` never selects `text_table_vision`, so no image chunks exist. `spreadsheet_aware` filter uses `"spreadsheet"` but parser emits `"spreadsheet_cell"`.
 7. **Chunking axis is a no-op.** Ingestion always chunks `recursive`; runner never reads `chunking_strategy`.
 8. ~~**Eval set is a file path.**~~ Fixed in `feat/eval-set-upload`: `eval_sets` table + `/api/v1/eval-sets` upload (JSON/CSV, validated); experiments store `eval_set_id`/`eval_set_path` (restricted to `eval_sets/`); workers use `tasks.load_eval_set_for`; one default `eval_sets/faithtrace_v1.json`.
