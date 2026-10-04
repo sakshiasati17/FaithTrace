@@ -47,13 +47,16 @@ class Experiment(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
-    status: Mapped[str] = mapped_column(String, default="pending")  # pending, running, done, failed
+    # pending -> running (generating) -> evaluating -> diagnosing -> done, or failed
+    status: Mapped[str] = mapped_column(String, default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Eval set the experiment runs against: an uploaded set (preferred) or a
     # built-in file under eval_sets/ (legacy). Both null on pre-005 rows.
     eval_set_id: Mapped[str | None] = mapped_column(String, ForeignKey("eval_sets.id"), nullable=True)
     eval_set_path: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Documents retrieval may search (Document ids); null = every document.
+    document_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     runs: Mapped[list["Run"]] = relationship("Run", back_populates="experiment")
 
@@ -64,9 +67,13 @@ class Run(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     experiment_id: Mapped[str] = mapped_column(String, ForeignKey("experiments.id"), nullable=False)
     config: Mapped[dict] = mapped_column(JSON, nullable=False)   # PipelineConfig as dict
-    status: Mapped[str] = mapped_column(String, default="pending")
+    status: Mapped[str] = mapped_column(String, default="pending")  # pending, running, done, failed
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Set when evaluate_run / diagnose_run finish for this run; the experiment
+    # status is derived from them (tasks.refresh_experiment_status).
+    evaluated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    diagnosed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     experiment: Mapped["Experiment"] = relationship("Experiment", back_populates="runs")
     metrics: Mapped["RunMetrics"] = relationship("RunMetrics", back_populates="run", uselist=False)
