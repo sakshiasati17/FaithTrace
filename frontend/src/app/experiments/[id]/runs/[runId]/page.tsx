@@ -6,6 +6,7 @@ import Link from "next/link";
 import { experimentsApi, diagnosticsApi, feedbackApi } from "@/lib/api";
 import { ArrowLeft, ChevronRight, ChevronDown, FileText, Table2, Sheet, AlertCircle, ThumbsUp, ThumbsDown, Brain, Loader2, CheckCircle2, Lightbulb, Users } from "lucide-react";
 import { clsx } from "clsx";
+import { ErroredBadge, QueryErrorMessage, isErroredQuery } from "@/components/ui/ErroredBadge";
 import type { QueryDiagnosis, DiagnosticReasoning, FailureCategory } from "@/types";
 
 const FAILURE_LABELS: FailureCategory[] = [
@@ -316,7 +317,9 @@ export default function RunTracePage({ params }: { params: { id: string; runId: 
       ) : (
         <div className="space-y-2">
           {trace.map((qr: any) => {
-            const diag = diagByQueryId[qr.query_id];
+            const errored = isErroredQuery(qr);
+            // Errored queries were never answered or diagnosed.
+            const diag = errored ? undefined : diagByQueryId[qr.query_id];
             const failureStyle = FAILURE_COLORS[diag?.failure_category ?? "NO_FAILURE"] ?? FAILURE_COLORS.NO_FAILURE;
             const isExpanded = expandedRow === qr.query_id;
 
@@ -331,9 +334,14 @@ export default function RunTracePage({ params }: { params: { id: string; runId: 
                   <span className="text-xs text-zinc-600 font-mono w-12 flex-shrink-0 pt-0.5">{qr.query_id}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-zinc-200 mb-1 line-clamp-2">{qr.question}</p>
-                    <p className="text-xs text-zinc-500 line-clamp-1">{qr.generated_answer}</p>
+                    {errored ? (
+                      <p className="text-xs text-red-400/80 line-clamp-1 font-mono">{qr.error_message || "Query errored"}</p>
+                    ) : (
+                      <p className="text-xs text-zinc-500 line-clamp-1">{qr.generated_answer}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {errored && <ErroredBadge />}
                     {diag?.failure_category && (
                       <span className={clsx(
                         "text-[10px] font-medium px-2 py-0.5 rounded border",
@@ -366,8 +374,14 @@ export default function RunTracePage({ params }: { params: { id: string; runId: 
                         <p className="text-sm text-zinc-300">{qr.question}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Generated Answer</p>
-                        <p className="text-sm text-zinc-300">{qr.generated_answer}</p>
+                        {errored ? (
+                          <QueryErrorMessage message={qr.error_message} />
+                        ) : (
+                          <>
+                            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Generated Answer</p>
+                            <p className="text-sm text-zinc-300">{qr.generated_answer}</p>
+                          </>
+                        )}
                       </div>
                     </div>
 
