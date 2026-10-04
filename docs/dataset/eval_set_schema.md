@@ -33,6 +33,29 @@ Each entry in an evaluation set is a JSON object with the following fields:
 | `difficulty` | enum | `easy`, `medium`, `hard` |
 | `answerable` | boolean | Whether the corpus contains a correct answer |
 | `failure_type` | enum or null | Expected failure category for negative test cases |
+| `evidence` | object or string | Supporting quote/location for the ground truth |
+| `temporal_pair_id` | string or null | Links questions that test different versions of the same fact |
+
+Only `id`, `question` and `ground_truth` are required. `id` must be unique
+within a set; dates must be ISO `YYYY-MM-DD`; `valid_to` may not precede
+`valid_from`. `failure_type` accepts any diagnostic failure category
+(`STALE_ANSWER`, `WRONG_VERSION`, `TABLE_RETRIEVAL_MISS`,
+`CHART_LAYOUT_BLINDNESS`, `CHUNKING_BOUNDARY_ERROR`, `LOW_RECALL_RETRIEVAL`,
+`IRRELEVANT_CONTEXT_POLLUTION`, `UNSUPPORTED_SYNTHESIS`, `NO_FAILURE`) or
+`UNANSWERABLE`.
+
+## Using an eval set
+
+- **Built-in:** JSON files in the repo `eval_sets/` folder. The default is
+  `eval_sets/faithtrace_v1.json`.
+- **Upload:** `POST /api/v1/eval-sets/` (multipart `file`, optional `name`,
+  `description`) or the "Upload eval set" button in the New Experiment form.
+  Accepts a JSON list of items or a CSV with a header row (`source_docs`
+  separated by `;`, `answerable` as `true`/`false`). Invalid files return 422
+  with per-row errors; `source_docs` that match no uploaded document are
+  returned as warnings.
+- Experiments take `eval_set_id` (preferred) or a legacy `eval_set_path`,
+  which must name a file directly inside `eval_sets/`.
 
 ## Modality Labels
 
