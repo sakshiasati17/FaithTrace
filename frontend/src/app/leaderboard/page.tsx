@@ -7,6 +7,7 @@ import { evaluationApi } from "@/lib/api";
 import { BarChart3, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 import { clsx } from "clsx";
 import { compareMetric, formatMetric, isScored } from "@/lib/metrics";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 const METRIC_COLS = [
   { key: "faithfulness", label: "Faithfulness", lowerBetter: false },
@@ -39,7 +40,7 @@ export default function LeaderboardPage() {
   const [sortBy, setSortBy] = useState("faithfulness");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const { data: entries = [] as any[], isLoading } = useQuery<any[]>({
+  const { data: entries = [] as any[], isLoading, isError, error, refetch } = useQuery<any[]>({
     queryKey: ["leaderboard", sortBy],
     queryFn: () => evaluationApi.getLeaderboard(undefined),
   });
@@ -73,6 +74,8 @@ export default function LeaderboardPage() {
 
       {isLoading ? (
         <div className="py-20 text-center text-sm text-zinc-600">Loading leaderboard…</div>
+      ) : isError ? (
+        <ErrorState title="Failed to load leaderboard" error={error} onRetry={() => refetch()} />
       ) : entriesArray.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl py-20 text-center">
           <BarChart3 className="w-10 h-10 text-zinc-700 mx-auto mb-3" />

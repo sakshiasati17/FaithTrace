@@ -6,6 +6,7 @@ import { experimentsApi, diagnosticsApi } from "@/lib/api";
 import { Stethoscope, AlertCircle } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { clsx } from "clsx";
+import { ErrorState } from "@/components/ui/ErrorState";
 import type { Experiment } from "@/types";
 
 const FAILURE_COLORS: Record<string, string> = {
@@ -35,14 +36,25 @@ const FAILURE_DESCRIPTIONS: Record<string, string> = {
 export default function DiagnosticsPage() {
   const [selectedExperiment, setSelectedExperiment] = useState<string>("");
 
-  const { data: experiments = [] as Experiment[] } = useQuery<Experiment[]>({
+  const {
+    data: experiments = [] as Experiment[],
+    isError: experimentsError,
+    error: experimentsErr,
+    refetch: refetchExperiments,
+  } = useQuery<Experiment[]>({
     queryKey: ["experiments"],
     queryFn: experimentsApi.list,
   });
 
   const completedExps = (experiments as Experiment[]).filter((e) => e.status === "done");
 
-  const { data: summary, isLoading: summaryLoading } = useQuery({
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    isError: summaryError,
+    error: summaryErr,
+    refetch: refetchSummary,
+  } = useQuery({
     queryKey: ["failure-summary", selectedExperiment],
     queryFn: () => diagnosticsApi.getFailureSummary(selectedExperiment),
     enabled: !!selectedExperiment,
@@ -75,6 +87,15 @@ export default function DiagnosticsPage() {
         <p className="text-sm text-zinc-500">Root-cause failure analysis across pipeline configurations</p>
       </div>
 
+      {experimentsError && (
+        <ErrorState
+          className="mb-6"
+          title="Failed to load experiments"
+          error={experimentsErr}
+          onRetry={() => refetchExperiments()}
+        />
+      )}
+
       {/* Experiment selector */}
       <div className="mb-6">
         <label className="block text-xs text-zinc-500 mb-1.5">Select Experiment</label>
@@ -99,6 +120,8 @@ export default function DiagnosticsPage() {
         </div>
       ) : summaryLoading ? (
         <div className="py-20 text-center text-sm text-zinc-600">Analyzing…</div>
+      ) : summaryError ? (
+        <ErrorState title="Failed to load failure summary" error={summaryErr} onRetry={() => refetchSummary()} />
       ) : (
         <>
           {/* Summary stats */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { ErrorState } from "@/components/ui/ErrorState";
 import Link from "next/link";
 import { corpusApi, evaluationApi, experimentsApi } from "@/lib/api";
 import { SystemStatusList } from "@/components/ui/SystemStatus";
@@ -75,9 +76,17 @@ const PIPELINE_STEPS = [
 ];
 
 export default function HomePage() {
-  const { data: docs = [] }        = useQuery<Document[]>({ queryKey: ["corpus"],      queryFn: corpusApi.list });
-  const { data: experiments = [] } = useQuery<Experiment[]>({ queryKey: ["experiments"], queryFn: experimentsApi.list });
-  const { data: leaderboard = [] } = useQuery<any[]>({ queryKey: ["leaderboard"], queryFn: () => evaluationApi.getLeaderboard() });
+  const docsQuery        = useQuery<Document[]>({ queryKey: ["corpus"],      queryFn: corpusApi.list });
+  const experimentsQuery = useQuery<Experiment[]>({ queryKey: ["experiments"], queryFn: experimentsApi.list });
+  const leaderboardQuery = useQuery<any[]>({ queryKey: ["leaderboard"], queryFn: () => evaluationApi.getLeaderboard() });
+  const docs        = docsQuery.data ?? [];
+  const experiments = experimentsQuery.data ?? [];
+  const leaderboard = leaderboardQuery.data ?? [];
+  // A failed request must not render as "0 documents" / "no experiments".
+  const failedQuery = [docsQuery, experimentsQuery, leaderboardQuery].find((q) => q.isError);
+  const retryFailed = () => {
+    [docsQuery, experimentsQuery, leaderboardQuery].filter((q) => q.isError).forEach((q) => q.refetch());
+  };
 
   const totalDocs      = docs.length;
   const totalExps      = experiments.length;
@@ -117,6 +126,10 @@ export default function HomePage() {
       </div>
 
       <div className="px-8 py-7 max-w-7xl relative z-10">
+        {failedQuery ? (
+          <ErrorState title="Failed to load overview" error={failedQuery.error} onRetry={retryFailed} />
+        ) : (
+        <>
 
         {/* ── KPI strip ────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-4 gap-3 mb-7 stagger-in">
@@ -405,6 +418,8 @@ export default function HomePage() {
             </span>
           ))}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

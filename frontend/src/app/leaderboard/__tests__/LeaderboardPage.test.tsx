@@ -76,3 +76,22 @@ describe("LeaderboardPage null metrics", () => {
     expect(await rowOrder()).toEqual(["zero_cfg", "good_cfg", "unscored_cfg"]);
   });
 });
+
+describe("LeaderboardPage API errors", () => {
+  it("shows an error state, not 'No results yet', when the API fails", async () => {
+    getLeaderboard.mockRejectedValue(new Error("Network Error"));
+    renderPage();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Network Error");
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+    expect(screen.queryByText("No results yet")).not.toBeInTheDocument();
+  });
+
+  it("shows the empty state when there is no data", async () => {
+    getLeaderboard.mockResolvedValue([]);
+    renderPage();
+
+    expect(await screen.findByText("No results yet")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
