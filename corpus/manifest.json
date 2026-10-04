@@ -1,0 +1,109 @@
+{
+  "description": "FaithTrace demo corpus: openly licensed, non-government documents. effective_from/effective_to describe when each version was the current one (see corpus/README.md); null means not versioned or not stated.",
+  "documents": [
+    {
+      "filename": "cc_by_3.0_legalcode.html",
+      "source_url": "https://github.com/creativecommons/cc-legal-tools-data/blob/a0dac18d1a773b4cdb7d8dd5d9bf4efab7901030/docs/licenses/by/3.0/legalcode.en.html",
+      "canonical_url": "https://creativecommons.org/licenses/by/3.0/legalcode",
+      "license": "CC0 1.0 (the cc-legal-tools-data repository is CC0; the page itself states the license text is dedicated to the public domain under CC0).",
+      "version_label": "3.0",
+      "effective_from": "2007-02-23",
+      "effective_to": "2013-11-24",
+      "description": "Creative Commons Attribution 3.0 Unported legal code (English). Older version of the CC BY pair; superseded by 4.0.",
+      "sha256": "967a3670bcbfdc50614e71062b18effed899007a0e364541328ebdb863520132"
+    },
+    {
+      "filename": "cc_by_4.0_legalcode.html",
+      "source_url": "https://github.com/creativecommons/cc-legal-tools-data/blob/a0dac18d1a773b4cdb7d8dd5d9bf4efab7901030/docs/licenses/by/4.0/legalcode.en.html",
+      "canonical_url": "https://creativecommons.org/licenses/by/4.0/legalcode",
+      "license": "CC0 1.0 (the cc-legal-tools-data repository is CC0; the page itself states the license text is dedicated to the public domain under CC0).",
+      "version_label": "4.0",
+      "effective_from": "2013-11-25",
+      "effective_to": null,
+      "description": "Creative Commons Attribution 4.0 International legal code (English). Current version of the CC BY pair.",
+      "sha256": "58230517b7895aa219ff46a6ed63e67057a1582fb9ea054b16728a8c13525650"
+    },
+    {
+      "filename": "cc_by_sa_3.0_legalcode.html",
+      "source_url": "https://github.com/creativecommons/cc-legal-tools-data/blob/a0dac18d1a773b4cdb7d8dd5d9bf4efab7901030/docs/licenses/by-sa/3.0/legalcode.en.html",
+      "canonical_url": "https://creativecommons.org/licenses/by-sa/3.0/legalcode",
+      "license": "CC0 1.0 (the cc-legal-tools-data repository is CC0; the page itself states the license text is dedicated to the public domain under CC0).",
+      "version_label": "3.0",
+      "effective_from": "2007-02-23",
+      "effective_to": "2013-11-24",
+      "description": "Creative Commons Attribution-ShareAlike 3.0 Unported legal code (English). Older version of the CC BY-SA pair.",
+      "sha256": "c33d7ebdbcc5c8db073e69a794b2ac44805f5d7d9edcfb8b5181a71869a9b7d5"
+    },
+    {
+      "filename": "cc_by_sa_4.0_legalcode.html",
+      "source_url": "https://github.com/creativecommons/cc-legal-tools-data/blob/a0dac18d1a773b4cdb7d8dd5d9bf4efab7901030/docs/licenses/by-sa/4.0/legalcode.en.html",
+      "canonical_url": "https://creativecommons.org/licenses/by-sa/4.0/legalcode",
+      "license": "CC0 1.0 (the cc-legal-tools-data repository is CC0; the page itself states the license text is dedicated to the public domain under CC0).",
+      "version_label": "4.0",
+      "effective_from": "2013-11-25",
+      "effective_to": null,
+      "description": "Creative Commons Attribution-ShareAlike 4.0 International legal code (English). Current version of the CC BY-SA pair.",
+      "sha256": "47c0a954c88d793bdefe92fb007ae3c038fb3807f1a27083433d01aa7542c0d8"
+    },
+    {
+      "filename": "cncf_ambassador_midyear_survey_2023.pdf",
+      "source_url": "https://github.com/cncf/surveys/blob/e2dd7c5405be150184d8f6921340927fccac7db2/ambassador/2023/CNCF_Ambassador_MidYear_Survey_2023.pdf",
+      "license": "Apache License 2.0 (cncf/surveys repository LICENSE).",
+      "version_label": "2023-midyear",
+      "effective_from": "2023-11-29",
+      "effective_to": null,
+      "description": "CNCF Ambassador Mid Year Survey 2023 slide deck (18 pages). Pages 4-8 are pie charts whose question titles and category labels exist only in the chart images; only the percentages are in the PDF text layer. Page 17 is a small initiatives/timeline table.",
+      "sha256": "e9a73a2915b810a3daf1321af23b55ac9d363acb47b9450f81d25c014390a8f8"
+    },
+    {
+      "filename": "cncf_toc_survey_2020_h1_matrix.pdf",
+      "source_url": "https://github.com/cncf/surveys/blob/e2dd7c5405be150184d8f6921340927fccac7db2/toc/h1/Matrix-h1.pdf",
+      "license": "Apache License 2.0 (cncf/surveys repository LICENSE).",
+      "version_label": "2020-H1",
+      "effective_from": null,
+      "effective_to": null,
+      "description": "CNCF TOC Survey 2020 H1, Q10 agreement matrix: pages 1-3 are bar charts with no values in text; page 4 is the results table (percentages, counts, weighted averages).",
+      "sha256": "ea1e1bc71dc8bc7129f37a7145c8c26e7b5d64e02a8479d1bd46ddf5fa0c07e5"
+    },
+    {
+      "filename": "cncf_2022_survey_reference_model.pdf",
+      "source_url": "https://github.com/cncf/surveys/blob/e2dd7c5405be150184d8f6921340927fccac7db2/cloudnative/CNCF%202022%20Survey%20Reference%20Model.pdf",
+      "license": "Apache License 2.0 (cncf/surveys repository LICENSE); the 2022 survey content additionally states CDLA-Permissive-2.0 (https://cdla.dev/permissive-2-0/).",
+      "version_label": "2022",
+      "effective_from": null,
+      "effective_to": null,
+      "description": "2022 CNCF Cloud Native Survey reference model (survey instrument): tabular layout of page, question number, response codes, and show/hide/disqualify logic.",
+      "sha256": "0034de6e178e5987157aa15f29de41d1affe748a019bba365240a33fa2d93c6a"
+    },
+    {
+      "filename": "cncf_2022_survey_csv_guide.pdf",
+      "source_url": "https://github.com/cncf/surveys/blob/e2dd7c5405be150184d8f6921340927fccac7db2/cloudnative/2022%20CNCF%20Cloud%20Native%20Survey%20-%20Guide%20to%20Using%20the%20CSV%20Files%20and%20Data.pdf",
+      "license": "Apache License 2.0 (cncf/surveys repository LICENSE); the 2022 survey content additionally states CDLA-Permissive-2.0 (https://cdla.dev/permissive-2-0/).",
+      "version_label": "2022",
+      "effective_from": null,
+      "effective_to": null,
+      "description": "Guide to the 2022 CNCF Cloud Native Survey data files: prose on encoding conventions plus a keep/filter-out criteria table.",
+      "sha256": "5a08221f1e9973ed3deec32d1641915ba427d343c2c3cc404e0c7fcaf136c2ca"
+    },
+    {
+      "filename": "cncf_cloud_native_survey_2021_part1.xlsx",
+      "source_url": "https://github.com/cncf/surveys/blob/e2dd7c5405be150184d8f6921340927fccac7db2/cloudnative/Cloud_Native_Survey_2021-Part_1.xlsx",
+      "license": "Apache License 2.0 (cncf/surveys repository LICENSE).",
+      "version_label": "2021-part1",
+      "effective_from": null,
+      "effective_to": null,
+      "description": "CNCF Cloud Native Survey 2021, Part 1 crosstabs: 27 sheets (one per question), rows = respondent region, paired percent/count columns, Total/Answered/Skipped rows, plus free-text 'Other' responses.",
+      "sha256": "f5ad60df5b3e95200aebda05cf9af9a8393f72d62d83f56f5046cfab0737b45c"
+    },
+    {
+      "filename": "cncf_maintainers_survey_2020_h2_summary.csv",
+      "source_url": "https://github.com/cncf/surveys/blob/e2dd7c5405be150184d8f6921340927fccac7db2/maintainer/2020/h2/CNCF_Maintainers_Survey_2020_H2_Summary.csv",
+      "license": "Apache License 2.0 (cncf/surveys repository LICENSE).",
+      "version_label": "2020-H2",
+      "effective_from": null,
+      "effective_to": null,
+      "description": "CNCF Maintainers Survey 2020 H2 summary export: per-question blocks of answer choices, percents, counts, 1-10 rating distributions and weighted averages. Aggregates only (no names/emails).",
+      "sha256": "6a429e007d29c149f9d2b8b81fc2e22123cc96d7e5d501b5893c11b7e6dc24a3"
+    }
+  ]
+}

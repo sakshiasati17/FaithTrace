@@ -1,0 +1,1647 @@
+[
+  {
+    "id": "ft_001",
+    "question": "Under the Creative Commons Attribution (CC BY) license, if a licensee's rights terminate because they breached the license, can those rights be reinstated, and how?",
+    "ground_truth": "Version 3.0 has no cure or automatic reinstatement provision: the license terminates automatically upon any breach. A party that previously violated the terms can only exercise rights again with express permission from the Licensor (definition of \"You\").",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "This License and the rights granted hereunder will terminate automatically upon any breach by You of the terms of this License.",
+      "location": "Section 7(a) Termination"
+    },
+    "temporal_pair_id": "tp_01"
+  },
+  {
+    "id": "ft_002",
+    "question": "Under the Creative Commons Attribution (CC BY) license, if a licensee's rights terminate because they breached the license, can those rights be reinstated, and how?",
+    "ground_truth": "Yes. Under version 4.0 the rights reinstate automatically as of the date the violation is cured, provided it is cured within 30 days of discovering the violation, or upon express reinstatement by the Licensor.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "automatically as of the date the violation is cured, provided it is cured within 30 days of Your discovery of the violation; or upon express reinstatement by the Licensor.",
+      "location": "Section 6(b) Term and Termination"
+    },
+    "temporal_pair_id": "tp_01"
+  },
+  {
+    "id": "ft_003",
+    "question": "Under the Creative Commons Attribution-ShareAlike (CC BY-SA) license, if a licensee's rights terminate because they breached the license, can those rights be reinstated, and how?",
+    "ground_truth": "Version 3.0 has no cure or automatic reinstatement provision: the license terminates automatically upon any breach. A party that previously violated the terms can only exercise rights again with express permission from the Licensor (definition of \"You\").",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "This License and the rights granted hereunder will terminate automatically upon any breach by You of the terms of this License.",
+      "location": "Section 7(a) Termination"
+    },
+    "temporal_pair_id": "tp_02"
+  },
+  {
+    "id": "ft_004",
+    "question": "Under the Creative Commons Attribution-ShareAlike (CC BY-SA) license, if a licensee's rights terminate because they breached the license, can those rights be reinstated, and how?",
+    "ground_truth": "Yes. Under version 4.0 the rights reinstate automatically as of the date the violation is cured, provided it is cured within 30 days of discovering the violation, or upon express reinstatement by the Licensor.",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "automatically as of the date the violation is cured, provided it is cured within 30 days of Your discovery of the violation; or upon express reinstatement by the Licensor.",
+      "location": "Section 6(b) Term and Termination"
+    },
+    "temporal_pair_id": "tp_02"
+  },
+  {
+    "id": "ft_005",
+    "question": "Does the Creative Commons Attribution (CC BY) license contain a dedicated provision on Sui Generis Database Rights?",
+    "ground_truth": "No. Version 3.0 has no Sui Generis Database Rights section; databases are covered only as part of the definition of \"Work\" (\"a compilation of data to the extent it is protected as a copyrightable work\").",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "a compilation of data to the extent it is protected as a copyrightable work",
+      "location": "Section 1 Definitions, \"Work\""
+    },
+    "temporal_pair_id": "tp_03"
+  },
+  {
+    "id": "ft_006",
+    "question": "Does the Creative Commons Attribution (CC BY) license contain a dedicated provision on Sui Generis Database Rights?",
+    "ground_truth": "Yes. Version 4.0 has Section 4 – Sui Generis Database Rights: Section 2(a)(1) grants the right to extract, reuse, reproduce and Share all or a substantial portion of the database contents, and the licensee must comply with Section 3(a) if they Share all or a substantial portion of the database contents.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Section 2(a)(1) grants You the right to extract, reuse, reproduce, and Share all or a substantial portion of the contents of the database",
+      "location": "Section 4 – Sui Generis Database Rights"
+    },
+    "temporal_pair_id": "tp_03"
+  },
+  {
+    "id": "ft_007",
+    "question": "Does the Creative Commons Attribution-ShareAlike (CC BY-SA) license contain a dedicated provision on Sui Generis Database Rights?",
+    "ground_truth": "No. Version 3.0 has no Sui Generis Database Rights section; databases are covered only as part of the definition of \"Work\" (\"a compilation of data to the extent it is protected as a copyrightable work\").",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "a compilation of data to the extent it is protected as a copyrightable work",
+      "location": "Section 1 Definitions, \"Work\""
+    },
+    "temporal_pair_id": "tp_04"
+  },
+  {
+    "id": "ft_008",
+    "question": "Does the Creative Commons Attribution-ShareAlike (CC BY-SA) license contain a dedicated provision on Sui Generis Database Rights?",
+    "ground_truth": "Yes. Version 4.0 has Section 4 – Sui Generis Database Rights: Section 2(a)(1) grants the right to extract, reuse, reproduce and Share all or a substantial portion of the database contents, and the licensee must comply with Section 3(a) if they Share all or a substantial portion of the database contents.",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Section 2(a)(1) grants You the right to extract, reuse, reproduce, and Share all or a substantial portion of the contents of the database",
+      "location": "Section 4 – Sui Generis Database Rights"
+    },
+    "temporal_pair_id": "tp_04"
+  },
+  {
+    "id": "ft_009",
+    "question": "What is the full title of the Creative Commons Attribution (CC BY) license legal code version that applies?",
+    "ground_truth": "Attribution 3.0 Unported.",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Attribution 3.0 Unported",
+      "location": "Page title / license heading"
+    },
+    "temporal_pair_id": "tp_05"
+  },
+  {
+    "id": "ft_010",
+    "question": "What is the full title of the Creative Commons Attribution (CC BY) license legal code version that applies?",
+    "ground_truth": "Attribution 4.0 International (Creative Commons Attribution 4.0 International Public License).",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Creative Commons Attribution 4.0 International Public License",
+      "location": "License preamble"
+    },
+    "temporal_pair_id": "tp_05"
+  },
+  {
+    "id": "ft_011",
+    "question": "What is the full title of the Creative Commons Attribution-ShareAlike (CC BY-SA) license legal code version that applies?",
+    "ground_truth": "Attribution-ShareAlike 3.0 Unported.",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Attribution-ShareAlike 3.0 Unported",
+      "location": "Page title / license heading"
+    },
+    "temporal_pair_id": "tp_06"
+  },
+  {
+    "id": "ft_012",
+    "question": "What is the full title of the Creative Commons Attribution-ShareAlike (CC BY-SA) license legal code version that applies?",
+    "ground_truth": "Attribution-ShareAlike 4.0 International (Creative Commons Attribution-ShareAlike 4.0 International Public License).",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Attribution-ShareAlike 4.0 International",
+      "location": "License heading"
+    },
+    "temporal_pair_id": "tp_06"
+  },
+  {
+    "id": "ft_013",
+    "question": "Which numbered sections of the Creative Commons Attribution (CC BY) license survive termination of the license?",
+    "ground_truth": "Sections 1, 2, 5, 6, 7, and 8 survive termination (version 3.0).",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Sections 1, 2, 5, 6, 7, and 8 will survive any termination of this License.",
+      "location": "Section 7(a) Termination"
+    },
+    "temporal_pair_id": "tp_07"
+  },
+  {
+    "id": "ft_014",
+    "question": "Which numbered sections of the Creative Commons Attribution (CC BY) license survive termination of the license?",
+    "ground_truth": "Sections 1, 5, 6, 7, and 8 survive termination (version 4.0).",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Sections 1, 5, 6, 7, and 8 survive termination of this Public License.",
+      "location": "Section 6(e) Term and Termination"
+    },
+    "temporal_pair_id": "tp_07"
+  },
+  {
+    "id": "ft_015",
+    "question": "Which numbered sections of the Creative Commons Attribution-ShareAlike (CC BY-SA) license survive termination of the license?",
+    "ground_truth": "Sections 1, 2, 5, 6, 7, and 8 survive termination (version 3.0).",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Sections 1, 2, 5, 6, 7, and 8 will survive any termination of this License.",
+      "location": "Section 7(a) Termination"
+    },
+    "temporal_pair_id": "tp_08"
+  },
+  {
+    "id": "ft_016",
+    "question": "Which numbered sections of the Creative Commons Attribution-ShareAlike (CC BY-SA) license survive termination of the license?",
+    "ground_truth": "Sections 1, 5, 6, 7, and 8 survive termination (version 4.0).",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Sections 1, 5, 6, 7, and 8 survive termination of this Public License.",
+      "location": "Section 6(e) Term and Termination"
+    },
+    "temporal_pair_id": "tp_08"
+  },
+  {
+    "id": "ft_017",
+    "question": "Under the Creative Commons Attribution (CC BY) license, what must a licensee do to show that they changed the licensed work?",
+    "ground_truth": "For an Adaptation, the licensee must take reasonable steps to clearly label, demarcate or otherwise identify that changes were made to the original Work (e.g. \"The original work was translated from English to Spanish\"), and the credit must identify the use of the Work in the Adaptation.",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "takes reasonable steps to clearly label, demarcate or otherwise identify that changes were made to the original Work.",
+      "location": "Section 3(b) License Grant"
+    },
+    "temporal_pair_id": "tp_09"
+  },
+  {
+    "id": "ft_018",
+    "question": "Under the Creative Commons Attribution (CC BY) license, what must a licensee do to show that they changed the licensed work?",
+    "ground_truth": "When sharing the Licensed Material (including in modified form), the licensee must indicate if they modified it and retain an indication of any previous modifications.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "indicate if You modified the Licensed Material and retain an indication of any previous modifications",
+      "location": "Section 3(a)(1)(B) Attribution"
+    },
+    "temporal_pair_id": "tp_09"
+  },
+  {
+    "id": "ft_019",
+    "question": "In the Creative Commons Attribution (CC BY) license, what defined term is used for a work derived from the licensed material, and how is it defined?",
+    "ground_truth": "\"Adaptation\": a work based upon the Work, or upon the Work and other pre-existing works, such as a translation, adaptation, derivative work, arrangement of music or other alterations of a literary or artistic work; a Collection is not considered an Adaptation.",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "means a work based upon the Work, or upon the Work and other pre-existing works, such as a translation, adaptation, derivative work, arrangement of music or other alterations of a literary or artistic work",
+      "location": "Section 1(a) Definitions, \"Adaptation\""
+    },
+    "temporal_pair_id": "tp_10"
+  },
+  {
+    "id": "ft_020",
+    "question": "In the Creative Commons Attribution (CC BY) license, what defined term is used for a work derived from the licensed material, and how is it defined?",
+    "ground_truth": "\"Adapted Material\": material subject to Copyright and Similar Rights that is derived from or based upon the Licensed Material and in which the Licensed Material is translated, altered, arranged, transformed, or otherwise modified in a manner requiring permission under the Copyright and Similar Rights held by the Licensor.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "means material subject to Copyright and Similar Rights that is derived from or based upon the Licensed Material and in which the Licensed Material is translated, altered, arranged, transformed, or otherwise modified in a manner requiring permission",
+      "location": "Section 1(a) Definitions, \"Adapted Material\""
+    },
+    "temporal_pair_id": "tp_10"
+  },
+  {
+    "id": "ft_021",
+    "question": "In the Creative Commons Attribution-ShareAlike (CC BY-SA) license, what defined term is used for a work derived from the licensed material, and how is it defined?",
+    "ground_truth": "\"Adaptation\": a work based upon the Work, or upon the Work and other pre-existing works, such as a translation, adaptation, derivative work, arrangement of music or other alterations of a literary or artistic work; a Collection is not considered an Adaptation.",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "means a work based upon the Work, or upon the Work and other pre-existing works, such as a translation, adaptation, derivative work, arrangement of music or other alterations of a literary or artistic work",
+      "location": "Section 1(a) Definitions, \"Adaptation\""
+    },
+    "temporal_pair_id": "tp_11"
+  },
+  {
+    "id": "ft_022",
+    "question": "In the Creative Commons Attribution-ShareAlike (CC BY-SA) license, what defined term is used for a work derived from the licensed material, and how is it defined?",
+    "ground_truth": "\"Adapted Material\": material subject to Copyright and Similar Rights that is derived from or based upon the Licensed Material and in which the Licensed Material is translated, altered, arranged, transformed, or otherwise modified in a manner requiring permission under the Copyright and Similar Rights held by the Licensor.",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "means material subject to Copyright and Similar Rights that is derived from or based upon the Licensed Material and in which the Licensed Material is translated, altered, arranged, transformed, or otherwise modified in a manner requiring permission",
+      "location": "Section 1(a) Definitions, \"Adapted Material\""
+    },
+    "temporal_pair_id": "tp_11"
+  },
+  {
+    "id": "ft_023",
+    "question": "Under the Creative Commons Attribution (CC BY) license's limitation of liability, for which kinds of damages is the Licensor not liable?",
+    "ground_truth": "Version 3.0 (Section 6) excludes liability for special, incidental, consequential, punitive or exemplary damages (except to the extent required by applicable law); direct damages are not listed.",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "IN NO EVENT WILL LICENSOR BE LIABLE TO YOU ON ANY LEGAL THEORY FOR ANY SPECIAL, INCIDENTAL, CONSEQUENTIAL, PUNITIVE OR EXEMPLARY DAMAGES",
+      "location": "Section 6 Limitation on Liability"
+    },
+    "temporal_pair_id": "tp_12"
+  },
+  {
+    "id": "ft_024",
+    "question": "Under the Creative Commons Attribution (CC BY) license's limitation of liability, for which kinds of damages is the Licensor not liable?",
+    "ground_truth": "Version 4.0 (Section 5(b)) excludes, to the extent possible, liability for any direct, special, indirect, incidental, consequential, punitive, exemplary, or other losses, costs, expenses, or damages, on any legal theory including negligence.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "for any direct, special, indirect, incidental, consequential, punitive, exemplary, or other losses, costs, expenses, or damages",
+      "location": "Section 5(b) Disclaimer of Warranties and Limitation of Liability"
+    },
+    "temporal_pair_id": "tp_12"
+  },
+  {
+    "id": "ft_025",
+    "question": "Under the Creative Commons Attribution-ShareAlike (CC BY-SA) license's limitation of liability, for which kinds of damages is the Licensor not liable?",
+    "ground_truth": "Version 3.0 (Section 6) excludes liability for special, incidental, consequential, punitive or exemplary damages (except to the extent required by applicable law); direct damages are not listed.",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "IN NO EVENT WILL LICENSOR BE LIABLE TO YOU ON ANY LEGAL THEORY FOR ANY SPECIAL, INCIDENTAL, CONSEQUENTIAL, PUNITIVE OR EXEMPLARY DAMAGES",
+      "location": "Section 6 Limitation on Liability"
+    },
+    "temporal_pair_id": "tp_13"
+  },
+  {
+    "id": "ft_026",
+    "question": "Under the Creative Commons Attribution-ShareAlike (CC BY-SA) license's limitation of liability, for which kinds of damages is the Licensor not liable?",
+    "ground_truth": "Version 4.0 (Section 5(b)) excludes, to the extent possible, liability for any direct, special, indirect, incidental, consequential, punitive, exemplary, or other losses, costs, expenses, or damages, on any legal theory including negligence.",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "for any direct, special, indirect, incidental, consequential, punitive, exemplary, or other losses, costs, expenses, or damages",
+      "location": "Section 5(b) Disclaimer of Warranties and Limitation of Liability"
+    },
+    "temporal_pair_id": "tp_13"
+  },
+  {
+    "id": "ft_027",
+    "question": "Under the Creative Commons Attribution-ShareAlike (CC BY-SA) license, which licenses may you apply when you share an adaptation of the licensed work?",
+    "ground_truth": "Version 3.0 allows only: (i) the terms of this License; (ii) a later version of this License with the same License Elements; or (iii) a Creative Commons jurisdiction license (this or a later version) that contains the same License Elements (e.g. Attribution-ShareAlike 3.0 Unported).",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "You may Distribute or Publicly Perform an Adaptation only under: (i) the terms of this License; (ii) a later version of this License with the same License Elements as this License;",
+      "location": "Section 4(b) Restrictions"
+    },
+    "temporal_pair_id": "tp_14"
+  },
+  {
+    "id": "ft_028",
+    "question": "Under the Creative Commons Attribution-ShareAlike (CC BY-SA) license, which licenses may you apply when you share an adaptation of the licensed work?",
+    "ground_truth": "Version 4.0 requires the Adapter's License to be a Creative Commons license with the same License Elements (this version or later) or a BY-SA Compatible License (a license listed at creativecommons.org/compatiblelicenses).",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "The Adapter’s License You apply must be a Creative Commons license with the same License Elements, this version or later, or a BY-SA Compatible License.",
+      "location": "Section 3(b)(1) ShareAlike"
+    },
+    "temporal_pair_id": "tp_14"
+  },
+  {
+    "id": "ft_029",
+    "question": "Under the Creative Commons Attribution (CC BY) license, when must a licensee remove attribution credit at the Licensor's request?",
+    "ground_truth": "Under 3.0, upon notice from any Licensor, a licensee who creates a Collection or an Adaptation must, to the extent practicable, remove the Section 4(b) credit from that Collection or Adaptation, as requested.",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "If You create a Collection, upon notice from any Licensor You must, to the extent practicable, remove from the Collection any credit as required by Section 4(b), as requested.",
+      "location": "Section 4(a) Restrictions"
+    },
+    "temporal_pair_id": "tp_15"
+  },
+  {
+    "id": "ft_030",
+    "question": "Under the Creative Commons Attribution (CC BY) license, when must a licensee remove attribution credit at the Licensor's request?",
+    "ground_truth": "Under 4.0, if requested by the Licensor, the licensee must remove any of the attribution information required by Section 3(a)(1)(A) to the extent reasonably practicable.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "If requested by the Licensor, You must remove any of the information required by Section 3(a)(1)(A) to the extent reasonably practicable.",
+      "location": "Section 3(a)(3) Attribution"
+    },
+    "temporal_pair_id": "tp_15"
+  },
+  {
+    "id": "ft_031",
+    "question": "Under CC BY 4.0, does making technical modifications needed to circumvent Effective Technological Measures produce Adapted Material?",
+    "ground_truth": "No. Simply making the technical modifications authorized by Section 2(a)(4) never produces Adapted Material.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "simply making modifications authorized by this Section 2(a)(4) never produces Adapted Material.",
+      "location": "Section 2(a)(4)"
+    }
+  },
+  {
+    "id": "ft_032",
+    "question": "Under CC BY 4.0, are patent and trademark rights licensed?",
+    "ground_truth": "No. Patent and trademark rights are not licensed under the CC BY 4.0 Public License.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Patent and trademark rights are not licensed under this Public License.",
+      "location": "Section 2(b)(2) Other rights"
+    }
+  },
+  {
+    "id": "ft_033",
+    "question": "How many CNCF Ambassadors responded to the 2023 mid-year Ambassador survey, and what was the response rate?",
+    "ground_truth": "80 out of 155 Ambassadors responded (51.6%).",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "80 out of 155 Ambassadors responded (51.6%)",
+      "location": "page 2"
+    }
+  },
+  {
+    "id": "ft_034",
+    "question": "When was the 2023 CNCF Ambassador mid-year survey open?",
+    "ground_truth": "From August 1, 2023 (open) to September 5, 2023 (close).",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": [
+        "Survey Open - August 1, 2023",
+        "Survey Close - September 5, 2023"
+      ],
+      "location": "page 2"
+    }
+  },
+  {
+    "id": "ft_035",
+    "question": "In the 2022 CNCF Cloud Native Survey raw data, how are \"None of the above\" or \"Don't know or not sure\" answers to multiple-response questions encoded?",
+    "ground_truth": "They are encoded with a \"0\".",
+    "source_docs": [
+      "cncf_2022_survey_csv_guide.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "\"None of the above\" or \"Don't know or not sure\" responses are encoded with a \"0\".",
+      "location": "page 2, Row 3 MRVs"
+    }
+  },
+  {
+    "id": "ft_036",
+    "question": "Which license governs use of the 2022 CNCF Cloud Native Survey data content?",
+    "ground_truth": "The Community Data License Agreement – Permissive 2.0 (CDLA-Permissive-2.0), linked as https://cdla.dev/permissive-2-0/.",
+    "source_docs": [
+      "cncf_2022_survey_csv_guide.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "https://cdla.dev/permissive-2-0/",
+      "location": "page 1, Introduction"
+    }
+  },
+  {
+    "id": "ft_037",
+    "question": "Since what year has the CNCF conducted community-driven research, and which organization partnered on the 2022 CNCF survey?",
+    "ground_truth": "Since 2016; the 2022 survey was run in partnership with Linux Foundation Research.",
+    "source_docs": [
+      "cncf_2022_survey_reference_model.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Since 2016, the Cloud Native Computing Foundation (CNCF) has conducted community- driven research. In partnership with Linux Foundation Research",
+      "location": "page 1, Introduction"
+    }
+  },
+  {
+    "id": "ft_038",
+    "question": "What discount did respondents get for completing the 2022 CNCF Cloud Native Survey?",
+    "ground_truth": "Code SOSE2022, good through August 31, gave 25% off any Linux Foundation training and certification purchase from the complete catalog.",
+    "source_docs": [
+      "cncf_2022_survey_reference_model.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Code SOSE2022 is good through August 31 for 25%",
+      "location": "page 8, end of survey"
+    }
+  },
+  {
+    "id": "ft_039",
+    "question": "In the CNCF TOC Survey 2020 H1, what was the weighted average score for the statement \"CNCF TOC processes are clear\"?",
+    "ground_truth": "2.69 (28 responses: 6 strongly disagree, 6 disagree, 6 neutral, 6 agree, 2 strongly agree, 2 N/A).",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "processes are clear 6 6 6 6 2 2 28 2.69",
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_040",
+    "question": "In the CNCF TOC Survey 2020 H1, how many respondents strongly agreed that \"CNCF SIGs are a good initiative\"?",
+    "ground_truth": "10 respondents (35.71%) strongly agreed.",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "CNCF SIGs are a 3.57% 3.57% 14.29% 42.86% 35.71% 0.00%",
+        "good initiative 1 1 4 12 10 0 28 4.04"
+      ],
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_041",
+    "question": "Which statement in the CNCF TOC Survey 2020 H1 had the highest weighted average agreement, and what was it?",
+    "ground_truth": "\"I agree with the CNCF TOC definition of Cloud Native\", with a weighted average of 4.37.",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "CNCF TOC definition 0 0 2 13 12 1 28 4.37",
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_042",
+    "question": "In the CNCF TOC Survey 2020 H1, what percentage of respondents agreed (not strongly) that \"CNCF TOC acts transparently\"?",
+    "ground_truth": "50.00% (14 of 28 respondents).",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "CNCF TOC acts 17.86% 17.86% 3.57% 50.00% 7.14% 3.57%",
+        "transparently 5 5 1 14 2 1 28 3.11"
+      ],
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_043",
+    "question": "In the CNCF TOC Survey 2020 H1, what share of respondents answered N/A to \"CNCF TOC is too slow to assess projects\"?",
+    "ground_truth": "14.29% (4 of 28 respondents).",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "CNCF TOC is too 0.00% 7.14% 28.57% 25.00% 25.00% 14.29%",
+        "slow to assess 0 2 8 7 7 4 28 3.79"
+      ],
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_044",
+    "question": "What was the weighted average for \"CNCF TOC accepts too many projects into the CNCF\" in the TOC Survey 2020 H1?",
+    "ground_truth": "2.79.",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "too many projects 3 9 10 3 3 0 28 2.79",
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_045",
+    "question": "How many respondents to the CNCF TOC Survey 2020 H1 strongly disagreed that the TOC exercises good judgement when assessing projects?",
+    "ground_truth": "3 respondents (10.71%).",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "CNCF TOC 10.71% 10.71% 25.00% 42.86% 10.71% 0.00%",
+        "exercises good 3 3 7 12 3 0 28 3.32"
+      ],
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_046",
+    "question": "What weighted average did \"CNCF TOC takes initiative to encourage diversity\" receive in the TOC Survey 2020 H1?",
+    "ground_truth": "3.62.",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "initiative to 2 2 7 8 7 2 28 3.62",
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_047",
+    "question": "In the 2022 CNCF survey reference model, which answers to Q2 \"Please indicate what best describes who you are\" disqualify a respondent?",
+    "ground_truth": "\"I'm just lines of code\" (1), \"I am a bot\" (3), \"I just want to mess with the researchers\" (4) and \"Don't know or not sure\" (5); only \"I am a real person\" (2) is not disqualified.",
+    "source_docs": [
+      "cncf_2022_survey_reference_model.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "1 I'm just lines of code Disqualify",
+        "3 I am a bot Disqualify",
+        "4 I just want to mess with the researchers Disqualify",
+        "5 Don't know or not sure Disqualify"
+      ],
+      "location": "page 1, Q2"
+    }
+  },
+  {
+    "id": "ft_048",
+    "question": "In the 2022 CNCF survey reference model, what happens if a respondent answers \"No\" to Q16 \"Does your organization use Kubernetes?\"",
+    "ground_truth": "Page 6 (the Kubernetes follow-up page) is hidden.",
+    "source_docs": [
+      "cncf_2022_survey_reference_model.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "3 No Hide Page 6",
+      "location": "page 3, Q16"
+    }
+  },
+  {
+    "id": "ft_049",
+    "question": "Which response option was mistakenly excluded from Q42 (use of CI/CD tools) of the 2022 CNCF survey?",
+    "ground_truth": "\"Used in production for most or all productions applications and business segments throughout the organization\" was mistakenly excluded from the survey.",
+    "source_docs": [
+      "cncf_2022_survey_reference_model.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "this option was mistakenly",
+      "location": "page 7, Q42 coding notes"
+    }
+  },
+  {
+    "id": "ft_050",
+    "question": "How many graduated CNCF projects are listed in Q23 of the 2022 survey reference model, and what number is Kubernetes?",
+    "ground_truth": "16 graduated projects are listed (containerd through Vitess); Kubernetes is number 9.",
+    "source_docs": [
+      "cncf_2022_survey_reference_model.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "9 Kubernetes",
+        "16 Vitess"
+      ],
+      "location": "page 4, Q23"
+    }
+  },
+  {
+    "id": "ft_051",
+    "question": "In the 2022 CNCF survey filtering criteria, how were respondents whose role was Teacher/Student handled?",
+    "ground_truth": "They were filtered out.",
+    "source_docs": [
+      "cncf_2022_survey_csv_guide.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "Teacher/Student Filter out",
+      "location": "page 3, Disqualify and Filter Criteria"
+    }
+  },
+  {
+    "id": "ft_052",
+    "question": "In the 2022 CNCF survey filtering criteria, how were respondents with 20,000 or more employees handled, and how were those not employed or affiliated with an organization handled?",
+    "ground_truth": "Organizations with 20,000 or more employees were kept; respondents not currently employed or affiliated with an organization were filtered out.",
+    "source_docs": [
+      "cncf_2022_survey_csv_guide.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "20,000 or more Keep",
+        "I am not currently employed or affiliated with an"
+      ],
+      "location": "page 2, Disqualify and Filter Criteria"
+    }
+  },
+  {
+    "id": "ft_053",
+    "question": "When did CNCF plan to implement a weekly newsletter for Ambassadors after the 2023 mid-year survey?",
+    "ground_truth": "November 2023.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "Implement Weekly Newsletter November 2023",
+      "location": "page 17, Post-Survey Initiatives"
+    }
+  },
+  {
+    "id": "ft_054",
+    "question": "Which CNCF Ambassador post-survey initiatives were scheduled for Q1 2024?",
+    "ground_truth": "Create Template + Resources for Ambassadors, Create Subgroups Based on Interest, and Ambassador Introductions via Podcast/Videos.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "Create Template + Resources for Q1 - 2024",
+        "Create Subgroups Based on Interest Q1 - 2024",
+        "Ambassador Introductions via Q1 - 2024"
+      ],
+      "location": "page 17, Post-Survey Initiatives"
+    }
+  },
+  {
+    "id": "ft_055",
+    "question": "In the 2023 CNCF Ambassador mid-year survey, what was the most common answer to how often Ambassadors want the CNCF team to communicate with them?",
+    "ground_truth": "About once a week (43.75%).",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "43.75%",
+      "location": "page 4, pie chart 'How often would you like the CNCF team to communicate with you?' (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_056",
+    "question": "What percentage of CNCF Ambassadors in the 2023 mid-year survey wanted the CNCF team to communicate every day?",
+    "ground_truth": "2.5%.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "2.5%",
+      "location": "page 4, pie chart (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_057",
+    "question": "What percentage of Ambassadors rated communication from the CNCF team as \"5 - Great\" in the 2023 mid-year survey?",
+    "ground_truth": "57.5%.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "57.5 %",
+      "location": "page 5, pie chart 'I would rate the communication from the CNCF team as the following' (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_058",
+    "question": "What share of Ambassadors rated the monthly check-in surveys \"1 - Needs improvement\" in the 2023 mid-year survey?",
+    "ground_truth": "3.75%.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "3.75%",
+      "location": "page 6, pie chart 'I would rate the monthly check in surveys as the following' (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_059",
+    "question": "What percentage of Ambassadors rated the monthly check-in surveys \"5 - Helpful\"?",
+    "ground_truth": "33.75%.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "33.75%",
+      "location": "page 6, pie chart (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_060",
+    "question": "Which rating was the second most common for the monthly check-in surveys in the 2023 Ambassador survey?",
+    "ground_truth": "Rating 4 (28.75%), after \"5 - Helpful\" (33.75%).",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "28.75%",
+      "location": "page 6, pie chart (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_061",
+    "question": "What percentage of Ambassadors would highly recommend (5) the CNCF Ambassador program to other people in the community?",
+    "ground_truth": "71.25%.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "71.25%",
+      "location": "page 7, pie chart 'I would recommend the CNCF Ambassador program to other people in the community' (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_062",
+    "question": "What percentage of Ambassadors said the CNCF team is \"Somewhat helpful but delayed in responses\" when they need help?",
+    "ground_truth": "12.5% (the other 87.5% said always helpful and able to support their requests).",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "12.5%",
+      "location": "page 8, pie chart 'When I need help or have a question the CNCF team is' (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_063",
+    "question": "How many Ambassadors answered, and how many skipped, the question rating communication from the CNCF team?",
+    "ground_truth": "80 answered and 0 skipped.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "Answered: 80 Skipped: 0",
+      "location": "page 5, chart header (rendered only in the chart image, not in the text layer)"
+    }
+  },
+  {
+    "id": "ft_064",
+    "question": "In the CNCF Cloud Native Survey 2021 (Part 1), what share of respondents said they use Kubernetes in production?",
+    "ground_truth": "59.77% (1,294 of 2,165 who answered).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Yes, in production",
+      "location": "sheet 'Question 16'",
+      "cells": {
+        "B3": "Yes, in production",
+        "B10": 0.5977,
+        "C10": 1294,
+        "M11": 2165
+      }
+    }
+  },
+  {
+    "id": "ft_065",
+    "question": "How many respondents to the CNCF Cloud Native Survey 2021 (Part 1) were located in Europe, and what share of the total was that?",
+    "ground_truth": "654 respondents, 28.41% of 2,302.",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Europe",
+      "location": "sheet 'Question 1'",
+      "cells": {
+        "H3": "Europe",
+        "I10": 654,
+        "H10": 0.2841,
+        "O10": 2302
+      }
+    }
+  },
+  {
+    "id": "ft_066",
+    "question": "What was the most preferred method for packaging Kubernetes applications in the 2021 Cloud Native Survey (Part 1), and what share chose it?",
+    "ground_truth": "Helm, chosen by 42.17% (786 of 1,864).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Helm",
+      "location": "sheet 'Question 21'",
+      "cells": {
+        "B3": "Helm",
+        "B10": 0.4217,
+        "C10": 786,
+        "Q10": 1864
+      }
+    }
+  },
+  {
+    "id": "ft_067",
+    "question": "In the 2021 Cloud Native Survey (Part 1), what share of respondents in Australia and Oceania preferred Helm for packaging Kubernetes applications?",
+    "ground_truth": "2.96% (6 of 203).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Q1: Australia and Oceania",
+      "location": "sheet 'Question 21'",
+      "cells": {
+        "A6": "Q1: Australia and Oceania",
+        "B6": 0.0296,
+        "C6": 6,
+        "Q6": 203
+      }
+    }
+  },
+  {
+    "id": "ft_068",
+    "question": "What share of 2021 Cloud Native Survey (Part 1) respondents use a hybrid cloud (both private and public)?",
+    "ground_truth": "46.06% (1,034 of 2,245).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Hybrid Cloud (i.e. both)",
+      "location": "sheet 'Question 10'",
+      "cells": {
+        "F3": "Hybrid Cloud (i.e. both)",
+        "F10": 0.4606,
+        "G10": 1034,
+        "M10": 2245
+      }
+    }
+  },
+  {
+    "id": "ft_069",
+    "question": "Among Kubernetes users in the 2021 Cloud Native Survey (Part 1), what was the most common number of production clusters?",
+    "ground_truth": "2-5 clusters (28.92%, 539 of 1,864).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "2-5",
+      "location": "sheet 'Question 17'",
+      "cells": {
+        "D3": "2-5",
+        "D10": 0.2892,
+        "E10": 539,
+        "Q10": 1864
+      }
+    }
+  },
+  {
+    "id": "ft_070",
+    "question": "How many respondents skipped the question \"Are you using Kubernetes?\" in the 2021 Cloud Native Survey (Part 1)?",
+    "ground_truth": "137 skipped (2,165 answered).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Skipped",
+      "location": "sheet 'Question 16'",
+      "cells": {
+        "L12": "Skipped",
+        "M12": 137,
+        "M11": 2165
+      }
+    }
+  },
+  {
+    "id": "ft_071",
+    "question": "In the 2021 Cloud Native Survey (Part 1), what share of respondents said their release cycles are automated?",
+    "ground_truth": "34.69% (782 of 2,254).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Automated",
+      "location": "sheet 'Question 9'",
+      "cells": {
+        "D3": "Automated",
+        "D10": 0.3469,
+        "E10": 782,
+        "K10": 2254
+      }
+    }
+  },
+  {
+    "id": "ft_072",
+    "question": "In the CNCF Maintainers Survey 2020 H2, what share of maintainers said CNCF reached out and their needs were generally met?",
+    "ground_truth": "87.63% (85 of 97).",
+    "source_docs": [
+      "cncf_maintainers_survey_2020_h2_summary.csv"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "\"Yes, and my needs were generally met\",87.63%,85",
+      "location": "Q5 block"
+    }
+  },
+  {
+    "id": "ft_073",
+    "question": "What was the weighted average score for \"Did you feel that the CNCF staff responded quickly to your requests?\" in the CNCF Maintainers Survey 2020 H2?",
+    "ground_truth": "9.23 on a 1-10 scale (57 of 97 respondents chose 10).",
+    "source_docs": [
+      "cncf_maintainers_survey_2020_h2_summary.csv"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "star,1,0,1,0,0,0,5,13,11,57,9,97,9.23",
+      "location": "Q7 block"
+    }
+  },
+  {
+    "id": "ft_074",
+    "question": "Which CNCF tool received the lowest weighted average value rating in the CNCF Maintainers Survey 2020 H2: DevStats, the Cloud Native Landscape, or the End User Tech Radar?",
+    "ground_truth": "The End User Tech Radar, with a weighted average of 6.41 (DevStats 8, Cloud Native Landscape 7.02).",
+    "source_docs": [
+      "cncf_maintainers_survey_2020_h2_summary.csv"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "star,11,3,0,5,18,8,11,17,6,18,97,6.41",
+      "location": "Q18 block (compare Q16 and Q17)"
+    }
+  },
+  {
+    "id": "ft_075",
+    "question": "Which CNCF project had the most maintainer respondents in the CNCF Maintainers Survey 2020 H2?",
+    "ground_truth": "KubeVirt, with 8 respondents (8.25%).",
+    "source_docs": [
+      "cncf_maintainers_survey_2020_h2_summary.csv"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "KubeVirt,8.25%,8",
+      "location": "Q4 block"
+    }
+  },
+  {
+    "id": "ft_076",
+    "question": "How many maintainers answered the optional \"Any other feedback\" question (Q22) in the CNCF Maintainers Survey 2020 H2?",
+    "ground_truth": "33 answered and 64 skipped.",
+    "source_docs": [
+      "cncf_maintainers_survey_2020_h2_summary.csv"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Answered,33",
+      "location": "Q22 block"
+    }
+  },
+  {
+    "id": "ft_077",
+    "question": "What changes does version 5.0 of the Creative Commons Attribution license introduce?",
+    "ground_truth": "The corpus does not contain this information.",
+    "source_docs": [],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": false,
+    "failure_type": "UNANSWERABLE",
+    "evidence": {
+      "quote": null,
+      "location": null,
+      "checked": "Corpus contains only CC BY / BY-SA 3.0 and 4.0; no 5.0 exists in the corpus."
+    }
+  },
+  {
+    "id": "ft_078",
+    "question": "How many people responded to the 2022 CNCF Cloud Native Survey?",
+    "ground_truth": "The corpus does not contain this information.",
+    "source_docs": [],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": false,
+    "failure_type": "UNANSWERABLE",
+    "evidence": {
+      "quote": null,
+      "location": null,
+      "checked": "2022 files are the survey instrument and a CSV guide only; neither reports a respondent count (2021 Part 1 total of 2,302 is a distractor)."
+    }
+  },
+  {
+    "id": "ft_079",
+    "question": "What was the weighted average for \"CNCF TOC acts transparently\" in the CNCF TOC Survey 2020 H2?",
+    "ground_truth": "The corpus does not contain this information.",
+    "source_docs": [],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "hard",
+    "answerable": false,
+    "failure_type": "UNANSWERABLE",
+    "evidence": {
+      "quote": null,
+      "location": null,
+      "checked": "Only the 2020 H1 TOC survey is in the corpus (H1 value 3.11 is a distractor)."
+    }
+  },
+  {
+    "id": "ft_080",
+    "question": "What percentage of 2023 CNCF Ambassador survey respondents were based in Europe?",
+    "ground_truth": "The corpus does not contain this information.",
+    "source_docs": [],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": false,
+    "failure_type": "UNANSWERABLE",
+    "evidence": {
+      "quote": null,
+      "location": null,
+      "checked": "The 2023 Ambassador deck has no location question; 'Europe' only appears in free-text feedback."
+    }
+  },
+  {
+    "id": "ft_081",
+    "question": "What share of 2021 Cloud Native Survey (Part 1) respondents use WebAssembly in production?",
+    "ground_truth": "The corpus does not contain this information.",
+    "source_docs": [],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": false,
+    "failure_type": "UNANSWERABLE",
+    "evidence": {
+      "quote": null,
+      "location": null,
+      "checked": "No sheet in the Part 1 workbook mentions WebAssembly."
+    }
+  },
+  {
+    "id": "ft_082",
+    "question": "What was the weighted average score for CNCF staff responsiveness in the CNCF Maintainers Survey 2021 H1?",
+    "ground_truth": "The corpus does not contain this information.",
+    "source_docs": [],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "hard",
+    "answerable": false,
+    "failure_type": "UNANSWERABLE",
+    "evidence": {
+      "quote": null,
+      "location": null,
+      "checked": "Only the 2020 H2 maintainers summary is in the corpus (9.23 is a distractor)."
+    }
+  },
+  {
+    "id": "ft_083",
+    "question": "Who chaired the CNCF Technical Oversight Committee in 2020?",
+    "ground_truth": "The corpus does not contain this information.",
+    "source_docs": [],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": false,
+    "failure_type": "UNANSWERABLE",
+    "evidence": {
+      "quote": null,
+      "location": null,
+      "checked": "No corpus document names TOC members or chairs."
+    }
+  },
+  {
+    "id": "ft_084",
+    "question": "How many CNCF Ambassadors were there in 2024?",
+    "ground_truth": "The corpus does not contain this information.",
+    "source_docs": [],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": false,
+    "failure_type": "UNANSWERABLE",
+    "evidence": {
+      "quote": null,
+      "location": null,
+      "checked": "The 2023 deck states 155 Ambassadors as of the 2023 survey; no 2024 count exists in the corpus."
+    }
+  },
+  {
+    "id": "ft_085",
+    "question": "What percentage of organizations in the 2022 CNCF survey had deployed an application using WebAssembly?",
+    "ground_truth": "The corpus does not contain this information.",
+    "source_docs": [],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "hard",
+    "answerable": false,
+    "failure_type": "UNANSWERABLE",
+    "evidence": {
+      "quote": null,
+      "location": null,
+      "checked": "The 2022 reference model contains the WebAssembly question (Q29) but no results."
+    }
+  },
+  {
+    "id": "ft_086",
+    "question": "What was the median annual cloud spend of respondents to the 2021 Cloud Native Survey (Part 1)?",
+    "ground_truth": "The corpus does not contain this information.",
+    "source_docs": [],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": false,
+    "failure_type": "UNANSWERABLE",
+    "evidence": {
+      "quote": null,
+      "location": null,
+      "checked": "No sheet in the Part 1 workbook asks about cloud spend."
+    }
+  }
+]
