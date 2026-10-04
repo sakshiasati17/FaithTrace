@@ -47,7 +47,41 @@ export interface Experiment {
   status: ExperimentStatus;
   created_at: string;
   completed_at: string | null;
+  // Null on experiments created before eval sets were stored.
+  eval_set_id?: string | null;
+  eval_set_path?: string | null;
   runs: Run[];
+}
+
+// ─── Eval sets ────────────────────────────────────────────────────────────────
+
+export type EvalSetSource = "upload" | "builtin";
+
+export interface EvalSetSummary {
+  id: string; // uploaded: uuid; built-in: "builtin:<file>.json"
+  name: string;
+  description: string | null;
+  source: EvalSetSource;
+  filename: string | null;
+  path: string | null; // built-in only: "eval_sets/<file>.json"
+  item_count: number;
+  created_at: string | null;
+  is_default: boolean;
+}
+
+export interface EvalSetDetail extends EvalSetSummary {
+  items: Record<string, unknown>[];
+}
+
+export interface EvalSetUploadResult extends EvalSetSummary {
+  warnings: string[];
+}
+
+export interface EvalSetRowError {
+  row: number | null;
+  id: string | null;
+  field: string | null;
+  message: string;
 }
 
 // ─── Query trace ──────────────────────────────────────────────────────────────

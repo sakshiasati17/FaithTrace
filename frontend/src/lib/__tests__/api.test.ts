@@ -161,3 +161,58 @@ describe("evaluationApi", () => {
     expect(mockClient.get).toHaveBeenCalledWith("/evaluation/run/run-99/metrics");
   });
 });
+
+describe("evalSetsApi", () => {
+  let mockClient: ReturnType<typeof mockAxiosInstance>;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    mockClient = mockAxiosInstance();
+    vi.spyOn(axios, "create").mockReturnValue(mockClient as any);
+  });
+
+  it("list() calls GET /eval-sets/", async () => {
+    mockClient.get.mockResolvedValue({ data: [] });
+    const { evalSetsApi } = await import("@/lib/api");
+    await evalSetsApi.list();
+    expect(mockClient.get).toHaveBeenCalledWith("/eval-sets/");
+  });
+
+  it("upload() posts multipart file, name and description", async () => {
+    mockClient.post.mockResolvedValue({ data: { id: "u1" } });
+    const { evalSetsApi } = await import("@/lib/api");
+    const file = new File(["[]"], "set.json");
+    await evalSetsApi.upload(file, "My set", "desc");
+    const [url, form, opts] = mockClient.post.mock.calls[0];
+    expect(url).toBe("/eval-sets/");
+    expect((form as FormData).get("file")).toBeInstanceOf(File);
+    expect((form as FormData).get("name")).toBe("My set");
+    expect((form as FormData).get("description")).toBe("desc");
+    expect(opts).toEqual({ headers: { "Content-Type": "multipart/form-data" } });
+  });
+
+  it("encodes built-in ids in the URL", async () => {
+    mockClient.get.mockResolvedValue({ data: {} });
+    const { evalSetsApi } = await import("@/lib/api");
+    await evalSetsApi.get("builtin:faithtrace_v1.json");
+    expect(mockClient.get).toHaveBeenCalledWith("/eval-sets/builtin%3Afaithtrace_v1.json");
+  });
+
+  it("turns {message, errors} details into an ApiError with row errors", async () => {
+    const { ApiError } = await import("@/lib/api");
+    const onRejected = mockClient.interceptors.response.use.mock.calls[0][1];
+    const rows = [{ row: 2, id: "q1", field: "id", message: "duplicate id" }];
+    const err = await onRejected({
+      message: "Request failed",
+      response: { data: { detail: { message: "1 validation error(s)", errors: rows } } },
+    }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.message).toBe("1 validation error(s)");
+    expect(err.errors).toEqual(rows);
+
+    const plain = await onRejected({
+      message: "x", response: { data: { detail: "Eval set is used by 1 experiment(s)" } },
+    }).catch((e: unknown) => e);
+    expect(plain.message).toBe("Eval set is used by 1 experiment(s)");
+  });
+});

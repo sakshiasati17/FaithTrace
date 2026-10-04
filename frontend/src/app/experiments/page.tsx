@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { experimentsApi } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { EvalSetPicker } from "@/components/experiments/EvalSetPicker";
 import { FlaskConical, Plus, X, ChevronRight, Clock } from "lucide-react";
 import type { Experiment } from "@/types";
 
@@ -17,10 +18,14 @@ function NewExperimentModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState({
     name: "",
     description: "",
-    eval_set_path: "eval_sets/procurement_policy_eval.json",
+    eval_set_id: "",
     config_preset: "mvp",
   });
   const [error, setError] = useState<string | null>(null);
+  const setEvalSetId = useCallback(
+    (id: string) => setForm((f) => ({ ...f, eval_set_id: id })),
+    []
+  );
 
   const createMut = useMutation({
     mutationFn: experimentsApi.create,
@@ -28,8 +33,8 @@ function NewExperimentModal({ onClose }: { onClose: () => void }) {
       qc.invalidateQueries({ queryKey: ["experiments"] });
       onClose();
     },
-    onError: (err: any) => {
-      setError(err?.response?.data?.detail ?? "Failed to create experiment");
+    onError: (err: Error) => {
+      setError(err?.message || "Failed to create experiment");
     },
   });
 
@@ -65,15 +70,7 @@ function NewExperimentModal({ onClose }: { onClose: () => void }) {
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-violet-500 resize-none"
             />
           </div>
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1.5">Eval Set Path</label>
-            <input
-              type="text"
-              value={form.eval_set_path}
-              onChange={(e) => setForm((f) => ({ ...f, eval_set_path: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 font-mono focus:outline-none focus:border-violet-500"
-            />
-          </div>
+          <EvalSetPicker value={form.eval_set_id} onChange={setEvalSetId} />
           <div>
             <label className="block text-xs text-zinc-500 mb-1.5">Config Preset</label>
             <select
@@ -103,7 +100,7 @@ function NewExperimentModal({ onClose }: { onClose: () => void }) {
             </button>
             <button
               onClick={() => createMut.mutate(form as any)}
-              disabled={!form.name || createMut.isPending}
+              disabled={!form.name || !form.eval_set_id || createMut.isPending}
               className="flex-1 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
             >
               {createMut.isPending ? "Creating…" : "Create & Run"}
@@ -190,6 +187,8 @@ export default function ExperimentsPage() {
                           {formatDate(exp.created_at)}
                         </span>
                         <span>{totalRuns} runs</span>
+                        {exp.eval_set_path && <span className="font-mono">{exp.eval_set_path}</span>}
+                        {exp.eval_set_id && <span>uploaded eval set</span>}
                         {doneRuns > 0 && <span className="text-emerald-600">{doneRuns} done</span>}
                         {failedRuns > 0 && <span className="text-red-600">{failedRuns} failed</span>}
                       </div>
