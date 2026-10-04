@@ -16,6 +16,21 @@ jobs:
     name: Backend (pytest)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    services:
+      # For the concurrent experiment-status test (SELECT ... FOR UPDATE).
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: faithtrace
+          POSTGRES_PASSWORD: faithtrace
+          POSTGRES_DB: faithtrace_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U faithtrace"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -30,7 +45,9 @@ jobs:
 
       - name: Run tests
         working-directory: backend
-        run: pytest -q
+        env:
+          FAITHTRACE_TEST_PG_URL: postgresql+psycopg2://faithtrace:faithtrace@localhost:5432/faithtrace_test
+        run: pytest -q -rs
 
   frontend:
     name: Frontend (vitest + build)
