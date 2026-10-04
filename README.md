@@ -45,6 +45,8 @@ It runs experiments across 256 pipeline configurations (4 retrieval × 4 chunkin
 
 Full matrix: `itertools.product` → 256 configs. MVP subset: 24 configs.
 
+Image chunks only exist for PDFs uploaded with **Enable vision parsing** (`enable_vision=true` on `POST /api/v1/corpus/upload` or `/{id}/reindex`). That parses with `text_table_vision`: up to `VISION_MAX_PAGES` pages (default 20) are rendered and sent to `VISION_MODEL` (default `gpt-4o`), which costs money, so it is off by default and needs `OPENAI_API_KEY`. Every other upload keeps its default strategy (`text_table`, or `spreadsheet_aware` for XLSX/CSV).
+
 ---
 
 ## Diagnostics Engine
