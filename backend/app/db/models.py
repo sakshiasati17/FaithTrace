@@ -99,6 +99,8 @@ class QueryResult(Base):
     cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
     failure_category: Mapped[str | None] = mapped_column(String, nullable=True)
     diagnosis_evidence: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str | None] = mapped_column(String, nullable=True, default="ok", server_default="ok")  # "ok" | "error"
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     run: Mapped["Run"] = relationship("Run", back_populates="query_results")
     feedback: Mapped[list["QueryFeedback"]] = relationship("QueryFeedback", back_populates="query_result")

@@ -50,6 +50,29 @@ export interface Experiment {
   runs: Run[];
 }
 
+// ─── Query trace ──────────────────────────────────────────────────────────────
+
+export type QueryResultStatus = "ok" | "error";
+
+export interface QueryResult {
+  id: string;
+  run_id: string;
+  query_id: string;
+  question: string;
+  generated_answer: string;
+  retrieved_chunks: Record<string, unknown>[];
+  latency_ms: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  failure_category: FailureCategory | null;
+  diagnosis_evidence: Record<string, unknown>;
+  // Absent on older API responses; "error" means the pipeline raised and
+  // the query has no answer, metrics, or diagnosis.
+  status?: QueryResultStatus | null;
+  error_message?: string | null;
+}
+
 // ─── Metrics ─────────────────────────────────────────────────────────────────
 
 export interface RunMetrics {

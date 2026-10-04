@@ -54,6 +54,8 @@ class QueryResult:
     input_tokens: int
     output_tokens: int
     cost_usd: float
+    status: str = "ok"                   # "ok" | "error"
+    error_message: str | None = None     # set when status == "error"
 
 
 # ─── LLM cost table (per 1M tokens) ─────────────────────────────────────────
@@ -300,6 +302,8 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
         query_id = eval_item.get("id", f"q_{len(results)}")
 
         start_time = time.monotonic()
+        status = "ok"
+        error_message = None
 
         try:
             # Build freshness filter for this eval item
@@ -399,7 +403,12 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
                     output_tokens = token_usage.get("completion_tokens", token_usage.get("output_tokens", 0))
 
         except Exception as e:
-            generated_answer = f"Error: {str(e)}"
+            # Record the failure instead of passing it off as an answer, so it
+            # is excluded from scoring and diagnosis downstream.
+            logger.exception("Query %s failed in pipeline run", query_id)
+            status = "error"
+            error_message = f"{type(e).__name__}: {e}"
+            generated_answer = ""
             retrieved_chunks = []
             input_tokens = 0
             output_tokens = 0
@@ -416,6 +425,8 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost_usd=cost_usd,
+            status=status,
+            error_message=error_message,
         ))
 
     return results
