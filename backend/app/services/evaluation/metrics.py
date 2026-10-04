@@ -33,7 +33,10 @@ class RunMetrics:
     freshness_validity: float          # fraction of answers using version-correct knowledge
     temporal_citation_accuracy: float  # fraction of citations that are time-correct
     multimodal_grounding_rate: float   # for table/chart questions, fraction with correct non-text grounding
-    root_cause_diagnostic_accuracy: float  # accuracy of failure classifier vs ground truth labels
+    # Accuracy of stored failure diagnoses vs ground-truth failure_type labels.
+    # Computed by the diagnose_run task after diagnoses are written; None here
+    # (and None when no eval items are labelled).
+    root_cause_diagnostic_accuracy: float | None = None
 
 
 def compute_metrics(results: list[QueryResult], eval_set: list[dict]) -> RunMetrics:
@@ -55,7 +58,7 @@ def compute_metrics(results: list[QueryResult], eval_set: list[dict]) -> RunMetr
             context_recall=0.0, answer_relevance=0.0, latency_p50_ms=0.0,
             latency_p95_ms=0.0, avg_token_usage=0.0, avg_cost_usd=0.0,
             freshness_validity=1.0, temporal_citation_accuracy=1.0,
-            multimodal_grounding_rate=1.0, root_cause_diagnostic_accuracy=0.0,
+            multimodal_grounding_rate=1.0, root_cause_diagnostic_accuracy=None,
         )
 
     # Run Ragas evaluation
@@ -84,7 +87,6 @@ def compute_metrics(results: list[QueryResult], eval_set: list[dict]) -> RunMetr
     freshness = compute_freshness_validity(results, eval_set)
     temporal_accuracy = _compute_temporal_citation_accuracy(results, eval_set)
     multimodal = compute_multimodal_grounding_rate(results, eval_set)
-    diag_accuracy = _compute_diagnostic_accuracy(results, eval_set)
 
     return RunMetrics(
         answer_correctness=ragas_agg["answer_correctness"],
@@ -99,7 +101,7 @@ def compute_metrics(results: list[QueryResult], eval_set: list[dict]) -> RunMetr
         freshness_validity=freshness,
         temporal_citation_accuracy=temporal_accuracy,
         multimodal_grounding_rate=multimodal,
-        root_cause_diagnostic_accuracy=diag_accuracy,
+        root_cause_diagnostic_accuracy=None,
     )
 
 
@@ -205,54 +207,3 @@ def compute_multimodal_grounding_rate(results: list[QueryResult], eval_set: list
                 break
 
     return correct / len(multimodal_items)
-
-
-def _compute_diagnostic_accuracy(results: list[QueryResult], eval_set: list[dict]) -> float:
-    """
-    Compare the heuristic classifier's predicted failure_type against
-    the ground-truth failure_type in the eval set.
-
-    Returns the fraction of labelled items where the prediction matches.
-    Items without a ground-truth failure_type label are skipped.
-    """
-    from app.services.diagnostics.classifier import diagnose, FailureCategory
-
-    eval_by_id = {item.get("id", ""): item for item in eval_set}
-
-    # Map ground-truth labels to FailureCategory enum values
-    _label_map = {
-        "STALE_ANSWER": FailureCategory.STALE_ANSWER,
-        "WRONG_VERSION": FailureCategory.WRONG_VERSION,
-        "TABLE_RETRIEVAL_MISS": FailureCategory.TABLE_RETRIEVAL_MISS,
-        "CHART_LAYOUT_BLINDNESS": FailureCategory.CHART_LAYOUT_BLINDNESS,
-        "CHUNKING_BOUNDARY_ERROR": FailureCategory.CHUNKING_BOUNDARY_ERROR,
-        "LOW_RECALL_RETRIEVAL": FailureCategory.LOW_RECALL_RETRIEVAL,
-        "IRRELEVANT_CONTEXT_POLLUTION": FailureCategory.IRRELEVANT_CONTEXT_POLLUTION,
-        "UNSUPPORTED_SYNTHESIS": FailureCategory.UNSUPPORTED_SYNTHESIS,
-        "NO_FAILURE": FailureCategory.NO_FAILURE,
-        None: None,
-    }
-
-    labelled = []
-    for result in results:
-        eval_item = eval_by_id.get(result.query_id, {})
-        gt_label = eval_item.get("failure_type")
-        if gt_label is None:
-            continue
-        expected = _label_map.get(gt_label)
-        if expected is None:
-            continue
-        labelled.append((result, eval_item, expected))
-
-    if not labelled:
-        return 1.0  # No labelled items to evaluate — return perfect by default
-
-    correct = 0
-    for result, eval_item, expected in labelled:
-        # Run the heuristic classifier on this result with zero metrics
-        # (metrics are not available at this stage; use empty dict)
-        diagnosis = diagnose(result, eval_item, {})
-        if diagnosis.primary_failure == expected:
-            correct += 1
-
-    return correct / len(labelled)

@@ -4,8 +4,9 @@ import { MetricCard } from "../MetricCard";
 
 describe("MetricCard", () => {
   it("renders label", () => {
+    // Uppercasing is CSS (`uppercase` class); the DOM text keeps its case.
     render(<MetricCard label="Faithfulness" value={0.85} />);
-    expect(screen.getByText("FAITHFULNESS")).toBeInTheDocument();
+    expect(screen.getByText("Faithfulness")).toBeInTheDocument();
   });
 
   it("displays null value as dash", () => {

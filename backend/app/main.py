@@ -7,6 +7,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+from app import __version__
 from app.api.v1 import router as api_v1_router
 from app.core.config import settings
 
@@ -30,7 +31,7 @@ IS_PROD = settings.APP_ENV == "production"
 app = FastAPI(
     title="FaithTrace API",
     description="Temporal + Multimodal RAG Diagnostics Platform",
-    version="0.1.0",
+    version=__version__,
     # Disable interactive docs in production — API spec reveals internals
     docs_url=None if IS_PROD else "/docs",
     redoc_url=None if IS_PROD else "/redoc",

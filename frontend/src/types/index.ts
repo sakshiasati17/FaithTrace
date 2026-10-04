@@ -141,3 +141,24 @@ export interface Recommendation {
 }
 
 
+
+// ─── System status ────────────────────────────────────────────────────────────
+
+export interface ComponentStatus {
+  ok: boolean;
+  detail?: string;
+  latency_ms?: number;
+  trained?: boolean;
+  classifier_type?: string;
+  [extra: string]: unknown;
+}
+
+export type SystemComponent = "database" | "qdrant" | "redis" | "workers" | "ml_classifier";
+
+export interface SystemStatus {
+  ok: boolean;
+  version: string;
+  env: string;
+  checked_at: string;
+  components: Partial<Record<SystemComponent, ComponentStatus>>;
+}
