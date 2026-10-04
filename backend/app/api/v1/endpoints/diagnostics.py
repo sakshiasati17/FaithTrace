@@ -109,8 +109,7 @@ async def reason_query_failure(run_id: str, query_id: str, db: AsyncSession = De
             generated_answer=qr.generated_answer,
             retrieved_chunks=qr.retrieved_chunks or [],
             metrics=metrics,
-            # Undiagnosed (metrics not scored) is not NO_FAILURE.
-            failure_category=qr.failure_category or "NOT_DIAGNOSED",
+            failure_category=qr.failure_category or "NO_FAILURE",
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"LLM reasoning failed: {exc}")

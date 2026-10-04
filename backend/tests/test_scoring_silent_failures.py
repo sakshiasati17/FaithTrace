@@ -541,3 +541,78 @@ class TestBaselineDeltas:
         assert deltas["freshness_validity"].improved is None
         assert deltas["freshness_validity"].absolute_delta is None
         assert deltas["freshness_validity"].comparison_value == 0.9
+
+
+# ─── Diagnostics summary endpoint ─────────────────────────────────────────────
+
+class TestFailureSummary:
+
+    def _summary(self, category_rows):
+        import asyncio
+        from unittest.mock import AsyncMock
+        from app.api.v1.endpoints.diagnostics import get_failure_summary
+
+        def result(**attrs):
+            r = MagicMock()
+            for k, v in attrs.items():
+                getattr(r, k).return_value = v
+            return r
+
+        db = MagicMock()
+        db.execute = AsyncMock(side_effect=[
+            result(scalar_one_or_none=MagicMock()),  # experiment
+            result(all=[("run_1",)]),                # run ids
+            result(all=category_rows),               # category counts (errored excluded)
+            result(scalar=8),                        # total queries
+            result(scalar=1),                        # errored queries
+        ])
+        return asyncio.run(get_failure_summary("exp_1", db))
+
+    def test_null_category_is_undiagnosed_not_no_failure(self):
+        out = self._summary([(None, 3), ("NO_FAILURE", 2), ("STALE_ANSWER", 2)])
+
+        # Previously {None or "NO_FAILURE": 3} and ("NO_FAILURE", 2) collided:
+        # one count overwrote the other.
+        assert out["failure_counts"] == {"NO_FAILURE": 2, "STALE_ANSWER": 2}
+        assert out["undiagnosed_queries"] == 3
+        assert out["errored_queries"] == 1
+        assert out["total_queries"] == 8
+
+    def test_only_undiagnosed(self):
+        out = self._summary([(None, 4)])
+        assert out["failure_counts"] == {}
+        assert "NO_FAILURE" not in out["failure_counts"]
+        assert out["undiagnosed_queries"] == 4
+
+
+class TestBaselineOverallScore:
+
+    def test_missing_metrics_do_not_count_as_zero(self):
+        from app.services.evaluation.baseline import compare_run_to_baseline
+
+        baseline_cfg = {"retrieval_strategy": "vector_only", "chunking_strategy": "fixed_size",
+                        "parsing_strategy": "text_only", "freshness_policy": "none"}
+        runs = [
+            {"run_id": "base", "config": baseline_cfg,
+             "metrics": {"faithfulness": 0.5, "answer_correctness": 0.5, "context_recall": 0.5}},
+            # Unscored run: with "x or 0" its score would be 0 and it could still be picked.
+            {"run_id": "unscored", "config": {"retrieval_strategy": "hybrid"},
+             "metrics": {"faithfulness": None, "answer_correctness": None, "context_recall": None,
+                         "avg_cost_usd": 0.01}},
+            {"run_id": "scored", "config": {"retrieval_strategy": "bm25"},
+             "metrics": {"faithfulness": 0.1, "answer_correctness": 0.1, "context_recall": 0.1}},
+        ]
+        out = compare_run_to_baseline(runs)
+        assert out["comparison"]["run_id"] == "scored"
+
+    def test_no_scored_comparison_run_is_an_error(self):
+        from app.services.evaluation.baseline import compare_run_to_baseline
+
+        baseline_cfg = {"retrieval_strategy": "vector_only", "chunking_strategy": "fixed_size",
+                        "parsing_strategy": "text_only", "freshness_policy": "none"}
+        runs = [
+            {"run_id": "base", "config": baseline_cfg, "metrics": {"faithfulness": 0.5}},
+            {"run_id": "unscored", "config": {"retrieval_strategy": "hybrid"},
+             "metrics": {"faithfulness": None, "avg_cost_usd": 0.01}},
+        ]
+        assert "error" in compare_run_to_baseline(runs)
