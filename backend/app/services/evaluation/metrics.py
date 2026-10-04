@@ -165,14 +165,21 @@ def compute_freshness_validity(results: list[QueryResult], eval_set: list[dict])
         return None
 
     correct = 0
+    scored = 0
     for result, eval_item in temporal_items:
         valid_from_str = eval_item.get("valid_from")
-        valid_to_str = eval_item.get("valid_to")
 
         try:
             query_date_epoch = int(datetime.fromisoformat(valid_from_str).timestamp())
         except (ValueError, TypeError):
+            # An unparseable date cannot be scored: leave it out rather
+            # than count it as a stale answer.
+            logger.warning(
+                "freshness_validity: query %s has unparseable valid_from %r; not scored",
+                result.query_id, valid_from_str,
+            )
             continue
+        scored += 1
 
         # Check if at least one retrieved chunk is temporally valid
         for chunk in result.retrieved_chunks:
@@ -186,7 +193,7 @@ def compute_freshness_validity(results: list[QueryResult], eval_set: list[dict])
                 correct += 1
                 break
 
-    return correct / len(temporal_items)
+    return correct / scored if scored else None
 
 
 def _compute_temporal_citation_accuracy(results: list[QueryResult], eval_set: list[dict]) -> float | None:
@@ -209,6 +216,10 @@ def _compute_temporal_citation_accuracy(results: list[QueryResult], eval_set: li
         try:
             query_date_epoch = int(datetime.fromisoformat(valid_from_str).timestamp())
         except (ValueError, TypeError):
+            logger.warning(
+                "temporal_citation_accuracy: query %s has unparseable valid_from %r; not scored",
+                result.query_id, valid_from_str,
+            )
             continue
 
         for chunk in result.retrieved_chunks:

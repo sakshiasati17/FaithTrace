@@ -51,6 +51,10 @@ def _has_temporal_violation(result: QueryResult, eval_item: dict) -> bool:
     try:
         query_epoch = int(datetime.fromisoformat(valid_from_str).timestamp())
     except (ValueError, TypeError):
+        logger.warning(
+            "Query %s: unparseable valid_from %r; temporal rule not checked",
+            result.query_id, valid_from_str,
+        )
         return False
 
     for chunk in result.retrieved_chunks:

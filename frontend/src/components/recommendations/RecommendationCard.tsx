@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { clsx } from "clsx";
 import type { Recommendation } from "@/types";
-import { isScored, NOT_SCORED } from "@/lib/metrics";
+import { formatMetric, isScored, NOT_SCORED } from "@/lib/metrics";
 
 const OBJECTIVE_LABELS: Record<string, string> = {
   best_overall: "Best Overall",
@@ -74,6 +74,21 @@ function ConfigBadges({ config }: { config: Record<string, unknown> }) {
   );
 }
 
+// lowest_cost scores are $/query and best_latency scores are p50 ms; the
+// rest are 0–1 scores shown out of 100.
+function formatScore(rec: Recommendation): string {
+  if (!isScored(rec.score)) return NOT_SCORED;
+  if (rec.objective === "lowest_cost") return formatMetric(rec.score, "$");
+  if (rec.objective === "best_latency") return formatMetric(rec.score, "ms");
+  return (rec.score * 100).toFixed(0);
+}
+
+function scoreLabel(objective: string): string {
+  if (objective === "lowest_cost") return "cost / query";
+  if (objective === "best_latency") return "p50 latency";
+  return "score";
+}
+
 export function RecommendationCard({ rec, rank }: { rec: Recommendation; rank: number }) {
   const [expanded, setExpanded] = useState(false);
   // No run qualified for this objective (e.g. its metric was never scored).
@@ -125,9 +140,9 @@ export function RecommendationCard({ rec, rank }: { rec: Recommendation; rank: n
 
           <div className="text-right flex-shrink-0">
             <p className={clsx("text-2xl font-bold tabular-nums", isScored(rec.score) ? "text-white" : "text-zinc-600")}>
-              {isScored(rec.score) ? (rec.score * 100).toFixed(0) : NOT_SCORED}
+              {formatScore(rec)}
             </p>
-            <p className="text-[10px] text-zinc-600 font-mono">score</p>
+            <p className="text-[10px] text-zinc-600 font-mono">{scoreLabel(rec.objective)}</p>
           </div>
         </div>
 

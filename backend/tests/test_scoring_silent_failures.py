@@ -218,6 +218,19 @@ class TestCustomMetrics:
         eval_set = [{"id": "q1", "valid_from": "2024-01-01"}, {"id": "q2", "valid_from": "2024-01-01"}]
         assert compute_freshness_validity([good, stale], eval_set) == pytest.approx(0.5)
 
+    def test_unparseable_date_is_not_counted_as_stale(self, caplog):
+        from datetime import datetime
+        from app.services.evaluation.metrics import compute_freshness_validity
+
+        epoch = int(datetime.fromisoformat("2024-01-01").timestamp())
+        good = _result("q1", chunks=[{"effective_from": epoch - 10, "effective_to": None}])
+        bad_date = _result("q2", chunks=[{"effective_from": epoch - 10, "effective_to": None}])
+        eval_set = [{"id": "q1", "valid_from": "2024-01-01"}, {"id": "q2", "valid_from": "not a date"}]
+        with caplog.at_level(logging.WARNING, logger="app.services.evaluation.metrics"):
+            assert compute_freshness_validity([good, bad_date], eval_set) == 1.0
+            assert compute_freshness_validity([bad_date], eval_set) is None
+        assert any("not a date" in r.getMessage() for r in caplog.records)
+
     def test_temporal_citation_accuracy_none_without_dated_chunks(self):
         from app.services.evaluation.metrics import _compute_temporal_citation_accuracy
         assert _compute_temporal_citation_accuracy([_result("q1")], [{"id": "q1"}]) is None

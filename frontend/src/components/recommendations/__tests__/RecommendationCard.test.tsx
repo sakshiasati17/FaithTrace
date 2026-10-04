@@ -26,10 +26,30 @@ describe("RecommendationCard", () => {
     render(
       <RecommendationCard
         rank={1}
-        rec={{ objective: "lowest_cost", best_config: CONFIG, run_id: "r1", score: 0, rationale: "free" }}
+        rec={{ objective: "best_faithfulness", best_config: CONFIG, run_id: "r1", score: 0, rationale: "x" }}
       />
     );
     expect(screen.getByText("0")).toBeInTheDocument();
+  });
+
+  it("shows cost in dollars and latency in ms, not as score x 100", () => {
+    const { unmount } = render(
+      <RecommendationCard
+        rank={1}
+        rec={{ objective: "lowest_cost", best_config: CONFIG, run_id: "r1", score: 0.0012, rationale: "x" }}
+      />
+    );
+    expect(screen.getByText("$0.0012")).toBeInTheDocument();
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
+    unmount();
+
+    render(
+      <RecommendationCard
+        rank={1}
+        rec={{ objective: "best_latency", best_config: CONFIG, run_id: "r1", score: 734.4, rationale: "x" }}
+      />
+    );
+    expect(screen.getByText("734ms")).toBeInTheDocument();
   });
 
   it("renders a null score as a dash with the no-eligible-runs reason", () => {
