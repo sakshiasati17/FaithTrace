@@ -5,12 +5,15 @@ Async workers for ingestion, pipeline runs, evaluation, and diagnostics.
 """
 
 import json
+import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 from celery import Celery
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 celery_app = Celery(
     "faithtrace",
@@ -311,7 +314,7 @@ def evaluate_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         rm.freshness_validity = metrics.freshness_validity
         rm.temporal_citation_accuracy = metrics.temporal_citation_accuracy
         rm.multimodal_grounding_rate = metrics.multimodal_grounding_rate
-        rm.root_cause_diagnostic_accuracy = metrics.root_cause_diagnostic_accuracy
+        # root_cause_diagnostic_accuracy is written by diagnose_run, after diagnoses exist.
         db.commit()
 
         # Enqueue diagnostics
@@ -340,7 +343,10 @@ def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
     from app.db.session import get_sync_db
     from app.db.models import Run, QueryResult as QueryResultModel, RunMetrics as RunMetricsModel
     from app.services.experiment.runner import QueryResult
-    from app.services.diagnostics.classifier import diagnose_run as classifier_diagnose_run
+    from app.services.diagnostics.classifier import (
+        compute_diagnostic_accuracy,
+        diagnose_run as classifier_diagnose_run,
+    )
     from app.services.evaluation.ragas_runner import run_ragas_evaluation
     from sqlalchemy import select
 
@@ -354,9 +360,11 @@ def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         if not eval_set:
             return {"error": f"Eval set not found or empty: {eval_set_path}"}
 
-        # Load query results
+        # Load query results (deterministic order)
         qr_rows = db.execute(
-            select(QueryResultModel).where(QueryResultModel.run_id == run_id)
+            select(QueryResultModel)
+            .where(QueryResultModel.run_id == run_id)
+            .order_by(QueryResultModel.query_id, QueryResultModel.id)
         ).scalars().all()
 
         if not qr_rows:
@@ -379,7 +387,11 @@ def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         # Get per-query Ragas scores for diagnostics
         try:
             per_query_scores = run_ragas_evaluation(results, eval_set)
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "Ragas scoring failed for run %s; diagnosing without per-query metrics: %s",
+                run_id, exc,
+            )
             per_query_scores = [{}] * len(results)
 
         # Run diagnostics
@@ -398,7 +410,29 @@ def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
                 }
         db.commit()
 
-        return {"run_id": run_id, "diagnoses_written": len(diagnoses)}
+        # Root-cause diagnostic accuracy: stored diagnoses vs ground-truth
+        # failure_type labels (None when no item is labelled).
+        diag_accuracy = compute_diagnostic_accuracy(
+            {qr.query_id: qr.failure_category for qr in qr_rows},
+            eval_set,
+        )
+        rm = db.execute(
+            select(RunMetricsModel).where(RunMetricsModel.run_id == run_id)
+        ).scalar_one_or_none()
+        if rm is None:
+            # evaluate_run creates the metrics row before enqueueing this task.
+            logger.warning(
+                "No RunMetrics row for run %s; root_cause_diagnostic_accuracy not stored", run_id
+            )
+        else:
+            rm.root_cause_diagnostic_accuracy = diag_accuracy
+            db.commit()
+
+        return {
+            "run_id": run_id,
+            "diagnoses_written": len(diagnoses),
+            "root_cause_diagnostic_accuracy": diag_accuracy,
+        }
 
     except Exception as exc:
         raise self.retry(exc=exc, countdown=10)
@@ -420,12 +454,14 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str):
     from app.db.session import get_sync_db
     from app.db.models import Run, QueryResult as QueryResultModel, QueryFeedback
     from app.services.diagnostics.ml_classifier import train as ml_train
+    from app.services.diagnostics.classifier import index_eval_set
     from sqlalchemy import select
 
     db = get_sync_db()
     try:
         eval_set = _load_eval_set(eval_set_path)
-        eval_by_id = {item["query_id"]: item for item in eval_set if "query_id" in item}
+        # Eval sets key items by "id" ("query_id" accepted as a fallback).
+        eval_by_id = index_eval_set(eval_set)
 
         # Collect all labeled QueryResults for this experiment
         run_rows = db.execute(
@@ -442,6 +478,7 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str):
                 QueryResultModel.run_id.in_(run_ids),
                 QueryResultModel.failure_category.isnot(None),
             )
+            .order_by(QueryResultModel.run_id, QueryResultModel.query_id, QueryResultModel.id)
         ).scalars().all()
 
         if not qr_rows:
