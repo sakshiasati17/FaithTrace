@@ -90,6 +90,71 @@ Question: {question}
 Answer:"""
 
 
+# ─── Retrieval filter rules ──────────────────────────────────────────────────
+#
+# One set of rules drives both retrieval paths: the Qdrant payload filter used
+# by vector search, and the in-memory predicate applied to BM25 candidates.
+
+# Chunk types each parsing strategy may retrieve; strategies not listed
+# (text_table, text_table_vision) retrieve every chunk type. Values match the
+# chunk_type labels the parser emits: text, table, image, spreadsheet_cell.
+_ALLOWED_CHUNK_TYPES: dict[str, tuple[str, ...]] = {
+    "text_only": ("text",),
+    "spreadsheet_aware": ("spreadsheet_cell", "text"),
+}
+
+# Freshness policies that restrict chunks to those effective on the query date.
+_DATE_FILTERED_POLICIES = ("effective_date_filter", "version_aware")
+
+
+def _allowed_chunk_types(parsing_strategy: str) -> Optional[tuple[str, ...]]:
+    """Chunk types allowed for a parsing strategy, or None for no restriction."""
+    return _ALLOWED_CHUNK_TYPES.get(parsing_strategy)
+
+
+def _query_epoch(freshness_policy: str, eval_item: dict) -> Optional[int]:
+    """
+    Query date (epoch seconds, as stored by indexer.py) to filter on, or None
+    when the policy does not filter by date or the item has no usable date.
+    """
+    if freshness_policy not in _DATE_FILTERED_POLICIES:
+        return None
+    valid_from_str = eval_item.get("valid_from")
+    if not valid_from_str:
+        return None
+    try:
+        return int(datetime.fromisoformat(valid_from_str).timestamp())
+    except (ValueError, TypeError):
+        return None
+
+
+def chunk_passes_filters(
+    payload: dict, parsing_strategy: str, freshness_policy: str, eval_item: dict
+) -> bool:
+    """
+    Whether a chunk payload passes the retrieval filters for this config and
+    question. Mirrors the Qdrant filter built by _build_freshness_filter +
+    _build_chunk_type_filter:
+
+    - chunk_type must be in _allowed_chunk_types(parsing_strategy), if restricted
+    - under effective_date_filter / version_aware with a valid query date:
+      effective_from <= query date (a missing effective_from does not match,
+      as in a Qdrant range condition) and effective_to is null or >= query date
+    """
+    allowed = _allowed_chunk_types(parsing_strategy)
+    if allowed is not None and payload.get("chunk_type") not in allowed:
+        return False
+
+    query_epoch = _query_epoch(freshness_policy, eval_item)
+    if query_epoch is None:
+        return True
+    eff_from = payload.get("effective_from")
+    if eff_from is None or eff_from > query_epoch:
+        return False
+    eff_to = payload.get("effective_to")
+    return eff_to is None or eff_to >= query_epoch
+
+
 # ─── Retriever builders ───────────────────────────────────────────────────────
 
 def _build_chunk_type_filter(parsing_strategy: str, existing_filter=None):
@@ -97,26 +162,19 @@ def _build_chunk_type_filter(parsing_strategy: str, existing_filter=None):
     Build a Qdrant chunk_type filter based on parsing_strategy.
 
     - text_only          → only "text" chunks (no tables)
-    - text_table         → text + table chunks (no filter needed, return both)
-    - text_table_vision  → text + table + vision chunks (no filter needed)
-    - spreadsheet_aware  → spreadsheet chunks only
+    - text_table         → all chunk types (no filter)
+    - text_table_vision  → all chunk types (no filter)
+    - spreadsheet_aware  → "spreadsheet_cell" + "text" chunks
     """
-    from qdrant_client.models import Filter, FieldCondition, MatchValue, MatchAny
+    from qdrant_client.models import Filter, FieldCondition, MatchAny
 
-    if parsing_strategy == "text_only":
-        chunk_filter = Filter(
-            must=[FieldCondition(key="chunk_type", match=MatchValue(value="text"))]
-        )
-    elif parsing_strategy == "spreadsheet_aware":
-        chunk_filter = Filter(
-            must=[FieldCondition(key="chunk_type", match=MatchAny(any=["spreadsheet", "text"]))]
-        )
-    else:
-        # text_table / text_table_vision: retrieve all chunk types
-        chunk_filter = None
-
-    if chunk_filter is None:
+    allowed = _allowed_chunk_types(parsing_strategy)
+    if allowed is None:
         return existing_filter
+
+    chunk_filter = Filter(
+        must=[FieldCondition(key="chunk_type", match=MatchAny(any=list(allowed)))]
+    )
     if existing_filter is None:
         return chunk_filter
     # Merge: both filters must hold
@@ -146,64 +204,97 @@ def _build_vector_retriever(embedding_model: str, top_k: int, qdrant_filter=None
     return vectorstore.as_retriever(search_kwargs=search_kwargs)
 
 
-def _build_bm25_retriever(top_k: int):
+def _load_bm25_corpus() -> Optional[list]:
+    """
+    Fetch every chunk from Qdrant once and wrap it as a LangChain Document.
+
+    Returns None when BM25 is unavailable (rank-bm25 not installed), so hybrid
+    falls back to vector-only. Filtering happens later, per question.
+    """
     try:
-        from langchain_community.retrievers import BM25Retriever
+        from langchain_community.retrievers import BM25Retriever  # noqa: F401
     except ImportError:
-        # rank-bm25 not installed — hybrid falls back to vector-only
+        logger.warning("BM25Retriever unavailable; bm25/hybrid configs use no BM25 results")
         return None
     from langchain.schema import Document as LCDoc
     from app.services.ingestion.indexer import fetch_all_chunks
 
-    all_chunks = fetch_all_chunks()
-    if not all_chunks:
-        return None
-
-    docs = [
+    return [
         LCDoc(
             page_content=str(c.get("content", "") or ""),
             metadata={k: v for k, v in c.items() if k != "content"},
         )
-        for c in all_chunks
+        for c in fetch_all_chunks()
         if c.get("content")
     ]
-    if not docs:
+
+
+def _build_bm25_retriever(
+    top_k: int,
+    parsing_strategy: str,
+    freshness_policy: str,
+    eval_item: dict,
+    cache: dict,
+):
+    """
+    Build a BM25 retriever over the chunks that pass the same chunk-type and
+    freshness filters as the vector path (chunk_passes_filters).
+
+    `cache` lives for one run_pipeline call: the corpus is fetched from Qdrant
+    once, and a retriever is built once per distinct query date (the only
+    filter input that varies between questions of a run).
+
+    Returns None when BM25 is unavailable or no chunk passes the filters.
+    """
+    if "corpus" not in cache:
+        cache["corpus"] = _load_bm25_corpus()
+    corpus = cache["corpus"]
+    if not corpus:
         return None
 
-    retriever = BM25Retriever.from_documents(docs, k=top_k)
-    return retriever
+    retrievers = cache.setdefault("retrievers", {})
+    key = _query_epoch(freshness_policy, eval_item)
+    if key not in retrievers:
+        from langchain_community.retrievers import BM25Retriever
+
+        docs = [
+            d for d in corpus
+            if chunk_passes_filters(d.metadata, parsing_strategy, freshness_policy, eval_item)
+        ]
+        retrievers[key] = BM25Retriever.from_documents(docs, k=top_k) if docs else None
+    return retrievers[key]
+
+
+def _copy_docs(docs: list) -> list:
+    """Shallow-copy LangChain docs (new metadata dicts) so cached docs stay unmodified."""
+    return [d.copy(update={"metadata": dict(d.metadata or {})}) for d in docs]
 
 
 def _build_freshness_filter(freshness_policy: str, eval_item: dict):
-    """Build a Qdrant payload filter for freshness policies."""
-    from qdrant_client.models import Filter, FieldCondition, Range
+    """
+    Build a Qdrant payload filter for freshness policies:
+    effective_from <= query_date AND (effective_to IS NULL OR effective_to >= query_date).
+    """
+    from qdrant_client.models import (
+        Filter, FieldCondition, Range, IsEmptyCondition, IsNullCondition, PayloadField,
+    )
 
-    if freshness_policy == "none" or freshness_policy == "recency_biased":
+    query_epoch = _query_epoch(freshness_policy, eval_item)
+    if query_epoch is None:
         return None
 
-    valid_from_str = eval_item.get("valid_from")
-    if not valid_from_str:
-        return None
-
-    try:
-        query_date = datetime.fromisoformat(valid_from_str)
-        query_epoch = int(query_date.timestamp())
-    except (ValueError, TypeError):
-        return None
-
-    if freshness_policy in ("effective_date_filter", "version_aware"):
-        # effective_from <= query_date AND (effective_to IS NULL OR effective_to >= query_date)
-        # Qdrant: only filter on effective_from <= query_date; we post-filter effective_to
-        return Filter(
-            must=[
-                FieldCondition(
-                    key="effective_from",
-                    range=Range(lte=query_epoch),
-                )
-            ]
-        )
-
-    return None
+    return Filter(
+        must=[
+            FieldCondition(key="effective_from", range=Range(lte=query_epoch)),
+            Filter(
+                should=[
+                    IsNullCondition(is_null=PayloadField(key="effective_to")),
+                    IsEmptyCondition(is_empty=PayloadField(key="effective_to")),
+                    FieldCondition(key="effective_to", range=Range(gte=query_epoch)),
+                ]
+            ),
+        ]
+    )
 
 
 def _post_filter_by_effective_to(chunks: list[dict], eval_item: dict, freshness_policy: str) -> list[dict]:
@@ -297,6 +388,9 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
 
     results = []
 
+    # Per-run BM25 cache: chunks are fetched from Qdrant once, not per question.
+    bm25_cache: dict = {}
+
     for eval_item in eval_set:
         question = eval_item.get("question", "")
         query_id = eval_item.get("id", f"q_{len(results)}")
@@ -318,9 +412,12 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
                 lc_docs = retriever.invoke(question)
 
             elif config.retrieval_strategy == "bm25":
-                bm25 = _build_bm25_retriever(config.top_k)
+                bm25 = _build_bm25_retriever(
+                    config.top_k, config.parsing_strategy, config.freshness_policy,
+                    eval_item, bm25_cache,
+                )
                 if bm25:
-                    lc_docs = bm25.invoke(question)
+                    lc_docs = _copy_docs(bm25.invoke(question))
                 else:
                     lc_docs = []
 
@@ -331,7 +428,10 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
                     config.embedding_model, config.top_k, qdrant_filter,
                     parsing_strategy=config.parsing_strategy,
                 )
-                bm25_ret = _build_bm25_retriever(config.top_k)
+                bm25_ret = _build_bm25_retriever(
+                    config.top_k, config.parsing_strategy, config.freshness_policy,
+                    eval_item, bm25_cache,
+                )
 
                 if bm25_ret:
                     ensemble = EnsembleRetriever(
@@ -341,6 +441,11 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
                     lc_docs = ensemble.invoke(question)
                 else:
                     lc_docs = vector_ret.invoke(question)
+
+                # BM25 docs are shared across questions of the run (cached
+                # corpus); copy them so per-question metadata (e.g. reranker
+                # scores) never leaks into later questions.
+                lc_docs = _copy_docs(lc_docs)
 
                 if config.retrieval_strategy == "hybrid_reranker" and lc_docs:
                     lc_docs = _rerank_docs(lc_docs, question, config.top_k)
