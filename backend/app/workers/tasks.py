@@ -783,7 +783,11 @@ def resolve_training_label(feedback, eval_item: dict, classifier_label: str | No
     Priority:
       1. human feedback: positive rating -> NO_FAILURE, else a valid correct_label;
       2. the eval item's ground-truth failure_type, when it is a FailureCategory
-         (UNANSWERABLE items are skipped: returns (None, "skipped_unanswerable"));
+         (UNANSWERABLE items are skipped: returns (None, "skipped_unanswerable")),
+         but only to name an observed failure: failure_type describes the failure a
+         question is designed to probe, not what happened in this run. If the
+         classifier judged this run NO_FAILURE (or failure_type is NO_FAILURE),
+         the observed outcome wins;
       3. the classifier's stored label (circular: the model re-learns the heuristic).
     Returns (None, "skipped_no_label") when nothing valid is available.
     """
@@ -802,7 +806,9 @@ def resolve_training_label(feedback, eval_item: dict, classifier_label: str | No
     failure_type = (eval_item or {}).get("failure_type")
     if failure_type == UNANSWERABLE_FAILURE_TYPE:
         return None, "skipped_unanswerable"
-    if failure_type in valid:
+    observed_failure = classifier_label in valid and classifier_label != FailureCategory.NO_FAILURE.value
+    if (failure_type in valid and failure_type != FailureCategory.NO_FAILURE.value
+            and observed_failure):
         return failure_type, "eval_set"
 
     if classifier_label in valid:
