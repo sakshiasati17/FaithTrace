@@ -12,6 +12,7 @@ from sqlalchemy import select, func, or_
 from app.db.session import get_db
 from app.db.models import QueryResult, Run, Experiment
 from app.services.diagnostics.ml_classifier import is_trained
+from app.services.evaluation.eval_sets import EvalSetError, resolve_eval_set_path
 
 router = APIRouter()
 
@@ -180,7 +181,7 @@ async def get_classifier_status():
 @router.post("/classifier/train")
 async def train_classifier(
     experiment_id: str,
-    eval_set_path: str = "eval_sets/procurement_policy_eval.json",
+    eval_set_path: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -188,7 +189,8 @@ async def train_classifier(
     from a completed experiment.
 
     The model trains on failure_category labels written by the heuristic
-    classifier (or ground-truth labels in the eval set). After training,
+    classifier (or ground-truth labels in the eval set). Eval items come from
+    the experiment's own eval set unless eval_set_path is given. After training,
     all subsequent diagnose() calls will use the ML model automatically.
     """
     # Verify experiment exists
@@ -196,6 +198,14 @@ async def train_classifier(
     exp = exp_result.scalar_one_or_none()
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
+
+    # Default: the experiment's own eval set (uploaded, stored path, or
+    # DEFAULT_EVAL_SET_PATH). An explicit path must live inside eval_sets/.
+    if eval_set_path:
+        try:
+            eval_set_path, _ = resolve_eval_set_path(eval_set_path)
+        except EvalSetError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
 
     from app.workers.tasks import train_failure_classifier
     task = train_failure_classifier.delay(experiment_id, eval_set_path)

@@ -33,18 +33,53 @@ celery_app.conf.task_routes = {
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _load_eval_set(eval_set_path: str) -> list[dict]:
-    """Load eval set from JSON file. Tries multiple path resolutions."""
-    paths_to_try = [
-        Path(eval_set_path),
-        Path("/app") / eval_set_path,
-        Path(__file__).parent.parent.parent.parent / eval_set_path,
-    ]
-    for p in paths_to_try:
-        if p.exists():
-            with open(str(p)) as f:
-                return json.load(f)
-    # Return empty eval set as fallback
-    return []
+    """Load a built-in eval set file. Only files inside eval_sets/ are allowed."""
+    from app.services.evaluation import eval_sets as es
+    try:
+        return es.load_builtin(eval_set_path)
+    except (es.EvalSetError, OSError, json.JSONDecodeError) as exc:
+        logger.error("Could not load eval set %r: %s", eval_set_path, exc)
+        return []
+
+
+def _str_or_none(value) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+def load_eval_set_for(db, experiment=None, eval_set_path: str | None = None) -> list[dict]:
+    """
+    The eval set an experiment runs against, in order of preference:
+      1. the uploaded set (experiment.eval_set_id) from the eval_sets table;
+      2. the experiment's stored built-in path (experiment.eval_set_path);
+      3. an eval_set_path passed to the task (legacy callers / pre-005 experiments);
+      4. DEFAULT_EVAL_SET_PATH.
+    Paths are restricted to eval_sets/. Returns [] (and logs) when nothing loads.
+    """
+    from app.db.models import EvalSet
+    from app.services.evaluation.eval_sets import DEFAULT_EVAL_SET_PATH
+
+    eval_set_id = _str_or_none(getattr(experiment, "eval_set_id", None))
+    if eval_set_id:
+        row = db.get(EvalSet, eval_set_id)
+        if row is None:
+            logger.error("Eval set %s (experiment %s) not found",
+                         eval_set_id, getattr(experiment, "id", None))
+            return []
+        return list(row.items or [])
+
+    path = (
+        _str_or_none(getattr(experiment, "eval_set_path", None))
+        or _str_or_none(eval_set_path)
+        or DEFAULT_EVAL_SET_PATH
+    )
+    return _load_eval_set(path)
+
+
+def _describe_eval_set(experiment, eval_set_path: str | None) -> str:
+    eval_set_id = _str_or_none(getattr(experiment, "eval_set_id", None))
+    if eval_set_id:
+        return f"eval set {eval_set_id}"
+    return _str_or_none(getattr(experiment, "eval_set_path", None)) or eval_set_path or "default eval set"
 
 
 def _is_errored(qr) -> bool:
@@ -171,7 +206,7 @@ def ingest_document(self, document_id: str, strategy: str):
 # ─── Task: run_experiment ─────────────────────────────────────────────────────
 
 @celery_app.task(name="app.workers.tasks.run_experiment", bind=True, max_retries=1)
-def run_experiment(self, experiment_id: str, eval_set_path: str = "eval_sets/sample_eval_set.json"):
+def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
     """Execute all pipeline runs for an experiment."""
     from app.db.session import get_sync_db
     from app.db.models import Experiment, Run, QueryResult as QueryResultModel
@@ -187,11 +222,11 @@ def run_experiment(self, experiment_id: str, eval_set_path: str = "eval_sets/sam
         experiment.status = "running"
         db.commit()
 
-        eval_set = _load_eval_set(eval_set_path)
+        eval_set = load_eval_set_for(db, experiment, eval_set_path)
         if not eval_set:
             experiment.status = "failed"
             db.commit()
-            return {"error": "Eval set is empty or not found"}
+            return {"error": f"Eval set is empty or not found: {_describe_eval_set(experiment, eval_set_path)}"}
 
         # Fetch all pending/queued runs
         from sqlalchemy import select
@@ -296,7 +331,7 @@ def run_experiment(self, experiment_id: str, eval_set_path: str = "eval_sets/sam
 # ─── Task: evaluate_run ───────────────────────────────────────────────────────
 
 @celery_app.task(name="app.workers.tasks.evaluate_run", bind=True, max_retries=2)
-def evaluate_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_set.json"):
+def evaluate_run(self, run_id: str, eval_set_path: str | None = None):
     """Compute metrics for a completed pipeline run."""
     from app.db.session import get_sync_db
     from app.db.models import Run, QueryResult as QueryResultModel, RunMetrics as RunMetricsModel
@@ -309,9 +344,9 @@ def evaluate_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         if not run:
             return {"error": f"Run {run_id} not found"}
 
-        eval_set = _load_eval_set(eval_set_path)
+        eval_set = load_eval_set_for(db, run.experiment, eval_set_path)
         if not eval_set:
-            return {"error": f"Eval set not found or empty: {eval_set_path}"}
+            return {"error": f"Eval set not found or empty: {_describe_eval_set(run.experiment, eval_set_path)}"}
 
         # Load query results from DB
         qr_rows = db.execute(
@@ -399,7 +434,7 @@ def evaluate_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
 # ─── Task: diagnose_run ───────────────────────────────────────────────────────
 
 @celery_app.task(name="app.workers.tasks.diagnose_run", bind=True, max_retries=2)
-def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_set.json"):
+def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
     """Run root-cause diagnostics on a completed, evaluated run."""
     from app.db.session import get_sync_db
     from app.db.models import Run, QueryResult as QueryResultModel, RunMetrics as RunMetricsModel
@@ -416,9 +451,9 @@ def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         if not run:
             return {"error": f"Run {run_id} not found"}
 
-        eval_set = _load_eval_set(eval_set_path)
+        eval_set = load_eval_set_for(db, run.experiment, eval_set_path)
         if not eval_set:
-            return {"error": f"Eval set not found or empty: {eval_set_path}"}
+            return {"error": f"Eval set not found or empty: {_describe_eval_set(run.experiment, eval_set_path)}"}
 
         # Load query results (deterministic order)
         qr_rows = db.execute(
@@ -510,7 +545,7 @@ def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
 # ─── Task: train_failure_classifier ──────────────────────────────────────────
 
 @celery_app.task(name="app.workers.tasks.train_failure_classifier", bind=True, max_retries=1)
-def train_failure_classifier(self, experiment_id: str, eval_set_path: str):
+def train_failure_classifier(self, experiment_id: str, eval_set_path: str | None = None):
     """
     Train the XGBoost failure classifier on all labeled query results from
     a completed experiment.
@@ -519,14 +554,19 @@ def train_failure_classifier(self, experiment_id: str, eval_set_path: str):
     non-null failure_category, then trains and persists the model.
     """
     from app.db.session import get_sync_db
-    from app.db.models import Run, QueryResult as QueryResultModel, QueryFeedback
+    from app.db.models import Experiment, Run, QueryResult as QueryResultModel, QueryFeedback
     from app.services.diagnostics.ml_classifier import train as ml_train
     from app.services.diagnostics.classifier import index_eval_set
     from sqlalchemy import select
 
     db = get_sync_db()
     try:
-        eval_set = _load_eval_set(eval_set_path)
+        # The experiment's own eval set unless an explicit path was given.
+        experiment = db.get(Experiment, experiment_id)
+        if _str_or_none(eval_set_path):
+            eval_set = _load_eval_set(eval_set_path)
+        else:
+            eval_set = load_eval_set_for(db, experiment)
         # Eval sets key items by "id" ("query_id" accepted as a fallback).
         eval_by_id = index_eval_set(eval_set)
 

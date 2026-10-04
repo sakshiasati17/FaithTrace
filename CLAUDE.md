@@ -18,8 +18,8 @@ FaithTrace benchmarks and diagnoses RAG pipelines, focusing on temporal drift (s
 
 ```
 backend/app/
-  api/v1/endpoints/   corpus, experiments, evaluation, diagnostics, recommendations, feedback
-  db/                 SQLAlchemy models (6 tables); migrations in backend/alembic/versions
+  api/v1/endpoints/   corpus, experiments, evaluation, eval_sets, diagnostics, recommendations, feedback
+  db/                 SQLAlchemy models (7 tables); migrations in backend/alembic/versions
   services/
     ingestion/        parser.py, chunker.py, indexer.py (Qdrant)
     experiment/       runner.py (retrieval + generation), config_matrix.py (256 / 24 configs)
@@ -44,7 +44,7 @@ cd backend && pip install -r requirements.txt && pytest -q
 cd frontend && npm ci && npm test -- --run && npm run build
 ```
 
-New DB columns/tables need an Alembic migration in `backend/alembic/versions` (next is `004_...`).
+New DB columns/tables need an Alembic migration in `backend/alembic/versions` (next is `006_...`).
 
 ## Working rules (do not disrupt the current project)
 
@@ -66,6 +66,6 @@ New DB columns/tables need an Alembic migration in `backend/alembic/versions` (n
 5. ~~**Reranker never runs.**~~ Fixed in `fix/reranker`. `sentence-transformers` is pinned; the cross-encoder (`RERANKER_MODEL`) loads once per process; each chunk carries `reranked` (and `rerank_error` on failure) in `retrieved_chunks`, and failures are logged.
 6. **Parsing fixed at upload.** `corpus._default_strategy` never selects `text_table_vision`, so no image chunks exist. ~~`spreadsheet_aware` filter used `"spreadsheet"`~~ (fixed in `fix/hybrid-filters`: now `"spreadsheet_cell"`).
 7. **Chunking axis is a no-op.** Ingestion always chunks `recursive`; runner never reads `chunking_strategy`.
-8. **Eval set is a file path.** Defaults differ (frontend vs API vs training); `POST /evaluation/run/{id}` re-scores with the default set; path is unrestricted.
+8. ~~**Eval set is a file path.**~~ Fixed in `feat/eval-set-upload`: `eval_sets` table + `/api/v1/eval-sets` upload (JSON/CSV, validated); experiments store `eval_set_id`/`eval_set_path` (restricted to `eval_sets/`); workers use `tasks.load_eval_set_for`; one default `eval_sets/faithtrace_v1.json`.
 9. **Lifecycle/cost.** Experiment marked `done` before evaluation/diagnosis finish; `MAX_COST_PER_RUN_USD` unused; all experiments search all documents.
 10. **Honesty/CI.** Frontend status indicators are hard-coded; no CI workflow; no results committed.

@@ -14,12 +14,42 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.db.models import Experiment, Run, QueryResult as QueryResultModel
+from app.db.models import EvalSet, Experiment, Run, QueryResult as QueryResultModel
 from app.schemas.experiment_schemas import (
     ExperimentResponse, ExperimentCreateRequest, RunResponse, QueryResultResponse
 )
+from app.services.evaluation import eval_sets as es
 
 router = APIRouter()
+
+
+async def _resolve_eval_set(
+    payload: ExperimentCreateRequest, db: AsyncSession
+) -> tuple[str | None, str | None]:
+    """
+    Pick the experiment's eval set: (eval_set_id, eval_set_path).
+
+    eval_set_id wins; "builtin:<file>" ids map to a path. A legacy path must
+    resolve inside the repo eval_sets/ folder, else 422.
+    """
+    if payload.eval_set_id:
+        if payload.eval_set_id.startswith(es.BUILTIN_ID_PREFIX):
+            path = payload.eval_set_id[len(es.BUILTIN_ID_PREFIX):]
+        else:
+            if not await db.get(EvalSet, payload.eval_set_id):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Eval set {payload.eval_set_id!r} not found",
+                )
+            return payload.eval_set_id, None
+    else:
+        path = payload.eval_set_path or es.DEFAULT_EVAL_SET_PATH
+
+    try:
+        normalised, _ = es.resolve_eval_set_path(path)
+    except es.EvalSetError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    return None, normalised
 
 
 @router.post("/", response_model=ExperimentResponse, status_code=status.HTTP_201_CREATED)
@@ -30,12 +60,16 @@ async def create_experiment(
     """Create and enqueue a new RAG pipeline experiment."""
     from app.services.experiment.config_matrix import build_mvp_matrix, build_matrix
 
+    eval_set_id, eval_set_path = await _resolve_eval_set(payload, db)
+
     experiment_id = str(uuid.uuid4())
     experiment = Experiment(
         id=experiment_id,
         name=payload.name,
         description=payload.description,
         status="pending",
+        eval_set_id=eval_set_id,
+        eval_set_path=eval_set_path,
     )
     db.add(experiment)
     await db.flush()
@@ -61,7 +95,9 @@ async def create_experiment(
 
     # Enqueue the experiment run
     from app.workers.tasks import run_experiment as run_experiment_task
-    run_experiment_task.delay(experiment_id, payload.eval_set_path)
+    # The worker reads the eval set from the experiment row; the path is passed
+    # only for legacy path-based experiments.
+    run_experiment_task.delay(experiment_id, eval_set_path)
 
     # Eager load runs for response
     result = await db.execute(

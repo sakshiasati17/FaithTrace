@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Optional, Any
 from pydantic import BaseModel, Field
 
+from app.services.evaluation.eval_sets import DEFAULT_EVAL_SET_PATH
+
 
 class RunMetricsResponse(BaseModel):
     id: str
@@ -66,6 +68,8 @@ class ExperimentResponse(BaseModel):
     status: str
     created_at: datetime
     completed_at: Optional[datetime] = None
+    eval_set_id: Optional[str] = None
+    eval_set_path: Optional[str] = None
     runs: list[RunResponse] = []
 
     class Config:
@@ -75,7 +79,10 @@ class ExperimentResponse(BaseModel):
 class ExperimentCreateRequest(BaseModel):
     name: str
     description: str = ""
-    eval_set_path: str = "eval_sets/sample_eval_set.json"
+    # Preferred: an uploaded eval set id (or "builtin:<file>.json").
+    eval_set_id: Optional[str] = None
+    # Legacy: a file inside the repo eval_sets/ folder. Ignored when eval_set_id is set.
+    eval_set_path: Optional[str] = DEFAULT_EVAL_SET_PATH
     config_preset: str = "mvp"  # mvp | custom
 
 
