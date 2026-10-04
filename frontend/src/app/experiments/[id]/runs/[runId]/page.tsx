@@ -217,7 +217,11 @@ function ReasoningPanel({ runId, queryId, cached }: { runId: string; queryId: st
         <Brain className="w-3.5 h-3.5 text-violet-400" />
         <span className="text-xs font-semibold text-violet-300 uppercase tracking-wider">AI Diagnostic Reasoning</span>
         <span className="ml-auto text-[10px] text-zinc-600">
-          {Math.round(reasoning.confidence * 100)}% confidence
+          {reasoning.parse_error
+            ? "unparsed output — retry"
+            : typeof reasoning.confidence === "number"
+              ? `${Math.round(reasoning.confidence * 100)}% confidence`
+              : "confidence not reported"}
         </span>
       </div>
 
