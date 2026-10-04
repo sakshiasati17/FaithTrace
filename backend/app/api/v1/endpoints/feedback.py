@@ -17,8 +17,12 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.db.models import QueryResult, QueryFeedback
+from app.services.diagnostics.classifier import FailureCategory
 
 router = APIRouter()
+
+# correct_label feeds classifier training, so only real failure categories are accepted.
+VALID_CORRECT_LABELS = [c.value for c in FailureCategory]
 
 
 class FeedbackPayload(BaseModel):
@@ -71,9 +75,21 @@ async def submit_feedback(
     if payload.rating not in ("positive", "negative"):
         raise HTTPException(status_code=422, detail="rating must be 'positive' or 'negative'")
 
+    if payload.correct_label is not None and payload.correct_label not in VALID_CORRECT_LABELS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"correct_label must be null or one of: {', '.join(VALID_CORRECT_LABELS)}",
+        )
+
     qr = await db.get(QueryResult, query_result_id)
     if not qr:
         raise HTTPException(status_code=404, detail="Query result not found")
+    if qr.status == "error":
+        # An errored query has no answer to rate; feedback on it would become a training label.
+        raise HTTPException(
+            status_code=422,
+            detail="Cannot submit feedback on a query that errored (no answer was generated)",
+        )
 
     existing = await db.execute(
         select(QueryFeedback).where(QueryFeedback.query_result_id == query_result_id)
