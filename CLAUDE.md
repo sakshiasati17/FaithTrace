@@ -39,6 +39,8 @@ cp .env.example .env            # set OPENAI_API_KEY
 docker compose up -d --build    # UI http://localhost, API docs http://localhost/docs
 
 cd backend && pip install -r requirements.txt && pytest -q
+# If system pip fails building langdetect/antlr4/iopath ("install_layout"), use a venv:
+#   python -m venv .venv && .venv/bin/pip install -U pip setuptools wheel && .venv/bin/pip install -r backend/requirements.txt
 cd frontend && npm ci && npm test -- --run && npm run build
 ```
 
@@ -58,7 +60,7 @@ New DB columns/tables need an Alembic migration in `backend/alembic/versions` (n
 ## Known issues (fix in this order)
 
 1. **No real data.** No documents in repo; `sample_eval_set.json` and the golden set are the same 5 invented questions; `procurement_policy_eval.json` is 10 text-only questions. `scripts/` scripts listed in its README don't exist. Add a public `corpus/`, a verified eval set (60–100 questions incl. table, chart, spreadsheet, temporal pairs, unanswerable) and `scripts/seed.py`.
-2. **Diagnosis correctness.** `tasks.py` `train_failure_classifier` keys eval items by `query_id` but sets use `id`. `diagnose_run` pairs rows with questions by position, not `query_id`. `metrics._compute_diagnostic_accuracy` uses empty metrics and returns 1.0 when unlabelled.
+2. ~~**Diagnosis correctness.**~~ Fixed in PR #19 (`fix/diagnosis-correctness`). Eval items are matched by `id` (`classifier.index_eval_set`); `root_cause_diagnostic_accuracy` is computed in `diagnose_run` from stored diagnoses vs `failure_type` labels and is `None` when nothing is labelled. Retrain old classifier models.
 3. **Errors scored as answers.** `runner.py` turns exceptions into `"Error: ..."` answers that get scored and diagnosed. Record per-query error status; exclude from metrics.
 4. **BM25 ignores filters.** `_build_bm25_retriever` skips freshness and chunk-type filters, so hybrid configs leak stale chunks. Also rebuilt per question.
 5. **Reranker never runs.** `sentence-transformers` is missing from requirements; failure is hidden by `except: pass`.
