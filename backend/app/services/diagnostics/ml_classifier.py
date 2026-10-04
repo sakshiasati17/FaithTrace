@@ -32,7 +32,7 @@ from typing import Optional
 
 import numpy as np
 
-from app.services.diagnostics.classifier import FailureCategory
+from app.services.diagnostics.classifier import FailureCategory, is_vision_chunk
 
 logger = logging.getLogger(__name__)
 
@@ -88,9 +88,7 @@ def extract_features(
     chunk_types = [c.get("chunk_type", "text") for c in retrieved_chunks]
     has_table   = float(any(ct in ("table", "spreadsheet_cell") for ct in chunk_types))
     has_image   = float(any(ct == "image" for ct in chunk_types))
-    has_vision  = float(
-        any(c.get("metadata", {}).get("source") == "gpt4o_vision" for c in retrieved_chunks)
-    )
+    has_vision  = float(any(is_vision_chunk(c) for c in retrieved_chunks))
     num_chunks  = float(len(retrieved_chunks))
 
     modality = (eval_item.get("modality") or "text").lower()

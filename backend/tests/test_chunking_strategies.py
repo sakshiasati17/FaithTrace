@@ -13,6 +13,7 @@ Covers:
   - a run whose chunking strategy is not indexed is failed with a reason and
     the experiment still finishes
   - _ALLOWED_CHUNK_TYPES: text_table excludes vision (image) chunks
+  - vision chunk detection on flat retrieved chunks (classifier + ML feature)
 
 No network: Qdrant is an in-process QdrantClient(":memory:"); OpenAI and
 Celery are mocked.
@@ -582,3 +583,28 @@ def test_text_table_excludes_vision_chunks_vision_includes_them():
     assert chunk_passes_filters(image, "text_table_vision", "none", {})
     contents, _ = _pipeline("fixed_size", parsing="text_table_vision")
     assert "threshold chart" in contents
+
+
+# ─── Vision detection on flat retrieved chunks ──────────────────────────────
+
+FLAT_VISION = {"content": "chart", "chunk_type": "text", "source": "gpt4o_vision"}
+NESTED_VISION = {"content": "chart", "chunk_type": "text", "metadata": {"source": "gpt4o_vision"}}
+IMAGE = {"content": "chart", "chunk_type": "image"}
+PLAIN = {"content": "text", "chunk_type": "text", "source": "pdf"}
+
+
+@pytest.mark.parametrize("chunk,expected", [
+    (FLAT_VISION, True), (NESTED_VISION, True), (IMAGE, True), (PLAIN, False),
+])
+def test_classifier_vision_detection(chunk, expected):
+    from app.services.diagnostics.classifier import _has_vision_chunk
+    assert _has_vision_chunk(SimpleNamespace(retrieved_chunks=[chunk])) is expected
+
+
+@pytest.mark.parametrize("chunk,expected", [
+    (FLAT_VISION, 1.0), (NESTED_VISION, 1.0), (IMAGE, 1.0), (PLAIN, 0.0),
+])
+def test_ml_vision_feature(chunk, expected):
+    from app.services.diagnostics.ml_classifier import extract_features
+    features = extract_features({}, [chunk], {"modality": "chart"})
+    assert features[10] == expected  # has_vision_chunk
