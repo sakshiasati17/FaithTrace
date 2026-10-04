@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import axios from "axios";
 
+// api.ts registers a response interceptor on the instance at import time.
+function mockAxiosInstance() {
+  return {
+    get: vi.fn(),
+    post: vi.fn(),
+    delete: vi.fn(),
+    interceptors: { response: { use: vi.fn() } },
+  };
+}
+
 // Mock axios before importing the module under test
 vi.mock("axios", async () => {
   const actual = await vi.importActual<typeof import("axios")>("axios");
@@ -8,24 +18,19 @@ vi.mock("axios", async () => {
     ...actual,
     default: {
       ...actual.default,
-      create: vi.fn(() => ({
-        get: vi.fn(),
-        post: vi.fn(),
-        delete: vi.fn(),
-      })),
+      create: vi.fn(() => mockAxiosInstance()),
     },
   };
 });
 
 describe("API client construction", () => {
-  it("creates axios instance with correct baseURL default", () => {
+  it("creates axios instance with correct baseURL default", async () => {
     // Re-import to trigger module-level axios.create()
     vi.resetModules();
     delete process.env.NEXT_PUBLIC_API_URL;
 
     const createSpy = vi.spyOn(axios, "create");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require("@/lib/api");
+    await import("@/lib/api");
 
     expect(createSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -35,13 +40,12 @@ describe("API client construction", () => {
     );
   });
 
-  it("uses NEXT_PUBLIC_API_URL env var when set", () => {
+  it("uses NEXT_PUBLIC_API_URL env var when set", async () => {
     vi.resetModules();
     process.env.NEXT_PUBLIC_API_URL = "http://custom-api:9000/api/v1";
     const createSpy = vi.spyOn(axios, "create");
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require("@/lib/api");
+    await import("@/lib/api");
 
     expect(createSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -54,11 +58,11 @@ describe("API client construction", () => {
 });
 
 describe("corpusApi", () => {
-  let mockClient: { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn> };
+  let mockClient: ReturnType<typeof mockAxiosInstance>;
 
   beforeEach(async () => {
     vi.resetModules();
-    mockClient = { get: vi.fn(), post: vi.fn(), delete: vi.fn() };
+    mockClient = mockAxiosInstance();
     vi.spyOn(axios, "create").mockReturnValue(mockClient as any);
   });
 
@@ -101,11 +105,11 @@ describe("corpusApi", () => {
 });
 
 describe("experimentsApi", () => {
-  let mockClient: { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn> };
+  let mockClient: ReturnType<typeof mockAxiosInstance>;
 
   beforeEach(async () => {
     vi.resetModules();
-    mockClient = { get: vi.fn(), post: vi.fn(), delete: vi.fn() };
+    mockClient = mockAxiosInstance();
     vi.spyOn(axios, "create").mockReturnValue(mockClient as any);
   });
 
@@ -132,11 +136,11 @@ describe("experimentsApi", () => {
 });
 
 describe("evaluationApi", () => {
-  let mockClient: { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn> };
+  let mockClient: ReturnType<typeof mockAxiosInstance>;
 
   beforeEach(async () => {
     vi.resetModules();
-    mockClient = { get: vi.fn(), post: vi.fn(), delete: vi.fn() };
+    mockClient = mockAxiosInstance();
     vi.spyOn(axios, "create").mockReturnValue(mockClient as any);
   });
 
