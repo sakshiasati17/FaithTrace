@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, retry_never, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.core.config import settings
 
@@ -26,7 +26,7 @@ try:
 except ImportError:
     # openai not installed — define a predicate that never fires so the
     # decorator becomes a no-op instead of incorrectly retrying everything.
-    _retry_on_rate_limit = retry_if_exception_type(type(None))
+    _retry_on_rate_limit = retry_never
 
 
 @dataclass
@@ -327,7 +327,7 @@ def _build_vector_retriever(embedding_model: str, top_k: int, qdrant_filter=None
 
     embeddings = OpenAIEmbeddings(
         model=embedding_model,
-        openai_api_key=settings.OPENAI_API_KEY,
+        api_key=settings.OPENAI_API_KEY,
     )
     client = QdrantClient(url=settings.QDRANT_URL)
     vectorstore = LCQdrant(
@@ -557,7 +557,7 @@ def run_pipeline(
 
     llm = ChatOpenAI(
         model=config.llm_model,
-        openai_api_key=settings.OPENAI_API_KEY,
+        api_key=settings.OPENAI_API_KEY,
         temperature=0,
     )
 
@@ -682,9 +682,16 @@ def run_pipeline(
                 return llm.invoke([HumanMessage(content=prompt)])
 
             response = _invoke_with_retry()
-            generated_answer = response.content or ""
-            input_tokens = getattr(response, "usage_metadata", {}).get("input_tokens", 0) if hasattr(response, "usage_metadata") else 0
-            output_tokens = getattr(response, "usage_metadata", {}).get("output_tokens", 0) if hasattr(response, "usage_metadata") else 0
+            content = response.content
+            # content is usually a string but can be a list of parts.
+            generated_answer = content if isinstance(content, str) else "".join(
+                part if isinstance(part, str) else str(part.get("text", ""))
+                for part in (content or [])
+            )
+            # usage_metadata exists on AIMessage but may be None.
+            usage = getattr(response, "usage_metadata", None) or {}
+            input_tokens = usage.get("input_tokens", 0)
+            output_tokens = usage.get("output_tokens", 0)
 
             # Fallback token count from response_metadata
             if input_tokens == 0 and hasattr(response, "response_metadata"):

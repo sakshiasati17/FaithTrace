@@ -372,7 +372,10 @@ def ingest_document(self, document_id: str, strategy: str):
         # chunks are atomic and stored once for all strategies.
         all_chunks, chunks_by_strategy = build_index_chunks(raw_chunks, doc, chunk_strategies)
 
-        # 4. Upsert to Qdrant
+        # 4. Replace this document's chunks in Qdrant. Point ids are random, so
+        # a retry after a partial upsert (or a re-ingest) would otherwise
+        # duplicate chunks; delete first to keep exactly one set.
+        indexer_mod.delete_doc_chunks(document_id)
         if all_chunks:
             indexer_mod.upsert_chunks(all_chunks, doc_id=document_id)
 
@@ -394,15 +397,32 @@ def ingest_document(self, document_id: str, strategy: str):
         }
 
     except Exception as exc:
-        logger.error("Ingestion of document %s failed: %s", document_id, exc)
+        final = _retries_exhausted(self)
+        logger.error(
+            "Ingestion of document %s failed (attempt %d of %d)%s: %s",
+            document_id, self.request.retries + 1, self.max_retries + 1,
+            "" if final else "; retrying", exc,
+        )
         try:
             doc = db.get(Document, document_id)
             if doc:
-                doc.parse_status = "failed"
-                doc.index_status = "failed"
+                # Only report "failed" once no retry is coming; while a retry is
+                # pending the document is still being processed.
+                if final:
+                    doc.parse_status = "failed"
+                    doc.index_status = "failed"
+                else:
+                    doc.parse_status = "running"
+                doc.doc_metadata = {
+                    **(doc.doc_metadata or {}),
+                    "last_error": f"{type(exc).__name__}: {exc}"[:500],
+                    "attempts": self.request.retries + 1,
+                }
                 db.commit()
         except Exception as status_exc:
-            logger.error("Could not mark document %s as failed: %s", document_id, status_exc)
+            logger.error("Could not record ingestion error for document %s: %s", document_id, status_exc)
+        if final:
+            raise exc
         raise self.retry(exc=exc, countdown=2 ** self.request.retries)
     finally:
         db.close()

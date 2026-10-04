@@ -337,6 +337,7 @@ class TestIngestDocument:
         with patch("app.db.session.get_sync_db", return_value=db), \
              patch("app.services.ingestion.parser.parse_document", side_effect=fake_parse) as parse, \
              patch("app.services.ingestion.indexer.ensure_collection"), \
+             patch("app.services.ingestion.indexer.delete_doc_chunks"), \
              patch("app.services.ingestion.indexer.upsert_chunks") as upsert:
             ingest_document.push_request(retries=retries)
             try:

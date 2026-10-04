@@ -87,6 +87,7 @@ class TestIngest:
         with patch("app.db.session.get_sync_db", return_value=db), \
              patch("app.services.ingestion.parser.parse_document", return_value=raw_chunks), \
              patch("app.services.ingestion.indexer.ensure_collection"), \
+             patch("app.services.ingestion.indexer.delete_doc_chunks"), \
              patch("app.services.ingestion.indexer.upsert_chunks") as upsert, \
              patch.object(settings, "INGEST_CHUNKING_STRATEGIES", strategies):
             tasks.ingest_document.push_request(retries=0)
@@ -167,7 +168,11 @@ class TestIngest:
             with pytest.raises(RuntimeError):
                 tasks.ingest_document.run(doc.id, "text_table")
         parse.assert_not_called()
-        assert doc.parse_status == "failed"
+        # A retry is still pending, so the document is not reported failed yet;
+        # the error is recorded. (Exhausted retries -> "failed": see
+        # test_ingest_robustness.py.)
+        assert doc.parse_status == "running"
+        assert "no known chunking strategy" in doc.doc_metadata["last_error"]
 
     def test_indexer_payload_has_top_level_chunk_strategy(self):
         from app.services.ingestion import indexer

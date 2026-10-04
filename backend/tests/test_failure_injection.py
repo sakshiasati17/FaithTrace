@@ -177,18 +177,17 @@ class TestIngestionRetryBehavior:
         )
 
     @skip_no_celery
-    def test_ingest_task_does_not_delete_before_retry(self):
+    def test_ingest_task_deletes_before_upsert(self):
         """
-        Document the known gap: ingest_document does NOT call
-        delete_doc_chunks, so Celery retries can create duplicates.
+        The former known gap is fixed: ingest_document deletes the document's
+        chunks before upserting, so a Celery retry cannot create duplicates.
+        (Behaviour is tested in test_ingest_robustness.py.)
         """
         import inspect
         from app.workers.tasks import ingest_document
 
         source = inspect.getsource(ingest_document)
-        assert "delete_doc_chunks" not in source, (
-            "If this fails, the gap was fixed — update the test and the docs."
-        )
+        assert source.index("delete_doc_chunks") < source.index("upsert_chunks")
 
 
 class TestDiagnosticsGracefulDegradation:
