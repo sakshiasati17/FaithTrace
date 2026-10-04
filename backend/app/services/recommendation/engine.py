@@ -5,9 +5,11 @@ Selects the best pipeline configuration per objective based on aggregated
 experiment metrics and failure diagnostics.
 """
 
+import logging
+import math
 from dataclasses import dataclass
-from app.services.experiment.runner import PipelineConfig
-from app.services.evaluation.metrics import RunMetrics
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -15,8 +17,16 @@ class Recommendation:
     objective: str
     best_config: dict
     run_id: str
-    score: float
+    # None when no run could be recommended for the objective.
+    score: float | None
     rationale: str
+    # "ok"; "no_eligible_runs" when no run has the metrics the objective
+    # needs; "error" when scoring the objective raised.
+    status: str = "ok"
+
+
+class NoEligibleRuns(Exception):
+    """No run has the metric(s) an objective is scored on."""
 
 
 OBJECTIVES = [
@@ -28,6 +38,18 @@ OBJECTIVES = [
     "best_for_drift",
     "best_for_long_pdfs",
 ]
+
+# Metrics each objective is scored on. A run missing any of them is not a
+# candidate for that objective (unknown is neither 0 nor the worst value).
+OBJECTIVE_METRICS = {
+    "best_overall": ("faithfulness", "answer_correctness", "context_recall", "avg_cost_usd"),
+    "lowest_cost": ("avg_cost_usd",),
+    "best_latency": ("latency_p50_ms",),
+    "best_faithfulness": ("faithfulness",),
+    "best_for_tables": ("multimodal_grounding_rate",),
+    "best_for_drift": ("freshness_validity",),
+    "best_for_long_pdfs": ("context_recall",),
+}
 
 
 def recommend(
@@ -42,7 +64,9 @@ def recommend(
         objectives: Subset of OBJECTIVES to evaluate; defaults to all
 
     Returns:
-        List of Recommendation objects, one per objective
+        List of Recommendation objects, one per objective. An objective no
+        run qualifies for (or that failed) is still returned, with
+        ``status`` set and ``score`` None, rather than dropped.
     """
     if not runs:
         return []
@@ -57,20 +81,59 @@ def recommend(
     for obj in targets:
         try:
             rec = _recommend_for_objective(valid_runs, obj)
-            results.append(rec)
-        except Exception:
-            pass
+        except NoEligibleRuns as exc:
+            logger.warning("No recommendation for %s: %s", obj, exc)
+            rec = _empty(obj, "no_eligible_runs", str(exc))
+        except Exception as exc:
+            logger.exception("Recommendation for %s failed", obj)
+            rec = _empty(obj, "error", f"Could not score this objective: {type(exc).__name__}: {exc}")
+        results.append(rec)
     return results
 
 
-def _safe_metric(run: dict, key: str, default: float = 0.0) -> float:
+def _empty(objective: str, status: str, rationale: str) -> Recommendation:
+    return Recommendation(
+        objective=objective, best_config={}, run_id="", score=None,
+        rationale=rationale, status=status,
+    )
+
+
+def _safe_metric(run: dict, key: str) -> float | None:
+    """A run's metric as a finite float, or None when missing/unscored."""
     m = run.get("metrics", {})
-    if isinstance(m, dict):
-        return float(m.get(key) or default)
-    return default
+    if not isinstance(m, dict):
+        return None
+    value = m.get(key)
+    if value is None:
+        return None
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
 
 
-def _recommend_for_objective(runs: list[dict], objective: str) -> Recommendation:
+def _eligible(runs: list[dict], objective: str) -> list[dict]:
+    """Runs that have every metric ``objective`` is scored on."""
+    keys = OBJECTIVE_METRICS.get(objective, ())
+    eligible = [r for r in runs if all(_safe_metric(r, k) is not None for k in keys)]
+    skipped = len(runs) - len(eligible)
+    if not eligible:
+        raise NoEligibleRuns(
+            f"none of {len(runs)} runs has {', '.join(keys)} scored"
+        )
+    if skipped:
+        logger.info(
+            "%s: %d of %d runs skipped (missing %s)",
+            objective, skipped, len(runs), ", ".join(keys),
+        )
+    return eligible
+
+
+def _recommend_for_objective(all_runs: list[dict], objective: str) -> Recommendation:
+    # Metric values below are never None: runs come from _eligible().
+    runs = _eligible(all_runs, objective)
+
     if objective == "best_overall":
         # Composite: 40% faithfulness + 30% answer_correctness + 20% context_recall + 10% cost savings
         def score(r):
@@ -79,7 +142,7 @@ def _recommend_for_objective(runs: list[dict], objective: str) -> Recommendation
             cr = _safe_metric(r, "context_recall")
             cost = _safe_metric(r, "avg_cost_usd")
             # Normalize cost (lower is better): 1 - (cost / max_cost)
-            max_cost = max((_safe_metric(x, "avg_cost_usd") for x in runs), default=0.001) or 0.001
+            max_cost = max(_safe_metric(x, "avg_cost_usd") for x in runs) or 0.001
             cost_score = 1.0 - (cost / max_cost)
             return 0.4 * f + 0.3 * ac + 0.2 * cr + 0.1 * cost_score
 
@@ -92,12 +155,12 @@ def _recommend_for_objective(runs: list[dict], objective: str) -> Recommendation
         )
 
     elif objective == "lowest_cost":
-        best = min(runs, key=lambda r: _safe_metric(r, "avg_cost_usd", 9999))
+        best = min(runs, key=lambda r: _safe_metric(r, "avg_cost_usd"))
         s = _safe_metric(best, "avg_cost_usd")
         rationale = f"Lowest average cost per query: ${s:.4f} USD."
 
     elif objective == "best_latency":
-        best = min(runs, key=lambda r: _safe_metric(r, "latency_p50_ms", 9999))
+        best = min(runs, key=lambda r: _safe_metric(r, "latency_p50_ms"))
         s = _safe_metric(best, "latency_p50_ms")
         rationale = f"Fastest median response time: {s:.0f} ms at p50."
 
