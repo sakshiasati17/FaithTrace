@@ -43,7 +43,7 @@ cd backend && pip install -r requirements.txt && pytest -q
 #   FAITHTRACE_TEST_PG_URL=postgresql+psycopg2://user:pw@localhost:5432/faithtrace_test pytest -q
 # If system pip fails building langdetect/antlr4/iopath ("install_layout"), use a venv:
 #   python -m venv .venv && .venv/bin/pip install -U pip setuptools wheel && .venv/bin/pip install -r backend/requirements.txt
-cd frontend && npm ci && npm test -- --run && npm run build
+cd frontend && npm ci && npm run lint && npm test -- --run && npm run build
 ```
 
 New DB columns/tables need an Alembic migration in `backend/alembic/versions` (next is `007_...`).
@@ -61,7 +61,7 @@ New DB columns/tables need an Alembic migration in `backend/alembic/versions` (n
 
 ## Known issues (fix in this order)
 
-1. **No real data.** No documents in repo; `sample_eval_set.json` and the golden set are the same 5 invented questions; `procurement_policy_eval.json` is 10 text-only questions. `scripts/` scripts listed in its README don't exist. Add a public `corpus/`, a verified eval set (60–100 questions incl. table, chart, spreadsheet, temporal pairs, unanswerable) and `scripts/seed.py`.
+1. ~~**No real data.**~~ Fixed in PR #21: `corpus/` holds 10 openly licensed documents (CC BY / BY-SA 3.0 vs 4.0 as dated version pairs; CNCF survey PDFs, XLSX, CSV) with `corpus/manifest.json`; `eval_sets/faithtrace_v1.json` has 86 questions with verbatim evidence; `scripts/seed.py` uploads the corpus, `scripts/validate_eval_set.py` checks a set. The old `sample_eval_set.json` / golden set remain for the frozen regression tests.
 2. ~~**Diagnosis correctness.**~~ Fixed in PR #19 (`fix/diagnosis-correctness`). Eval items are matched by `id` (`classifier.index_eval_set`); `root_cause_diagnostic_accuracy` is computed in `diagnose_run` from stored diagnoses vs `failure_type` labels and is `None` when nothing is labelled. Retrain old classifier models.
 3. ~~**Errors scored as answers.**~~ Fixed in PR #23 (`fix/query-error-handling`): queries carry `status`/`error_message`; errored rows are excluded from metrics and diagnosis; a run with >50% errored queries is `failed`.
 4. ~~**BM25 ignores filters.**~~ Fixed in `fix/hybrid-filters`. BM25 candidates pass `runner.chunk_passes_filters` (same rules as the Qdrant filter, which now also checks `effective_to`); chunks are fetched once per `run_pipeline`.
@@ -78,3 +78,4 @@ New DB columns/tables need an Alembic migration in `backend/alembic/versions` (n
     - Reasoning agent marks unparseable output `parse_error` (not cached, retried), confidence defaults to `None`; `/reason` rejects errored queries, sends `UNDIAGNOSED` for undiagnosed ones, tolerates duplicate query ids.
     - `train_failure_classifier` labels: feedback > eval-set `failure_type` (only to name a failure the classifier observed; a run judged NO_FAILURE stays NO_FAILURE; UNANSWERABLE skipped) > classifier; result reports `label_sources` and `dominant_label_source`.
     - Leaderboard returns 422 for an unknown `sort_by`.
+12. ~~**Silent scoring failures.**~~ Fixed in PRs #29 and #31: a metric that cannot be computed is `None` (never a fake 0.0 or 1.0); unscored queries stay undiagnosed instead of `NO_FAILURE`; the recommendation engine skips runs missing an objective's metric and reports objectives with no eligible run; the UI shows "—" for unscored metrics and an error state (not an empty state) when the API fails; Ragas runs once per run (`diagnose_run` reuses `diagnosis_evidence["scores"]`).
