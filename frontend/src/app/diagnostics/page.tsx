@@ -6,6 +6,7 @@ import { experimentsApi, diagnosticsApi } from "@/lib/api";
 import { Stethoscope, AlertCircle } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { clsx } from "clsx";
+import { ErrorState } from "@/components/ui/ErrorState";
 import type { Experiment } from "@/types";
 
 const FAILURE_COLORS: Record<string, string> = {
@@ -35,14 +36,25 @@ const FAILURE_DESCRIPTIONS: Record<string, string> = {
 export default function DiagnosticsPage() {
   const [selectedExperiment, setSelectedExperiment] = useState<string>("");
 
-  const { data: experiments = [] as Experiment[] } = useQuery<Experiment[]>({
+  const {
+    data: experiments = [] as Experiment[],
+    isError: experimentsError,
+    error: experimentsErr,
+    refetch: refetchExperiments,
+  } = useQuery<Experiment[]>({
     queryKey: ["experiments"],
     queryFn: experimentsApi.list,
   });
 
   const completedExps = (experiments as Experiment[]).filter((e) => e.status === "done");
 
-  const { data: summary, isLoading: summaryLoading } = useQuery({
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    isError: summaryError,
+    error: summaryErr,
+    refetch: refetchSummary,
+  } = useQuery({
     queryKey: ["failure-summary", selectedExperiment],
     queryFn: () => diagnosticsApi.getFailureSummary(selectedExperiment),
     enabled: !!selectedExperiment,
@@ -60,7 +72,13 @@ export default function DiagnosticsPage() {
 
   const totalQueries = summary?.total_queries ?? 0;
   const noFailureCount = (summary?.failure_counts as any)?.NO_FAILURE ?? 0;
-  const failureRate = totalQueries > 0 ? ((totalQueries - noFailureCount) / totalQueries) * 100 : 0;
+  // Rate over diagnosed queries only: errored and not-scored queries are
+  // neither failures nor successes.
+  const diagnosedCount = Object.values((summary?.failure_counts ?? {}) as Record<string, number>)
+    .reduce((sum, n) => sum + n, 0);
+  const failureCount = diagnosedCount - noFailureCount;
+  const failureRate = diagnosedCount > 0 ? (failureCount / diagnosedCount) * 100 : null;
+  const notDiagnosed = (summary?.undiagnosed_queries ?? 0) + (summary?.errored_queries ?? 0);
 
   return (
     <div className="max-w-6xl mx-auto px-8 py-10">
@@ -68,6 +86,15 @@ export default function DiagnosticsPage() {
         <h1 className="text-2xl font-bold text-white mb-1">Diagnostics</h1>
         <p className="text-sm text-zinc-500">Root-cause failure analysis across pipeline configurations</p>
       </div>
+
+      {experimentsError && (
+        <ErrorState
+          className="mb-6"
+          title="Failed to load experiments"
+          error={experimentsErr}
+          onRetry={() => refetchExperiments()}
+        />
+      )}
 
       {/* Experiment selector */}
       <div className="mb-6">
@@ -93,6 +120,8 @@ export default function DiagnosticsPage() {
         </div>
       ) : summaryLoading ? (
         <div className="py-20 text-center text-sm text-zinc-600">Analyzing…</div>
+      ) : summaryError ? (
+        <ErrorState title="Failed to load failure summary" error={summaryErr} onRetry={() => refetchSummary()} />
       ) : (
         <>
           {/* Summary stats */}
@@ -104,10 +133,14 @@ export default function DiagnosticsPage() {
             </div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 card-lift gradient-border">
               <p className="text-xs text-zinc-500 mb-1">Failure Rate</p>
-              <p className={clsx("text-3xl font-bold", failureRate > 30 ? "text-red-400" : failureRate > 10 ? "text-amber-400" : "text-emerald-400")}>
-                {failureRate.toFixed(1)}%
+              <p className={clsx("text-3xl font-bold",
+                failureRate == null ? "text-zinc-600" : failureRate > 30 ? "text-red-400" : failureRate > 10 ? "text-amber-400" : "text-emerald-400")}>
+                {failureRate == null ? "—" : `${failureRate.toFixed(1)}%`}
               </p>
-              <p className="text-xs text-zinc-600 mt-1">{totalQueries - noFailureCount} queries with failures</p>
+              <p className="text-xs text-zinc-600 mt-1">
+                {failureCount} of {diagnosedCount} diagnosed queries with failures
+                {notDiagnosed > 0 && ` · ${notDiagnosed} not diagnosed`}
+              </p>
             </div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 card-lift gradient-border">
               <p className="text-xs text-zinc-500 mb-1">Most Common Failure</p>

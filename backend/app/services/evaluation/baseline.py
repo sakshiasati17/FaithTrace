@@ -1,9 +1,15 @@
 """
 Baseline comparison module.
 
-Defines a naive baseline RAG configuration (dense retrieval, fixed chunking,
-text-only parsing, no freshness) and computes delta metrics between any run
-and the baseline to quantify improvement.
+Defines a naive baseline RAG configuration (dense retrieval, default recursive
+chunking, text-only parsing, no freshness) and computes delta metrics between
+any run and the baseline to quantify improvement.
+
+The baseline must be a config that the default 24-config MVP preset
+(config_matrix.build_mvp_matrix) contains, otherwise default experiments can
+never be compared. The MVP preset only chunks recursive/structure_aware, so the
+baseline uses recursive (the ingestion default). The full 256-config matrix
+contains it too. Exactly one config per experiment matches the baseline.
 """
 
 from dataclasses import dataclass, asdict
@@ -12,7 +18,7 @@ from app.services.experiment.runner import PipelineConfig
 
 BASELINE_CONFIG = PipelineConfig(
     retrieval_strategy="vector_only",
-    chunking_strategy="fixed_size",
+    chunking_strategy="recursive",
     parsing_strategy="text_only",
     freshness_policy="none",
     embedding_model="text-embedding-3-small",
@@ -39,11 +45,12 @@ LOWER_IS_BETTER = {"latency_p50_ms", "avg_cost_usd"}
 @dataclass
 class BaselineDelta:
     metric: str
-    baseline_value: float
-    comparison_value: float
-    absolute_delta: float
-    relative_delta_pct: float
-    improved: bool
+    # None when the metric is missing for either run: no delta is computed.
+    baseline_value: float | None
+    comparison_value: float | None
+    absolute_delta: float | None
+    relative_delta_pct: float | None
+    improved: bool | None
 
 
 def is_baseline_config(config: dict) -> bool:
@@ -76,8 +83,21 @@ def compute_deltas(
     """
     deltas = []
     for metric in COMPARISON_METRICS:
-        base_val = float(baseline_metrics.get(metric) or 0.0)
-        comp_val = float(comparison_metrics.get(metric) or 0.0)
+        base_raw = baseline_metrics.get(metric)
+        comp_raw = comparison_metrics.get(metric)
+        if base_raw is None or comp_raw is None:
+            # Unknown is not 0: report the metric without a delta.
+            deltas.append(BaselineDelta(
+                metric=metric,
+                baseline_value=None if base_raw is None else float(base_raw),
+                comparison_value=None if comp_raw is None else float(comp_raw),
+                absolute_delta=None,
+                relative_delta_pct=None,
+                improved=None,
+            ))
+            continue
+        base_val = float(base_raw)
+        comp_val = float(comp_raw)
         abs_delta = comp_val - base_val
 
         if base_val != 0:
@@ -120,7 +140,8 @@ def compare_run_to_baseline(
     if baseline_run is None:
         return {
             "error": "No baseline run found. Run an experiment that includes "
-                     "the baseline config (vector_only, fixed_size, text_only, none).",
+                     "the baseline config (vector_only, recursive, text_only, none); "
+                     "the default MVP preset and the full matrix both do.",
             "baseline_config": asdict(BASELINE_CONFIG),
         }
 
@@ -140,16 +161,25 @@ def compare_run_to_baseline(
     else:
         def overall_score(r):
             m = r.get("metrics", {})
-            return (
-                0.4 * float(m.get("faithfulness") or 0)
-                + 0.3 * float(m.get("answer_correctness") or 0)
-                + 0.2 * float(m.get("context_recall") or 0)
-            )
-        target = max(valid_runs, key=overall_score)
+            parts = (m.get("faithfulness"), m.get("answer_correctness"), m.get("context_recall"))
+            if any(v is None for v in parts):
+                return None
+            return 0.4 * float(parts[0]) + 0.3 * float(parts[1]) + 0.2 * float(parts[2])
+
+        scored = [(overall_score(r), r) for r in valid_runs]
+        scored = [(s, r) for s, r in scored if s is not None]
+        if not scored:
+            return {
+                "error": "No non-baseline run has faithfulness, answer correctness and "
+                         "context recall scores to pick a comparison run.",
+                "baseline_config": asdict(BASELINE_CONFIG),
+            }
+        target = max(scored, key=lambda sr: sr[0])[1]
 
     deltas = compute_deltas(baseline_metrics, target.get("metrics", {}))
-    improvements = [d for d in deltas if d.improved]
-    regressions = [d for d in deltas if not d.improved and d.absolute_delta != 0]
+    compared = [d for d in deltas if d.improved is not None]
+    improvements = [d for d in compared if d.improved]
+    regressions = [d for d in compared if not d.improved and d.absolute_delta != 0]
 
     return {
         "baseline": {
@@ -166,7 +196,8 @@ def compare_run_to_baseline(
         "summary": {
             "improvements": len(improvements),
             "regressions": len(regressions),
-            "top_improvement": asdict(max(deltas, key=lambda d: d.relative_delta_pct))
-                if deltas else None,
+            "top_improvement": asdict(max(compared, key=lambda d: d.relative_delta_pct))
+                if compared else None,
+            "not_compared": [d.metric for d in deltas if d.improved is None],
         },
     }

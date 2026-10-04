@@ -6,6 +6,8 @@ import Link from "next/link";
 import { evaluationApi } from "@/lib/api";
 import { BarChart3, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 import { clsx } from "clsx";
+import { compareMetric, formatMetric, isScored } from "@/lib/metrics";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 const METRIC_COLS = [
   { key: "faithfulness", label: "Faithfulness", lowerBetter: false },
@@ -20,7 +22,7 @@ const METRIC_COLS = [
 ];
 
 function metricColor(value: number | null | undefined, lowerBetter: boolean, unit?: string): string {
-  if (value == null) return "text-zinc-600";
+  if (!isScored(value)) return "text-zinc-600";
   let v: number;
   if (lowerBetter) {
     if (unit === "ms") v = 1 - Math.min(value / 5000, 1);
@@ -34,18 +36,11 @@ function metricColor(value: number | null | undefined, lowerBetter: boolean, uni
   return "text-red-400";
 }
 
-function formatMetric(value: number | null | undefined, unit?: string): string {
-  if (value == null) return "—";
-  if (unit === "ms") return `${Math.round(value)}ms`;
-  if (unit === "$") return `$${value.toFixed(4)}`;
-  return value.toFixed(3);
-}
-
 export default function LeaderboardPage() {
   const [sortBy, setSortBy] = useState("faithfulness");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const { data: entries = [] as any[], isLoading } = useQuery<any[]>({
+  const { data: entries = [] as any[], isLoading, isError, error, refetch } = useQuery<any[]>({
     queryKey: ["leaderboard", sortBy],
     queryFn: () => evaluationApi.getLeaderboard(undefined),
   });
@@ -53,14 +48,10 @@ export default function LeaderboardPage() {
   const col = METRIC_COLS.find((c) => c.key === sortBy);
   const entriesArray = (entries || []) as any[];
 
-  const sorted = [...entriesArray].sort((a, b) => {
-    const av = (a.metrics as any)?.[sortBy] ?? null;
-    const bv = (b.metrics as any)?.[sortBy] ?? null;
-    if (av == null && bv == null) return 0;
-    if (av == null) return 1;
-    if (bv == null) return -1;
-    return sortDir === "desc" ? bv - av : av - bv;
-  });
+  // Unscored (null) metrics sort last in either direction.
+  const sorted = [...entriesArray].sort((a, b) =>
+    compareMetric((a.metrics as any)?.[sortBy], (b.metrics as any)?.[sortBy], sortDir)
+  );
 
   function toggleSort(key: string) {
     if (sortBy === key) {
@@ -83,6 +74,8 @@ export default function LeaderboardPage() {
 
       {isLoading ? (
         <div className="py-20 text-center text-sm text-zinc-600">Loading leaderboard…</div>
+      ) : isError ? (
+        <ErrorState title="Failed to load leaderboard" error={error} onRetry={() => refetch()} />
       ) : entriesArray.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl py-20 text-center">
           <BarChart3 className="w-10 h-10 text-zinc-700 mx-auto mb-3" />

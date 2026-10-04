@@ -71,3 +71,10 @@ New DB columns/tables need an Alembic migration in `backend/alembic/versions` (n
 8. ~~**Eval set is a file path.**~~ Fixed in `feat/eval-set-upload`: `eval_sets` table + `/api/v1/eval-sets` upload (JSON/CSV, validated); experiments store `eval_set_id`/`eval_set_path` (restricted to `eval_sets/`); workers use `tasks.load_eval_set_for`; one default `eval_sets/faithtrace_v1.json`.
 9. ~~**Lifecycle/cost.**~~ Fixed in `fix/experiment-lifecycle`: experiment status `pending → running → evaluating → diagnosing → done | failed`, recomputed from runs' `evaluated_at`/`diagnosed_at` under a row lock (`tasks.refresh_experiment_status`); `MAX_COST_PER_RUN_USD` stops a run's queries (`"budget exceeded"`, run `failed`); optional `experiments.document_ids` scopes retrieval via `runner.chunk_passes_filters`.
 10. **Honesty/CI.** ~~Hard-coded status indicators, no CI~~ fixed in PR #20 (`/api/v1/system/status`, `.github/workflows/ci.yml`). Still open: no results committed.
+11. ~~**API integrity.**~~ Fixed in `fix/api-integrity`:
+    - Baseline is `vector_only + recursive + text_only + none` (in the MVP preset and the full matrix), so baseline comparison works on default experiments.
+    - `DELETE /corpus/{id}` returns 503 and keeps the row if Qdrant chunk deletion fails (no orphaned chunks).
+    - Feedback `correct_label` must be a `FailureCategory` (or null); feedback on errored queries is 422.
+    - Reasoning agent marks unparseable output `parse_error` (not cached, retried), confidence defaults to `None`; `/reason` rejects errored queries, sends `UNDIAGNOSED` for undiagnosed ones, tolerates duplicate query ids.
+    - `train_failure_classifier` labels: feedback > eval-set `failure_type` (UNANSWERABLE skipped) > classifier; result reports `label_sources` and `dominant_label_source`.
+    - Leaderboard returns 422 for an unknown `sort_by`.
