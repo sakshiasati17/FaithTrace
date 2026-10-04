@@ -15,6 +15,7 @@ import type {
   Recommendation,
   QueryFeedback,
   FeedbackSummary,
+  SystemStatus,
 } from "@/types";
 
 const client = axios.create({
@@ -126,3 +127,11 @@ export const recommendationsApi = {
     client.get(`/recommendations/explain/${runId}`).then((r) => r.data),
 };
 
+
+// ─── System ───────────────────────────────────────────────────────────────────
+
+export const systemApi = {
+  // Short timeout so an unreachable API shows as offline quickly.
+  getStatus: (): Promise<SystemStatus> =>
+    client.get("/system/status", { timeout: 10_000 }).then((r) => r.data),
+};

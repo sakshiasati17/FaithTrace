@@ -10,6 +10,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { clsx } from "clsx";
+import { SystemStatusIndicator } from "@/components/ui/SystemStatus";
 
 const NAV_ITEMS = [
   { href: "/",                label: "Overview",        icon: Home,         section: "platform" },
@@ -97,14 +98,7 @@ function Sidebar() {
 
       {/* Footer */}
       <div className="px-4 py-4 border-t border-zinc-800/50">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-40" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-          </span>
-          <p className="text-[10px] text-zinc-500 font-medium">All systems online</p>
-        </div>
-        <p className="text-[9px] text-zinc-700 font-mono tracking-wide">v1.0.0</p>
+        <SystemStatusIndicator />
       </div>
     </aside>
   );
