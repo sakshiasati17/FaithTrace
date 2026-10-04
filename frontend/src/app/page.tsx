@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { corpusApi, evaluationApi, experimentsApi } from "@/lib/api";
+import { SystemStatusList } from "@/components/ui/SystemStatus";
 import {
   ArrowRight, ArrowUpRight, Upload, FlaskConical,
   BarChart3, Stethoscope, Circle, CheckCircle2,
@@ -286,25 +287,7 @@ export default function HomePage() {
               <div className="px-4 py-3.5 border-b border-zinc-800">
                 <h2 className="text-sm font-semibold text-zinc-200">System</h2>
               </div>
-              <div className="px-4 py-3 space-y-2.5">
-                {[
-                  { label: "API",               ok: true  },
-                  { label: "Vector DB (Qdrant)", ok: totalDocs > 0 },
-                  { label: "Worker Queue",       ok: true  },
-                  { label: "Evaluation Engine",  ok: completedRuns.length > 0 },
-                  { label: "ML Classifier",      ok: completedRuns.length > 0 },
-                ].map(({ label, ok }) => (
-                  <div key={label} className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-500">{label}</span>
-                    <span className="flex items-center gap-1.5">
-                      <span className={clsx("w-1.5 h-1.5 rounded-full", ok ? "bg-emerald-500" : "bg-zinc-600")} />
-                      <span className={clsx("text-[11px] font-medium", ok ? "text-emerald-400" : "text-zinc-600")}>
-                        {ok ? "Ready" : "Idle"}
-                      </span>
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <SystemStatusList />
             </div>
           </div>
         </div>
