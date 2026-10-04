@@ -179,7 +179,8 @@ export interface DiagnosticReasoning {
 
 export interface QueryDiagnosis {
   query_id: string;
-  failure_category: FailureCategory;
+  // null: not diagnosed (metrics could not be scored, or query errored).
+  failure_category: FailureCategory | null;
   secondary_failures: FailureCategory[];
   confidence: number;
   evidence: Record<string, unknown>;
@@ -215,12 +216,18 @@ export type Objective =
   | "best_for_drift"
   | "best_for_long_pdfs";
 
+export type RecommendationStatus = "ok" | "no_eligible_runs" | "error";
+
 export interface Recommendation {
   objective: Objective;
   best_config: PipelineConfig;
+  // "" when no run could be recommended (status is not "ok").
   run_id: string;
-  score: number;
+  // null when no run could be recommended.
+  score: number | null;
   rationale: string;
+  // Absent on older API responses (treat as "ok").
+  status?: RecommendationStatus;
 }
 
 

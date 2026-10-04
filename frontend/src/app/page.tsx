@@ -87,8 +87,6 @@ export default function HomePage() {
   const topRuns        = (leaderboard as any[]).slice(0, 3);
   const bestRun        = topRuns[0];
 
-  const faithScores    = topRuns.map((r) => r.metrics?.faithfulness ?? 0).filter(Boolean);
-  const recallScores   = topRuns.map((r) => r.metrics?.context_recall ?? 0).filter(Boolean);
 
   return (
     <div className="min-h-screen bg-[#09090b] bg-noise">

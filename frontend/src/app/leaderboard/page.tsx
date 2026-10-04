@@ -6,6 +6,7 @@ import Link from "next/link";
 import { evaluationApi } from "@/lib/api";
 import { BarChart3, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 import { clsx } from "clsx";
+import { compareMetric, formatMetric, isScored } from "@/lib/metrics";
 
 const METRIC_COLS = [
   { key: "faithfulness", label: "Faithfulness", lowerBetter: false },
@@ -20,7 +21,7 @@ const METRIC_COLS = [
 ];
 
 function metricColor(value: number | null | undefined, lowerBetter: boolean, unit?: string): string {
-  if (value == null) return "text-zinc-600";
+  if (!isScored(value)) return "text-zinc-600";
   let v: number;
   if (lowerBetter) {
     if (unit === "ms") v = 1 - Math.min(value / 5000, 1);
@@ -32,13 +33,6 @@ function metricColor(value: number | null | undefined, lowerBetter: boolean, uni
   if (v >= 0.7) return "text-emerald-400";
   if (v >= 0.4) return "text-amber-400";
   return "text-red-400";
-}
-
-function formatMetric(value: number | null | undefined, unit?: string): string {
-  if (value == null) return "—";
-  if (unit === "ms") return `${Math.round(value)}ms`;
-  if (unit === "$") return `$${value.toFixed(4)}`;
-  return value.toFixed(3);
 }
 
 export default function LeaderboardPage() {
@@ -53,14 +47,10 @@ export default function LeaderboardPage() {
   const col = METRIC_COLS.find((c) => c.key === sortBy);
   const entriesArray = (entries || []) as any[];
 
-  const sorted = [...entriesArray].sort((a, b) => {
-    const av = (a.metrics as any)?.[sortBy] ?? null;
-    const bv = (b.metrics as any)?.[sortBy] ?? null;
-    if (av == null && bv == null) return 0;
-    if (av == null) return 1;
-    if (bv == null) return -1;
-    return sortDir === "desc" ? bv - av : av - bv;
-  });
+  // Unscored (null) metrics sort last in either direction.
+  const sorted = [...entriesArray].sort((a, b) =>
+    compareMetric((a.metrics as any)?.[sortBy], (b.metrics as any)?.[sortBy], sortDir)
+  );
 
   function toggleSort(key: string) {
     if (sortBy === key) {
