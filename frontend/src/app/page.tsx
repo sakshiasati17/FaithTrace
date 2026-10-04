@@ -36,6 +36,8 @@ function StatusDot({ status }: { status: string }) {
   const map: Record<string, { color: string; label: string }> = {
     done:     { color: "bg-emerald-500", label: "Done" },
     running:  { color: "bg-blue-500 animate-pulse", label: "Running" },
+    evaluating: { color: "bg-amber-500 animate-pulse", label: "Evaluating" },
+    diagnosing: { color: "bg-violet-500 animate-pulse", label: "Diagnosing" },
     pending:  { color: "bg-zinc-500", label: "Pending" },
     failed:   { color: "bg-red-500", label: "Failed" },
   };

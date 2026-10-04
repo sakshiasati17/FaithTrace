@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     # Hugging Face on first use, then cached per process)
     RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
-    # OpenAI spend guard — max cost per experiment run (USD)
+    # OpenAI spend guard — max LLM cost per pipeline run (USD). Past it the run's
+    # remaining queries are skipped ("budget exceeded") and the run is failed.
+    # <= 0 disables the limit.
     MAX_COST_PER_RUN_USD: float = 5.0
 
     # Celery / Redis

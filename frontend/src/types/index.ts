@@ -16,7 +16,17 @@ export interface Document {
 
 // ─── Experiment / Run ─────────────────────────────────────────────────────────
 
-export type ExperimentStatus = "pending" | "running" | "done" | "failed";
+// pending → running (generating) → evaluating → diagnosing → done, or failed
+export type ExperimentStatus =
+  | "pending"
+  | "running"
+  | "evaluating"
+  | "diagnosing"
+  | "done"
+  | "failed";
+
+// Runs stay pending/running/done/failed; evaluated_at/diagnosed_at mark progress.
+export type RunStatus = "pending" | "running" | "done" | "failed";
 
 export interface PipelineConfig {
   retrieval_strategy: "vector_only" | "bm25" | "hybrid" | "hybrid_reranker";
@@ -34,9 +44,12 @@ export interface Run {
   run_id?: string;
   experiment_id: string;
   config: PipelineConfig;
-  status: ExperimentStatus;
+  status: RunStatus;
   created_at: string;
   completed_at: string | null;
+  // Absent on older API responses.
+  evaluated_at?: string | null;
+  diagnosed_at?: string | null;
   metrics?: RunMetrics;
 }
 
@@ -50,7 +63,17 @@ export interface Experiment {
   // Null on experiments created before eval sets were stored.
   eval_set_id?: string | null;
   eval_set_path?: string | null;
+  // Documents retrieval is limited to; null/absent = every document.
+  document_ids?: string[] | null;
   runs: Run[];
+}
+
+export interface ExperimentCreatePayload {
+  name: string;
+  description?: string;
+  eval_set_id?: string;
+  config_preset?: string;
+  document_ids?: string[] | null;
 }
 
 // ─── Eval sets ────────────────────────────────────────────────────────────────

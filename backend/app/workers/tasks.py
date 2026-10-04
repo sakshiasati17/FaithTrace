@@ -92,6 +92,124 @@ def _run_should_fail(error_count: int, total: int) -> bool:
     return total > 0 and error_count * 2 > total
 
 
+# ─── Experiment lifecycle ─────────────────────────────────────────────────────
+#
+# pending -> running (generating) -> evaluating -> diagnosing -> done, or failed.
+# Runs keep pending/running/done/failed; a done run is finished once its
+# diagnosed_at is set. The experiment status is recomputed from its runs by
+# refresh_experiment_status, which every stage calls after committing its own
+# run's progress.
+
+_POST_GENERATION_STATUSES = ("evaluating", "diagnosing")
+
+
+def derive_experiment_status(runs) -> str | None:
+    """
+    Experiment status implied by its runs once generation has finished, or
+    None while any run is still pending/running (generating).
+
+    Failed runs are ignored; with no run left the experiment is failed.
+    """
+    if any(r.status in ("pending", "running") for r in runs):
+        return None
+    active = [r for r in runs if r.status == "done"]
+    if not active:
+        return "failed"
+    if all(r.diagnosed_at is not None for r in active):
+        return "done"
+    if all(r.evaluated_at is not None for r in active):
+        return "diagnosing"
+    return "evaluating"
+
+
+def refresh_experiment_status(db, experiment_id: str, generation_finished: bool = False) -> str | None:
+    """
+    Recompute an experiment's status from its runs and commit it.
+
+    The experiment row is locked (SELECT ... FOR UPDATE) before its runs are
+    read, so when two workers finish the last runs at the same time they
+    update the status one after the other, and the second one sees the
+    first's committed run progress: the experiment moves to done exactly once
+    and never back. Callers must commit their own run's progress first.
+
+    Only experiments past generation (evaluating/diagnosing) are updated;
+    run_experiment passes generation_finished=True to move one out of
+    running. Returns the resulting status (None if the experiment is gone).
+    """
+    from app.db.models import Experiment, Run
+    from sqlalchemy import select
+
+    experiment = db.execute(
+        select(Experiment)
+        .where(Experiment.id == experiment_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one_or_none()
+    if experiment is None:
+        db.rollback()
+        logger.error("Experiment %s not found while refreshing its status", experiment_id)
+        return None
+
+    current = experiment.status
+    if current not in _POST_GENERATION_STATUSES and not (
+        generation_finished and current == "running"
+    ):
+        db.commit()  # release the row lock
+        return current
+
+    runs = db.execute(
+        select(Run)
+        .where(Run.experiment_id == experiment_id)
+        .execution_options(populate_existing=True)
+    ).scalars().all()
+    new = derive_experiment_status(runs)
+    if new is None and generation_finished:
+        # A run is still pending/running after run_experiment processed all of
+        # them: nothing will move it on, so treat the experiment as evaluating.
+        logger.error("Experiment %s: runs still generating after run_experiment finished", experiment_id)
+        new = "evaluating"
+    if new is not None and new != current:
+        experiment.status = new
+        if new in ("done", "failed"):
+            experiment.completed_at = datetime.utcnow()
+        logger.info("Experiment %s: %s -> %s", experiment_id, current, new)
+        if new == "failed":
+            logger.error("Experiment %s failed: no run finished successfully", experiment_id)
+    db.commit()
+    return experiment.status
+
+
+def _fail_run(db, run_id: str, reason: str) -> None:
+    """
+    Mark a run failed (it will not be evaluated/diagnosed) and update its
+    experiment, so an in-progress experiment can still finish. Runs of an
+    experiment that already finished (e.g. a manual re-evaluation failing) keep
+    their status.
+    """
+    from app.db.models import Run
+
+    db.rollback()
+    run = db.get(Run, run_id)
+    if run is None:
+        logger.error("Run %s not found while marking it failed: %s", run_id, reason)
+        return
+    experiment = run.experiment
+    if experiment is not None and experiment.status in ("done", "failed"):
+        logger.error(
+            "Run %s: %s (experiment %s already %s; run status left as %s)",
+            run_id, reason, run.experiment_id, experiment.status, run.status,
+        )
+        return
+    logger.error("Run %s marked failed: %s", run_id, reason)
+    run.status = "failed"
+    db.commit()
+    refresh_experiment_status(db, run.experiment_id)
+
+
+def _retries_exhausted(task) -> bool:
+    return task.request.retries >= task.max_retries
+
+
 def _to_runner_result(qr):
     """Rebuild a runner QueryResult dataclass from a stored row."""
     from app.services.experiment.runner import QueryResult
@@ -210,7 +328,7 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
     """Execute all pipeline runs for an experiment."""
     from app.db.session import get_sync_db
     from app.db.models import Experiment, Run, QueryResult as QueryResultModel
-    from app.services.experiment.runner import PipelineConfig, run_pipeline
+    from app.services.experiment.runner import BUDGET_EXCEEDED, PipelineConfig, run_pipeline
     from dataclasses import fields
 
     db = get_sync_db()
@@ -248,8 +366,13 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
                     if k in {f.name for f in fields(PipelineConfig)}
                 })
 
-                # Execute pipeline
-                results = run_pipeline(config, eval_set)
+                # Execute pipeline (stops issuing queries past the cost limit)
+                results = run_pipeline(
+                    config,
+                    eval_set,
+                    max_cost_usd=settings.MAX_COST_PER_RUN_USD,
+                    document_ids=experiment.document_ids,
+                )
 
                 # Persist QueryResult rows
                 for result in results:
@@ -277,6 +400,17 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
                     )
 
                 run.completed_at = datetime.utcnow()
+                skipped = sum(1 for r in results if r.error_message == BUDGET_EXCEEDED)
+                if skipped:
+                    run.status = "failed"
+                    db.commit()
+                    logger.error(
+                        "Run %s marked failed: cost limit MAX_COST_PER_RUN_USD=$%.4f exceeded "
+                        "($%.4f spent); %d of %d queries not run; skipping evaluation",
+                        run.id, settings.MAX_COST_PER_RUN_USD,
+                        sum(r.cost_usd for r in results), skipped, len(results),
+                    )
+                    continue
                 if _run_should_fail(error_count, len(results)):
                     run.status = "failed"
                     db.commit()
@@ -298,12 +432,13 @@ def run_experiment(self, experiment_id: str, eval_set_path: str | None = None):
                 db.commit()
                 # Continue with other runs
 
-        experiment.status = "done"
-        experiment.completed_at = datetime.utcnow()
-        db.commit()
+        # Generation finished for every run: evaluating (or failed when no run
+        # succeeded). Evaluations queued above may already have finished.
+        final_status = refresh_experiment_status(db, experiment_id, generation_finished=True)
 
         return {
             "experiment_id": experiment_id,
+            "status": final_status,
             "runs_processed": len(runs),
             "query_errors_by_run": run_errors,
         }
@@ -346,7 +481,9 @@ def evaluate_run(self, run_id: str, eval_set_path: str | None = None):
 
         eval_set = load_eval_set_for(db, run.experiment, eval_set_path)
         if not eval_set:
-            return {"error": f"Eval set not found or empty: {_describe_eval_set(run.experiment, eval_set_path)}"}
+            error = f"Eval set not found or empty: {_describe_eval_set(run.experiment, eval_set_path)}"
+            _fail_run(db, run_id, f"evaluation: {error}")
+            return {"error": error}
 
         # Load query results from DB
         qr_rows = db.execute(
@@ -354,6 +491,7 @@ def evaluate_run(self, run_id: str, eval_set_path: str | None = None):
         ).scalars().all()
 
         if not qr_rows:
+            _fail_run(db, run_id, "evaluation: no query results")
             return {"error": "No query results found for this run"}
 
         # Errored queries have no answer to score: leave them out of metrics.
@@ -367,8 +505,11 @@ def evaluate_run(self, run_id: str, eval_set_path: str | None = None):
 
         if not ok_rows:
             logger.error("Run %s: every query errored; no metrics written", run_id)
+            run.evaluated_at = datetime.utcnow()
+            db.commit()
             # Still diagnose so errored rows are marked as skipped.
             diagnose_run.delay(run_id, eval_set_path)
+            refresh_experiment_status(db, run.experiment_id)
             return {
                 "run_id": run_id,
                 "faithfulness": None,
@@ -406,10 +547,12 @@ def evaluate_run(self, run_id: str, eval_set_path: str | None = None):
         rm.temporal_citation_accuracy = metrics.temporal_citation_accuracy
         rm.multimodal_grounding_rate = metrics.multimodal_grounding_rate
         # root_cause_diagnostic_accuracy is written by diagnose_run, after diagnoses exist.
+        run.evaluated_at = datetime.utcnow()
         db.commit()
 
         # Enqueue diagnostics
         diagnose_run.delay(run_id, eval_set_path)
+        refresh_experiment_status(db, run.experiment_id)
 
         return {
             "run_id": run_id,
@@ -419,6 +562,9 @@ def evaluate_run(self, run_id: str, eval_set_path: str | None = None):
         }
 
     except Exception as exc:
+        if _retries_exhausted(self):
+            _give_up_on_run(db, run_id, "evaluation", exc)
+            raise
         # Rate limit errors need longer recovery time (60s base, doubles each retry)
         try:
             from openai import RateLimitError
@@ -429,6 +575,15 @@ def evaluate_run(self, run_id: str, eval_set_path: str | None = None):
         raise self.retry(exc=exc, countdown=10)
     finally:
         db.close()
+
+
+def _give_up_on_run(db, run_id: str, stage: str, exc: Exception) -> None:
+    """Out of retries: fail the run so its experiment can still finish."""
+    logger.exception("Run %s: %s failed after all retries", run_id, stage)
+    try:
+        _fail_run(db, run_id, f"{stage} failed after retries: {type(exc).__name__}: {exc}")
+    except Exception:
+        logger.exception("Run %s: could not mark run failed after %s error", run_id, stage)
 
 
 # ─── Task: diagnose_run ───────────────────────────────────────────────────────
@@ -453,7 +608,9 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
 
         eval_set = load_eval_set_for(db, run.experiment, eval_set_path)
         if not eval_set:
-            return {"error": f"Eval set not found or empty: {_describe_eval_set(run.experiment, eval_set_path)}"}
+            error = f"Eval set not found or empty: {_describe_eval_set(run.experiment, eval_set_path)}"
+            _fail_run(db, run_id, f"diagnosis: {error}")
+            return {"error": error}
 
         # Load query results (deterministic order)
         qr_rows = db.execute(
@@ -463,6 +620,7 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
         ).scalars().all()
 
         if not qr_rows:
+            _fail_run(db, run_id, "diagnosis: no query results")
             return {"error": "No query results found"}
 
         # Errored queries have no answer to diagnose: mark them skipped.
@@ -527,7 +685,11 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
             )
         else:
             rm.root_cause_diagnostic_accuracy = diag_accuracy
-            db.commit()
+
+        run.diagnosed_at = datetime.utcnow()
+        db.commit()
+        # The last run to finish diagnosis moves the experiment to done.
+        refresh_experiment_status(db, run.experiment_id)
 
         return {
             "run_id": run_id,
@@ -537,6 +699,9 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
         }
 
     except Exception as exc:
+        if _retries_exhausted(self):
+            _give_up_on_run(db, run_id, "diagnosis", exc)
+            raise
         raise self.retry(exc=exc, countdown=10)
     finally:
         db.close()

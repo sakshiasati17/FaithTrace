@@ -6,8 +6,10 @@ import Link from "next/link";
 import { experimentsApi } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EvalSetPicker } from "@/components/experiments/EvalSetPicker";
+import { DocumentScopePicker } from "@/components/experiments/DocumentScopePicker";
 import { FlaskConical, Plus, X, ChevronRight, Clock } from "lucide-react";
-import type { Experiment } from "@/types";
+import { experimentsRefetchInterval } from "@/lib/status";
+import type { Experiment, ExperimentCreatePayload } from "@/types";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -15,17 +17,25 @@ function formatDate(iso: string) {
 
 function NewExperimentModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<
+    Required<Omit<ExperimentCreatePayload, "document_ids">> & { document_ids: string[] | null }
+  >({
     name: "",
     description: "",
     eval_set_id: "",
     config_preset: "mvp",
+    document_ids: null, // null = all documents
   });
   const [error, setError] = useState<string | null>(null);
   const setEvalSetId = useCallback(
     (id: string) => setForm((f) => ({ ...f, eval_set_id: id })),
     []
   );
+  const setDocumentIds = useCallback(
+    (ids: string[] | null) => setForm((f) => ({ ...f, document_ids: ids })),
+    []
+  );
+  const scopeIncomplete = form.document_ids !== null && form.document_ids.length === 0;
 
   const createMut = useMutation({
     mutationFn: experimentsApi.create,
@@ -71,6 +81,7 @@ function NewExperimentModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <EvalSetPicker value={form.eval_set_id} onChange={setEvalSetId} />
+          <DocumentScopePicker value={form.document_ids} onChange={setDocumentIds} />
           <div>
             <label className="block text-xs text-zinc-500 mb-1.5">Config Preset</label>
             <select
@@ -99,8 +110,8 @@ function NewExperimentModal({ onClose }: { onClose: () => void }) {
               Cancel
             </button>
             <button
-              onClick={() => createMut.mutate(form as any)}
-              disabled={!form.name || !form.eval_set_id || createMut.isPending}
+              onClick={() => createMut.mutate(form)}
+              disabled={!form.name || !form.eval_set_id || scopeIncomplete || createMut.isPending}
               className="flex-1 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
             >
               {createMut.isPending ? "Creating…" : "Create & Run"}
@@ -118,15 +129,7 @@ export default function ExperimentsPage() {
   const { data: experiments = [] as Experiment[], isLoading } = useQuery<Experiment[]>({
     queryKey: ["experiments"],
     queryFn: experimentsApi.list,
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      if (!data) return false;
-      return (data as Experiment[]).some(
-        (e) => e.status === "running" || e.status === "pending"
-      )
-        ? 5000
-        : false;
-    },
+    refetchInterval: (query) => experimentsRefetchInterval(query.state.data),
   });
 
   return (
