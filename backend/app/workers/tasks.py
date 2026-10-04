@@ -563,6 +563,17 @@ def evaluate_run(self, run_id: str, eval_set_path: str | None = None):
         rm.temporal_citation_accuracy = metrics.temporal_citation_accuracy
         rm.multimodal_grounding_rate = metrics.multimodal_grounding_rate
         # root_cause_diagnostic_accuracy is written by diagnose_run, after diagnoses exist.
+
+        # Keep each query's Ragas scores so diagnose_run can reuse them instead
+        # of paying for a second Ragas evaluation of the same answers.
+        if len(metrics.per_query_scores) == len(ok_rows):
+            for qr, scores in zip(ok_rows, metrics.per_query_scores):
+                qr.diagnosis_evidence = {**(qr.diagnosis_evidence or {}), "scores": scores}
+        else:
+            logger.warning(
+                "Run %s: got %d per-query score rows for %d queries; not saving them",
+                run_id, len(metrics.per_query_scores), len(ok_rows),
+            )
         logger.info(
             "Run %s: scored queries per Ragas metric (of %d): %s",
             run_id, len(ok_rows), metrics.scored_counts,
@@ -664,21 +675,34 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
 
         diagnoses = []
         if results:
-            # Get per-query Ragas scores for diagnostics
-            try:
-                per_query_scores = run_ragas_evaluation(results, eval_set)
-            except Exception as exc:
+            # Reuse the per-query Ragas scores evaluate_run saved; re-score only
+            # when they are missing (e.g. rows evaluated before this was added).
+            stored_scores = [(qr.diagnosis_evidence or {}).get("scores") for qr in ok_rows]
+            if all(isinstance(s, dict) for s in stored_scores):
+                per_query_scores = stored_scores
+            else:
+                missing = sum(1 for s in stored_scores if not isinstance(s, dict))
                 logger.warning(
-                    "Ragas scoring failed for run %s; diagnosing without per-query metrics: %s",
-                    run_id, exc,
+                    "Run %s: %d of %d queries have no saved Ragas scores; re-scoring the run",
+                    run_id, missing, len(ok_rows),
                 )
-                per_query_scores = [{}] * len(results)
+                try:
+                    per_query_scores = run_ragas_evaluation(results, eval_set)
+                except Exception as exc:
+                    logger.warning(
+                        "Ragas scoring failed for run %s; diagnosing without per-query metrics: %s",
+                        run_id, exc,
+                    )
+                    per_query_scores = [{}] * len(results)
 
             # Run diagnostics
             diagnoses = classifier_diagnose_run(results, eval_set, per_query_scores)
 
         # Update query result rows with diagnosis
         qr_by_id = {qr.query_id: qr for qr in ok_rows}
+        scores_by_id = (
+            {r.query_id: sc for r, sc in zip(results, per_query_scores)} if results else {}
+        )
         unscored_count = 0
         for diagnosis in diagnoses:
             qr = qr_by_id.get(diagnosis.query_id)
@@ -689,8 +713,12 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
                 qr.failure_category = (
                     diagnosis.primary_failure.value if diagnosis.primary_failure is not None else None
                 )
+                scores = scores_by_id.get(diagnosis.query_id) or {}
                 qr.diagnosis_evidence = {
                     **diagnosis.evidence,
+                    # Ragas reports "answer_relevancy"; training reads "answer_relevance".
+                    "answer_relevance": scores.get("answer_relevancy"),
+                    "scores": scores,
                     "confidence": diagnosis.confidence,
                     "secondary_failures": [f.value for f in diagnosis.secondary_failures],
                 }

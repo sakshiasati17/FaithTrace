@@ -49,6 +49,9 @@ class RunMetrics:
     # Number of queries with a valid score, per Ragas metric. Not stored in
     # the DB; returned by evaluate_run and logged.
     scored_counts: dict[str, int] = field(default_factory=dict)
+    # Per-query Ragas score dicts, in the order of the results passed in.
+    # Not stored on RunMetrics; evaluate_run saves them on each query result.
+    per_query_scores: list[dict] = field(default_factory=list)
 
 
 # RunMetrics field -> key in the per-query Ragas score dicts.
@@ -143,6 +146,7 @@ def compute_metrics(results: list[QueryResult], eval_set: list[dict]) -> RunMetr
         multimodal_grounding_rate=multimodal,
         root_cause_diagnostic_accuracy=None,
         scored_counts=scored_counts,
+        per_query_scores=per_query_scores,
     )
 
 
