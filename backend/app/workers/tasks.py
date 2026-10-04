@@ -47,6 +47,31 @@ def _load_eval_set(eval_set_path: str) -> list[dict]:
     return []
 
 
+def _is_errored(qr) -> bool:
+    """True when a stored query result recorded a pipeline error (not an answer)."""
+    return qr.status == "error"
+
+
+def _run_should_fail(error_count: int, total: int) -> bool:
+    """A run is failed when more than half of its queries errored."""
+    return total > 0 and error_count * 2 > total
+
+
+def _to_runner_result(qr):
+    """Rebuild a runner QueryResult dataclass from a stored row."""
+    from app.services.experiment.runner import QueryResult
+    return QueryResult(
+        query_id=qr.query_id,
+        question=qr.question,
+        generated_answer=qr.generated_answer,
+        retrieved_chunks=qr.retrieved_chunks or [],
+        latency_ms=qr.latency_ms,
+        input_tokens=qr.input_tokens,
+        output_tokens=qr.output_tokens,
+        cost_usd=qr.cost_usd,
+    )
+
+
 # ─── Task: ingest_document ────────────────────────────────────────────────────
 
 @celery_app.task(name="app.workers.tasks.ingest_document", bind=True, max_retries=3)
@@ -174,6 +199,7 @@ def run_experiment(self, experiment_id: str, eval_set_path: str = "eval_sets/sam
             select(Run).where(Run.experiment_id == experiment_id)
         ).scalars().all()
 
+        run_errors: dict[str, int] = {}
         for run in runs:
             try:
                 run.status = "running"
@@ -203,17 +229,36 @@ def run_experiment(self, experiment_id: str, eval_set_path: str = "eval_sets/sam
                         input_tokens=result.input_tokens,
                         output_tokens=result.output_tokens,
                         cost_usd=result.cost_usd,
+                        status=result.status,
+                        error_message=result.error_message,
                     )
                     db.add(qr)
 
-                run.status = "done"
+                error_count = sum(1 for r in results if r.status == "error")
+                run_errors[run.id] = error_count
+                if error_count:
+                    logger.warning(
+                        "Run %s: %d of %d queries errored", run.id, error_count, len(results)
+                    )
+
                 run.completed_at = datetime.utcnow()
+                if _run_should_fail(error_count, len(results)):
+                    run.status = "failed"
+                    db.commit()
+                    logger.error(
+                        "Run %s marked failed: %d of %d queries errored; skipping evaluation",
+                        run.id, error_count, len(results),
+                    )
+                    continue
+
+                run.status = "done"
                 db.commit()
 
                 # Trigger evaluation for this run
                 evaluate_run.delay(run.id, eval_set_path)
 
             except Exception as run_exc:
+                logger.exception("Run %s failed: %s", run.id, run_exc)
                 run.status = "failed"
                 db.commit()
                 # Continue with other runs
@@ -222,7 +267,11 @@ def run_experiment(self, experiment_id: str, eval_set_path: str = "eval_sets/sam
         experiment.completed_at = datetime.utcnow()
         db.commit()
 
-        return {"experiment_id": experiment_id, "runs_processed": len(runs)}
+        return {
+            "experiment_id": experiment_id,
+            "runs_processed": len(runs),
+            "query_errors_by_run": run_errors,
+        }
 
     except Exception as exc:
         try:
@@ -251,7 +300,6 @@ def evaluate_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
     """Compute metrics for a completed pipeline run."""
     from app.db.session import get_sync_db
     from app.db.models import Run, QueryResult as QueryResultModel, RunMetrics as RunMetricsModel
-    from app.services.experiment.runner import QueryResult
     from app.services.evaluation.metrics import compute_metrics
     from sqlalchemy import select
 
@@ -273,20 +321,28 @@ def evaluate_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         if not qr_rows:
             return {"error": "No query results found for this run"}
 
-        # Reconstruct QueryResult dataclasses
-        results = [
-            QueryResult(
-                query_id=qr.query_id,
-                question=qr.question,
-                generated_answer=qr.generated_answer,
-                retrieved_chunks=qr.retrieved_chunks or [],
-                latency_ms=qr.latency_ms,
-                input_tokens=qr.input_tokens,
-                output_tokens=qr.output_tokens,
-                cost_usd=qr.cost_usd,
+        # Errored queries have no answer to score: leave them out of metrics.
+        ok_rows = [qr for qr in qr_rows if not _is_errored(qr)]
+        error_count = len(qr_rows) - len(ok_rows)
+        if error_count:
+            logger.warning(
+                "Run %s: excluding %d errored of %d queries from metrics",
+                run_id, error_count, len(qr_rows),
             )
-            for qr in qr_rows
-        ]
+
+        if not ok_rows:
+            logger.error("Run %s: every query errored; no metrics written", run_id)
+            # Still diagnose so errored rows are marked as skipped.
+            diagnose_run.delay(run_id, eval_set_path)
+            return {
+                "run_id": run_id,
+                "faithfulness": None,
+                "queries_evaluated": 0,
+                "queries_errored": error_count,
+            }
+
+        # Reconstruct QueryResult dataclasses
+        results = [_to_runner_result(qr) for qr in ok_rows]
 
         # Compute metrics
         metrics = compute_metrics(results, eval_set)
@@ -320,7 +376,12 @@ def evaluate_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         # Enqueue diagnostics
         diagnose_run.delay(run_id, eval_set_path)
 
-        return {"run_id": run_id, "faithfulness": metrics.faithfulness}
+        return {
+            "run_id": run_id,
+            "faithfulness": metrics.faithfulness,
+            "queries_evaluated": len(ok_rows),
+            "queries_errored": error_count,
+        }
 
     except Exception as exc:
         # Rate limit errors need longer recovery time (60s base, doubles each retry)
@@ -342,7 +403,6 @@ def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
     """Run root-cause diagnostics on a completed, evaluated run."""
     from app.db.session import get_sync_db
     from app.db.models import Run, QueryResult as QueryResultModel, RunMetrics as RunMetricsModel
-    from app.services.experiment.runner import QueryResult
     from app.services.diagnostics.classifier import (
         compute_diagnostic_accuracy,
         diagnose_run as classifier_diagnose_run,
@@ -370,35 +430,41 @@ def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         if not qr_rows:
             return {"error": "No query results found"}
 
-        results = [
-            QueryResult(
-                query_id=qr.query_id,
-                question=qr.question,
-                generated_answer=qr.generated_answer,
-                retrieved_chunks=qr.retrieved_chunks or [],
-                latency_ms=qr.latency_ms,
-                input_tokens=qr.input_tokens,
-                output_tokens=qr.output_tokens,
-                cost_usd=qr.cost_usd,
-            )
-            for qr in qr_rows
-        ]
-
-        # Get per-query Ragas scores for diagnostics
-        try:
-            per_query_scores = run_ragas_evaluation(results, eval_set)
-        except Exception as exc:
+        # Errored queries have no answer to diagnose: mark them skipped.
+        ok_rows = []
+        error_count = 0
+        for qr in qr_rows:
+            if _is_errored(qr):
+                error_count += 1
+                qr.failure_category = None
+                qr.diagnosis_evidence = {"skipped": "query errored"}
+            else:
+                ok_rows.append(qr)
+        if error_count:
             logger.warning(
-                "Ragas scoring failed for run %s; diagnosing without per-query metrics: %s",
-                run_id, exc,
+                "Run %s: skipping diagnosis for %d errored of %d queries",
+                run_id, error_count, len(qr_rows),
             )
-            per_query_scores = [{}] * len(results)
 
-        # Run diagnostics
-        diagnoses = classifier_diagnose_run(results, eval_set, per_query_scores)
+        results = [_to_runner_result(qr) for qr in ok_rows]
+
+        diagnoses = []
+        if results:
+            # Get per-query Ragas scores for diagnostics
+            try:
+                per_query_scores = run_ragas_evaluation(results, eval_set)
+            except Exception as exc:
+                logger.warning(
+                    "Ragas scoring failed for run %s; diagnosing without per-query metrics: %s",
+                    run_id, exc,
+                )
+                per_query_scores = [{}] * len(results)
+
+            # Run diagnostics
+            diagnoses = classifier_diagnose_run(results, eval_set, per_query_scores)
 
         # Update query result rows with diagnosis
-        qr_by_id = {qr.query_id: qr for qr in qr_rows}
+        qr_by_id = {qr.query_id: qr for qr in ok_rows}
         for diagnosis in diagnoses:
             qr = qr_by_id.get(diagnosis.query_id)
             if qr:
@@ -413,7 +479,7 @@ def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         # Root-cause diagnostic accuracy: stored diagnoses vs ground-truth
         # failure_type labels (None when no item is labelled).
         diag_accuracy = compute_diagnostic_accuracy(
-            {qr.query_id: qr.failure_category for qr in qr_rows},
+            {qr.query_id: qr.failure_category for qr in ok_rows},
             eval_set,
         )
         rm = db.execute(
@@ -431,6 +497,7 @@ def diagnose_run(self, run_id: str, eval_set_path: str = "eval_sets/sample_eval_
         return {
             "run_id": run_id,
             "diagnoses_written": len(diagnoses),
+            "queries_errored": error_count,
             "root_cause_diagnostic_accuracy": diag_accuracy,
         }
 

@@ -7,7 +7,7 @@ and triggers XGBoost classifier training.
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 
 from app.db.session import get_db
 from app.db.models import QueryResult, Run, Experiment
@@ -137,10 +137,13 @@ async def get_failure_summary(experiment_id: str, db: AsyncSession = Depends(get
     if not run_ids:
         return {"failure_counts": {}, "total_queries": 0}
 
+    # Errored queries were never diagnosed; keep them out of the failure counts.
+    is_errored = QueryResult.status == "error"
+
     # Count failure categories
     counts_result = await db.execute(
         select(QueryResult.failure_category, func.count(QueryResult.id).label("count"))
-        .where(QueryResult.run_id.in_(run_ids))
+        .where(QueryResult.run_id.in_(run_ids), or_(QueryResult.status.is_(None), ~is_errored))
         .group_by(QueryResult.failure_category)
     )
     counts = {row[0] or "NO_FAILURE": row[1] for row in counts_result.all()}
@@ -151,10 +154,16 @@ async def get_failure_summary(experiment_id: str, db: AsyncSession = Depends(get
     )
     total = total_result.scalar() or 0
 
+    errored_result = await db.execute(
+        select(func.count(QueryResult.id)).where(QueryResult.run_id.in_(run_ids), is_errored)
+    )
+    errored = errored_result.scalar() or 0
+
     return {
         "experiment_id": experiment_id,
         "failure_counts": counts,
         "total_queries": total,
+        "errored_queries": errored,
         "run_count": len(run_ids),
     }
 

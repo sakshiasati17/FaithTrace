@@ -39,6 +39,8 @@ class QueryResultResponse(BaseModel):
     cost_usd: float
     failure_category: Optional[str] = None
     diagnosis_evidence: dict = Field(default_factory=dict)
+    status: Optional[str] = "ok"
+    error_message: Optional[str] = None
 
     class Config:
         from_attributes = True
