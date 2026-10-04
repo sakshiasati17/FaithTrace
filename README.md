@@ -47,6 +47,10 @@ Full matrix: `itertools.product` → 256 configs. MVP subset: 24 configs.
 
 Image chunks only exist for PDFs uploaded with **Enable vision parsing** (`enable_vision=true` on `POST /api/v1/corpus/upload` or `/{id}/reindex`). That parses with `text_table_vision`: up to `VISION_MAX_PAGES` pages (default 20) are rendered and sent to `VISION_MODEL` (default `gpt-4o`), which costs money, so it is off by default and needs `OPENAI_API_KEY`. Every other upload keeps its default strategy (`text_table`, or `spreadsheet_aware` for XLSX/CSV).
 
+Only `text_table_vision` runs retrieve image chunks; `text_table` retrieves text and tables.
+
+Text is indexed once per chunking strategy in `INGEST_CHUNKING_STRATEGIES` (default `fixed_size,recursive,structure_aware`); each chunk is tagged `chunk_strategy`, and a run retrieves only its own strategy's text plus the table/image/spreadsheet chunks (tagged `atomic`, stored once). Each strategy you list is embedded separately, so embedding cost and index size grow with it; `semantic` also calls the embeddings API while chunking, so it is off by default. A run whose chunking strategy has no text indexed is marked `failed` ("chunking strategy '…' not indexed; set INGEST_CHUNKING_STRATEGIES and reindex"). Documents indexed before this change carry no tag and count as `recursive` until reindexed.
+
 ---
 
 ## Diagnostics Engine
