@@ -61,7 +61,7 @@ New DB columns/tables need an Alembic migration in `backend/alembic/versions` (n
 
 ## Known issues (fix in this order)
 
-1. **No real data.** No documents in repo; `sample_eval_set.json` and the golden set are the same 5 invented questions; `procurement_policy_eval.json` is 10 text-only questions. `scripts/` scripts listed in its README don't exist. Add a public `corpus/`, a verified eval set (60–100 questions incl. table, chart, spreadsheet, temporal pairs, unanswerable) and `scripts/seed.py`.
+1. ~~**No real data.**~~ Fixed in PR #21: `corpus/` holds 10 openly licensed documents (CC BY / BY-SA 3.0 vs 4.0 as dated version pairs; CNCF survey PDFs, XLSX, CSV) with `corpus/manifest.json`; `eval_sets/faithtrace_v1.json` has 86 questions with verbatim evidence; `scripts/seed.py` uploads the corpus, `scripts/validate_eval_set.py` checks a set. The old `sample_eval_set.json` / golden set remain for the frozen regression tests.
 2. ~~**Diagnosis correctness.**~~ Fixed in PR #19 (`fix/diagnosis-correctness`). Eval items are matched by `id` (`classifier.index_eval_set`); `root_cause_diagnostic_accuracy` is computed in `diagnose_run` from stored diagnoses vs `failure_type` labels and is `None` when nothing is labelled. Retrain old classifier models.
 3. ~~**Errors scored as answers.**~~ Fixed in PR #23 (`fix/query-error-handling`): queries carry `status`/`error_message`; errored rows are excluded from metrics and diagnosis; a run with >50% errored queries is `failed`.
 4. ~~**BM25 ignores filters.**~~ Fixed in `fix/hybrid-filters`. BM25 candidates pass `runner.chunk_passes_filters` (same rules as the Qdrant filter, which now also checks `effective_to`); chunks are fetched once per `run_pipeline`.
