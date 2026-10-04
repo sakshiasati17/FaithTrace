@@ -1,9 +1,15 @@
 """
 Baseline comparison module.
 
-Defines a naive baseline RAG configuration (dense retrieval, fixed chunking,
-text-only parsing, no freshness) and computes delta metrics between any run
-and the baseline to quantify improvement.
+Defines a naive baseline RAG configuration (dense retrieval, default recursive
+chunking, text-only parsing, no freshness) and computes delta metrics between
+any run and the baseline to quantify improvement.
+
+The baseline must be a config that the default 24-config MVP preset
+(config_matrix.build_mvp_matrix) contains, otherwise default experiments can
+never be compared. The MVP preset only chunks recursive/structure_aware, so the
+baseline uses recursive (the ingestion default). The full 256-config matrix
+contains it too. Exactly one config per experiment matches the baseline.
 """
 
 from dataclasses import dataclass, asdict
@@ -12,7 +18,7 @@ from app.services.experiment.runner import PipelineConfig
 
 BASELINE_CONFIG = PipelineConfig(
     retrieval_strategy="vector_only",
-    chunking_strategy="fixed_size",
+    chunking_strategy="recursive",
     parsing_strategy="text_only",
     freshness_policy="none",
     embedding_model="text-embedding-3-small",
@@ -120,7 +126,8 @@ def compare_run_to_baseline(
     if baseline_run is None:
         return {
             "error": "No baseline run found. Run an experiment that includes "
-                     "the baseline config (vector_only, fixed_size, text_only, none).",
+                     "the baseline config (vector_only, recursive, text_only, none); "
+                     "the default MVP preset and the full matrix both do.",
             "baseline_config": asdict(BASELINE_CONFIG),
         }
 
