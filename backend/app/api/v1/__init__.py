@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     corpus, experiments, evaluation, diagnostics,
-    recommendations, feedback, system,
+    recommendations, feedback, system, eval_sets,
 )
 
 router = APIRouter()
@@ -13,5 +13,6 @@ router.include_router(evaluation.router, prefix="/evaluation", tags=["evaluation
 router.include_router(diagnostics.router, prefix="/diagnostics", tags=["diagnostics"])
 router.include_router(recommendations.router, prefix="/recommendations", tags=["recommendations"])
 router.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
+router.include_router(eval_sets.router, prefix="/eval-sets", tags=["eval-sets"])
 
 router.include_router(system.router, prefix="/system", tags=["system"])
