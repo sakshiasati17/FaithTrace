@@ -129,18 +129,26 @@ def _query_epoch(freshness_policy: str, eval_item: dict) -> Optional[int]:
 
 
 def chunk_passes_filters(
-    payload: dict, parsing_strategy: str, freshness_policy: str, eval_item: dict
+    payload: dict,
+    parsing_strategy: str,
+    freshness_policy: str,
+    eval_item: dict,
+    document_ids: Optional[list[str]] = None,
 ) -> bool:
     """
     Whether a chunk payload passes the retrieval filters for this config and
-    question. Mirrors the Qdrant filter built by _build_freshness_filter +
-    _build_chunk_type_filter:
+    question. Mirrors the Qdrant filter built by _build_document_filter +
+    _build_freshness_filter + _build_chunk_type_filter:
 
+    - doc_id must be in document_ids, unless document_ids is None (all documents)
     - chunk_type must be in _allowed_chunk_types(parsing_strategy), if restricted
     - under effective_date_filter / version_aware with a valid query date:
       effective_from <= query date (a missing effective_from does not match,
       as in a Qdrant range condition) and effective_to is null or >= query date
     """
+    if document_ids is not None and payload.get("doc_id") not in document_ids:
+        return False
+
     allowed = _allowed_chunk_types(parsing_strategy)
     if allowed is not None and payload.get("chunk_type") not in allowed:
         return False
@@ -181,6 +189,25 @@ def _build_chunk_type_filter(parsing_strategy: str, existing_filter=None):
     return Filter(must=list(existing_filter.must or []) + list(chunk_filter.must or []))
 
 
+def _build_document_filter(document_ids: Optional[list[str]], existing_filter=None):
+    """
+    Restrict retrieval to chunks whose payload doc_id is in document_ids.
+    None means every document (no filter).
+    """
+    from qdrant_client.models import Filter, FieldCondition, MatchAny
+
+    if document_ids is None:
+        return existing_filter
+
+    doc_filter = Filter(
+        must=[FieldCondition(key="doc_id", match=MatchAny(any=list(document_ids)))]
+    )
+    if existing_filter is None:
+        return doc_filter
+    # Merge: both filters must hold
+    return Filter(must=list(existing_filter.must or []) + list(doc_filter.must or []))
+
+
 def _build_vector_retriever(embedding_model: str, top_k: int, qdrant_filter=None, parsing_strategy: str = "text_table"):
     from langchain_community.vectorstores import Qdrant as LCQdrant
     from langchain_openai import OpenAIEmbeddings
@@ -204,9 +231,10 @@ def _build_vector_retriever(embedding_model: str, top_k: int, qdrant_filter=None
     return vectorstore.as_retriever(search_kwargs=search_kwargs)
 
 
-def _load_bm25_corpus() -> Optional[list]:
+def _load_bm25_corpus(document_ids: Optional[list[str]] = None) -> Optional[list]:
     """
-    Fetch every chunk from Qdrant once and wrap it as a LangChain Document.
+    Fetch every chunk (of document_ids, if given) from Qdrant once and wrap it
+    as a LangChain Document.
 
     Returns None when BM25 is unavailable (rank-bm25 not installed), so hybrid
     falls back to vector-only. Filtering happens later, per question.
@@ -224,7 +252,7 @@ def _load_bm25_corpus() -> Optional[list]:
             page_content=str(c.get("content", "") or ""),
             metadata={k: v for k, v in c.items() if k != "content"},
         )
-        for c in fetch_all_chunks()
+        for c in fetch_all_chunks(doc_ids=document_ids)
         if c.get("content")
     ]
 
@@ -235,10 +263,11 @@ def _build_bm25_retriever(
     freshness_policy: str,
     eval_item: dict,
     cache: dict,
+    document_ids: Optional[list[str]] = None,
 ):
     """
-    Build a BM25 retriever over the chunks that pass the same chunk-type and
-    freshness filters as the vector path (chunk_passes_filters).
+    Build a BM25 retriever over the chunks that pass the same document,
+    chunk-type and freshness filters as the vector path (chunk_passes_filters).
 
     `cache` lives for one run_pipeline call: the corpus is fetched from Qdrant
     once, and a retriever is built once per distinct query date (the only
@@ -247,7 +276,7 @@ def _build_bm25_retriever(
     Returns None when BM25 is unavailable or no chunk passes the filters.
     """
     if "corpus" not in cache:
-        cache["corpus"] = _load_bm25_corpus()
+        cache["corpus"] = _load_bm25_corpus(document_ids)
     corpus = cache["corpus"]
     if not corpus:
         return None
@@ -259,7 +288,9 @@ def _build_bm25_retriever(
 
         docs = [
             d for d in corpus
-            if chunk_passes_filters(d.metadata, parsing_strategy, freshness_policy, eval_item)
+            if chunk_passes_filters(
+                d.metadata, parsing_strategy, freshness_policy, eval_item, document_ids
+            )
         ]
         retrievers[key] = BM25Retriever.from_documents(docs, k=top_k) if docs else None
     return retrievers[key]
@@ -366,13 +397,42 @@ def _rerank_docs(docs: list, question: str, top_k: int) -> list:
 
 # ─── Main runner ─────────────────────────────────────────────────────────────
 
-def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResult]:
+# error_message of queries skipped because the run's cost limit was exceeded.
+BUDGET_EXCEEDED = "budget exceeded"
+
+
+def _budget_exceeded_result(query_id: str, question: str) -> QueryResult:
+    return QueryResult(
+        query_id=query_id,
+        question=question,
+        generated_answer="",
+        retrieved_chunks=[],
+        latency_ms=0.0,
+        input_tokens=0,
+        output_tokens=0,
+        cost_usd=0.0,
+        status="error",
+        error_message=BUDGET_EXCEEDED,
+    )
+
+
+def run_pipeline(
+    config: PipelineConfig,
+    eval_set: list[dict],
+    max_cost_usd: Optional[float] = None,
+    document_ids: Optional[list[str]] = None,
+) -> list[QueryResult]:
     """
     Execute a RAG pipeline over an evaluation question set.
 
     Args:
         config: Full pipeline configuration
         eval_set: List of question dicts with keys: question, ground_truth, valid_from, valid_to, modality
+        max_cost_usd: Cost limit for this run. Once the cumulative cost_usd of
+            its queries exceeds it, the remaining queries are not issued and are
+            recorded as errors with error_message BUDGET_EXCEEDED.
+            None or <= 0 disables the limit.
+        document_ids: Only retrieve chunks of these documents (None = all)
 
     Returns:
         List of QueryResult objects, one per question
@@ -391,17 +451,26 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
     # Per-run BM25 cache: chunks are fetched from Qdrant once, not per question.
     bm25_cache: dict = {}
 
+    cost_limit = max_cost_usd if max_cost_usd is not None and max_cost_usd > 0 else None
+    spent_usd = 0.0
+
     for eval_item in eval_set:
         question = eval_item.get("question", "")
         query_id = eval_item.get("id", f"q_{len(results)}")
+
+        if cost_limit is not None and spent_usd > cost_limit:
+            results.append(_budget_exceeded_result(query_id, question))
+            continue
 
         start_time = time.monotonic()
         status = "ok"
         error_message = None
 
         try:
-            # Build freshness filter for this eval item
-            qdrant_filter = _build_freshness_filter(config.freshness_policy, eval_item)
+            # Build document + freshness filter for this eval item
+            qdrant_filter = _build_document_filter(
+                document_ids, _build_freshness_filter(config.freshness_policy, eval_item)
+            )
 
             # Build retriever
             if config.retrieval_strategy == "vector_only":
@@ -414,7 +483,7 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
             elif config.retrieval_strategy == "bm25":
                 bm25 = _build_bm25_retriever(
                     config.top_k, config.parsing_strategy, config.freshness_policy,
-                    eval_item, bm25_cache,
+                    eval_item, bm25_cache, document_ids,
                 )
                 if bm25:
                     lc_docs = _copy_docs(bm25.invoke(question))
@@ -430,7 +499,7 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
                 )
                 bm25_ret = _build_bm25_retriever(
                     config.top_k, config.parsing_strategy, config.freshness_policy,
-                    eval_item, bm25_cache,
+                    eval_item, bm25_cache, document_ids,
                 )
 
                 if bm25_ret:
@@ -520,6 +589,15 @@ def run_pipeline(config: PipelineConfig, eval_set: list[dict]) -> list[QueryResu
 
         latency_ms = (time.monotonic() - start_time) * 1000
         cost_usd = _compute_cost(config.llm_model, input_tokens, output_tokens)
+        spent_usd += cost_usd
+        if cost_limit is not None and spent_usd > cost_limit:
+            remaining = len(eval_set) - len(results) - 1
+            if remaining:
+                logger.warning(
+                    "Cost limit $%.4f exceeded ($%.4f spent) after query %s; "
+                    "skipping %d remaining queries",
+                    cost_limit, spent_usd, query_id, remaining,
+                )
 
         results.append(QueryResult(
             query_id=query_id,
