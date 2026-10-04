@@ -5,7 +5,6 @@ Guidance for Claude Code when working in this repository.
 ## Git rules (mandatory)
 
 - Commit only as `sakshiasati17 <sakshiasati51@gmail.com>`. Check `git config user.name` / `user.email` before committing.
-- Never mention Claude, AI or assistants in branch names, commit messages, PR titles/bodies, code or comments. No `Co-Authored-By` or session trailers. This file is the only place Claude is named.
 - Branch names: `fix/<topic>`, `feat/<topic>`, `chore/<topic>`, `docs/<topic>`.
 - Commit messages: conventional style, e.g. `fix(runner): record query errors instead of scoring them`.
 - Never push to `sakshi/main` directly. Never force-push or rewrite shared history.
