@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.db.models import EvalSet, Experiment, Run, QueryResult as QueryResultModel
+from app.db.models import Document, EvalSet, Experiment, Run, QueryResult as QueryResultModel
 from app.schemas.experiment_schemas import (
     ExperimentResponse, ExperimentCreateRequest, RunResponse, QueryResultResponse
 )
@@ -52,6 +52,21 @@ async def _resolve_eval_set(
     return None, normalised
 
 
+async def _validate_document_ids(document_ids: list[str] | None, db: AsyncSession) -> None:
+    """422 unless every id names an existing document. None (all documents) is valid."""
+    if document_ids is None:
+        return
+    found = set((await db.execute(
+        select(Document.id).where(Document.id.in_(document_ids))
+    )).scalars().all())
+    missing = [d for d in document_ids if d not in found]
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unknown document id(s): {', '.join(missing)}",
+        )
+
+
 @router.post("/", response_model=ExperimentResponse, status_code=status.HTTP_201_CREATED)
 async def create_experiment(
     payload: ExperimentCreateRequest,
@@ -61,6 +76,7 @@ async def create_experiment(
     from app.services.experiment.config_matrix import build_mvp_matrix, build_matrix
 
     eval_set_id, eval_set_path = await _resolve_eval_set(payload, db)
+    await _validate_document_ids(payload.document_ids, db)
 
     experiment_id = str(uuid.uuid4())
     experiment = Experiment(
@@ -70,6 +86,7 @@ async def create_experiment(
         status="pending",
         eval_set_id=eval_set_id,
         eval_set_path=eval_set_path,
+        document_ids=payload.document_ids,
     )
     db.add(experiment)
     await db.flush()
