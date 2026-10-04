@@ -43,7 +43,7 @@ cd backend && pip install -r requirements.txt && pytest -q
 #   FAITHTRACE_TEST_PG_URL=postgresql+psycopg2://user:pw@localhost:5432/faithtrace_test pytest -q
 # If system pip fails building langdetect/antlr4/iopath ("install_layout"), use a venv:
 #   python -m venv .venv && .venv/bin/pip install -U pip setuptools wheel && .venv/bin/pip install -r backend/requirements.txt
-cd frontend && npm ci && npm test -- --run && npm run build
+cd frontend && npm ci && npm run lint && npm test -- --run && npm run build
 ```
 
 New DB columns/tables need an Alembic migration in `backend/alembic/versions` (next is `007_...`).
@@ -78,3 +78,4 @@ New DB columns/tables need an Alembic migration in `backend/alembic/versions` (n
     - Reasoning agent marks unparseable output `parse_error` (not cached, retried), confidence defaults to `None`; `/reason` rejects errored queries, sends `UNDIAGNOSED` for undiagnosed ones, tolerates duplicate query ids.
     - `train_failure_classifier` labels: feedback > eval-set `failure_type` (only to name a failure the classifier observed; a run judged NO_FAILURE stays NO_FAILURE; UNANSWERABLE skipped) > classifier; result reports `label_sources` and `dominant_label_source`.
     - Leaderboard returns 422 for an unknown `sort_by`.
+12. ~~**Silent scoring failures.**~~ Fixed in PRs #29 and #31: a metric that cannot be computed is `None` (never a fake 0.0 or 1.0); unscored queries stay undiagnosed instead of `NO_FAILURE`; the recommendation engine skips runs missing an objective's metric and reports objectives with no eligible run; the UI shows "—" for unscored metrics and an error state (not an empty state) when the API fails; Ragas runs once per run (`diagnose_run` reuses `diagnosis_evidence["scores"]`).

@@ -60,7 +60,7 @@ A metric that could not be computed is stored as empty (shown as "—"), never a
 
 ## Recommendations
 
-7 objectives: `best_overall`, `lowest_cost`, `best_latency`, `best_faithfulness`, `best_for_tables`, `best_for_drift`, `best_for_long_pdfs`. Each uses a fixed rule (for example `best_overall` = 0.4 × faithfulness + 0.3 × answer correctness + 0.2 × context recall + 0.1 × cost score) and returns the winning config with its rationale. A naive baseline comparison is available at `GET /api/v1/evaluation/baseline-comparison`.
+7 objectives: `best_overall`, `lowest_cost`, `best_latency`, `best_faithfulness`, `best_for_tables`, `best_for_drift`, `best_for_long_pdfs`. Each uses a fixed rule (for example `best_overall` = 0.4 × faithfulness + 0.3 × answer correctness + 0.2 × context recall + 0.1 × cost score) and returns the winning config with its rationale. A baseline comparison (naive config: `vector_only` + `recursive` + `text_only` + no freshness, which both presets contain) reports per-metric deltas at `GET /api/v1/evaluation/baseline-comparison`; a metric missing on either side is reported as not compared rather than as 0.
 
 ## Demo data
 
@@ -76,7 +76,7 @@ A metric that could not be computed is stored as empty (shown as "—"), never a
 |---|---|
 | Frontend | Next.js 14, TypeScript, Tailwind CSS, React Query, Recharts |
 | Backend | Python 3.11, FastAPI, Pydantic v2, Celery, Redis |
-| LLM / retrieval | LangChain, OpenAI (gpt-4o-mini by default, text-embedding-3-small), rank-bm25, sentence-transformers cross-encoder |
+| LLM / retrieval | LangChain, OpenAI (gpt-4o-mini for the 24-config preset, gpt-4o for the full matrix; text-embedding-3-small), rank-bm25, sentence-transformers cross-encoder |
 | Evaluation | Ragas + custom metrics |
 | Diagnostics | XGBoost, scikit-learn |
 | Storage | Qdrant, PostgreSQL 16, SQLAlchemy 2.0, Alembic |
@@ -105,7 +105,7 @@ cd backend && pytest -q        # FAITHTRACE_TEST_PG_URL=... also runs the Postgr
 cd frontend && npm ci && npm run lint && npm test -- --run && npm run build
 ```
 
-TEST_COUNTS_PLACEHOLDER
+Current suite: **486 backend tests** across 16 files (485 + the PostgreSQL-only concurrency test) and **85 frontend tests** across 16 files, plus a clean ESLint run, TypeScript check and production build. Tests use mocks for OpenAI, and an in-process Qdrant where filters are checked, so they need no API key.
 
 ## Bugs found and fixed
 
