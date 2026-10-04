@@ -250,8 +250,8 @@ def test_spreadsheet_aware_filter_uses_parser_label():
     assert "spreadsheet_cell" in allowed
     assert "spreadsheet" not in allowed
     assert runner._allowed_chunk_types("text_only") == ("text",)
-    assert runner._allowed_chunk_types("text_table") is None
-    assert runner._allowed_chunk_types("text_table_vision") is None
+    assert runner._allowed_chunk_types("text_table") == ("text", "table")
+    assert runner._allowed_chunk_types("text_table_vision") == ("text", "table", "image")
 
 
 def test_parser_emits_spreadsheet_cell_label(tmp_path):

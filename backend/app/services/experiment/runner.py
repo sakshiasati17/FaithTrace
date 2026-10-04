@@ -96,10 +96,13 @@ Answer:"""
 # by vector search, and the in-memory predicate applied to BM25 candidates.
 
 # Chunk types each parsing strategy may retrieve; strategies not listed
-# (text_table, text_table_vision) retrieve every chunk type. Values match the
-# chunk_type labels the parser emits: text, table, image, spreadsheet_cell.
+# retrieve every chunk type. Values match the chunk_type labels the parser
+# emits: text, table, image, spreadsheet_cell. Only text_table_vision
+# retrieves vision (image) chunks.
 _ALLOWED_CHUNK_TYPES: dict[str, tuple[str, ...]] = {
     "text_only": ("text",),
+    "text_table": ("text", "table"),
+    "text_table_vision": ("text", "table", "image"),
     "spreadsheet_aware": ("spreadsheet_cell", "text"),
 }
 
@@ -200,8 +203,8 @@ def _build_chunk_type_filter(parsing_strategy: str, existing_filter=None):
     Build a Qdrant chunk_type filter based on parsing_strategy.
 
     - text_only          → only "text" chunks (no tables)
-    - text_table         → all chunk types (no filter)
-    - text_table_vision  → all chunk types (no filter)
+    - text_table         → "text" + "table" chunks
+    - text_table_vision  → "text" + "table" + "image" (vision) chunks
     - spreadsheet_aware  → "spreadsheet_cell" + "text" chunks
     """
     from qdrant_client.models import Filter, FieldCondition, MatchAny

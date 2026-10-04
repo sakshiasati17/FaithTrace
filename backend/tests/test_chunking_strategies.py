@@ -12,6 +12,7 @@ Covers:
     count as recursive
   - a run whose chunking strategy is not indexed is failed with a reason and
     the experiment still finishes
+  - _ALLOWED_CHUNK_TYPES: text_table excludes vision (image) chunks
 
 No network: Qdrant is an in-process QdrantClient(":memory:"); OpenAI and
 Celery are mocked.
@@ -409,7 +410,7 @@ def _pipeline(chunking, retrieval="bm25", parsing="text_table"):
 ])
 def test_bm25_retrieves_only_run_strategy_and_atomic(chunking, text):
     contents, _ = _pipeline(chunking)
-    assert contents == text | {"threshold table", "threshold chart"}
+    assert contents == text | {"threshold table"}  # text_table: no image chunk
 
 
 def test_vector_path_gets_chunking_filter(qdrant_grid):
@@ -564,3 +565,20 @@ class TestRunExperimentNotIndexed:
         assert out["status"] == "failed"
         with Session() as db:
             assert db.get(Experiment, exp_id).status == "failed"
+
+
+# ─── _ALLOWED_CHUNK_TYPES ────────────────────────────────────────────────────
+
+def test_allowed_chunk_types_mapping():
+    assert runner._allowed_chunk_types("text_only") == ("text",)
+    assert runner._allowed_chunk_types("text_table") == ("text", "table")
+    assert runner._allowed_chunk_types("text_table_vision") == ("text", "table", "image")
+    assert runner._allowed_chunk_types("spreadsheet_aware") == ("spreadsheet_cell", "text")
+
+
+def test_text_table_excludes_vision_chunks_vision_includes_them():
+    image = {"chunk_type": "image", "chunk_strategy": "atomic"}
+    assert not chunk_passes_filters(image, "text_table", "none", {})
+    assert chunk_passes_filters(image, "text_table_vision", "none", {})
+    contents, _ = _pipeline("fixed_size", parsing="text_table_vision")
+    assert "threshold chart" in contents
