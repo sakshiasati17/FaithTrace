@@ -2,9 +2,25 @@
 
 from datetime import datetime
 from typing import Optional, Any
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 from app.services.evaluation.eval_sets import DEFAULT_EVAL_SET_PATH
+from app.services.experiment.config_matrix import (
+    CHUNKING_STRATEGIES,
+    DEFAULT_TOP_K,
+    FRESHNESS_POLICIES,
+    MVP_LLM_MODEL,
+    PARSING_STRATEGIES,
+    RETRIEVAL_STRATEGIES,
+)
+
+MAX_EXPLICIT_CONFIGS = 32
+_ALLOWED_VALUES = {
+    "retrieval_strategy": RETRIEVAL_STRATEGIES,
+    "chunking_strategy": CHUNKING_STRATEGIES,
+    "parsing_strategy": PARSING_STRATEGIES,
+    "freshness_policy": FRESHNESS_POLICIES,
+}
 
 
 class RunMetricsResponse(BaseModel):
@@ -80,6 +96,28 @@ class ExperimentResponse(BaseModel):
         from_attributes = True
 
 
+class ConfigSpec(BaseModel):
+    """One pipeline config to run, for small controlled ablations."""
+    model_config = ConfigDict(extra="forbid")
+
+    retrieval_strategy: str
+    chunking_strategy: str
+    parsing_strategy: str
+    freshness_policy: str
+    llm_model: str = Field(default=MVP_LLM_MODEL, min_length=1)
+    top_k: int = Field(default=DEFAULT_TOP_K, ge=1)
+
+    @field_validator(
+        "retrieval_strategy", "chunking_strategy", "parsing_strategy", "freshness_policy"
+    )
+    @classmethod
+    def _allowed_value(cls, v: str, info: ValidationInfo) -> str:
+        allowed = _ALLOWED_VALUES[info.field_name]
+        if v not in allowed:
+            raise ValueError(f"unknown {info.field_name} {v!r}; allowed: {', '.join(allowed)}")
+        return v
+
+
 class ExperimentCreateRequest(BaseModel):
     name: str
     description: str = ""
@@ -90,6 +128,23 @@ class ExperimentCreateRequest(BaseModel):
     config_preset: str = "mvp"  # mvp | custom
     # Documents retrieval may search; null (default) = every document.
     document_ids: Optional[list[str]] = None
+    # Explicit configs to run (1-32, no duplicates); overrides config_preset when set.
+    configs: Optional[list[ConfigSpec]] = Field(
+        default=None, min_length=1, max_length=MAX_EXPLICIT_CONFIGS
+    )
+
+    @field_validator("configs")
+    @classmethod
+    def _no_duplicate_configs(cls, v: Optional[list[ConfigSpec]]) -> Optional[list[ConfigSpec]]:
+        if v is None:
+            return None
+        seen: dict[tuple, int] = {}
+        for i, spec in enumerate(v):
+            key = tuple(spec.model_dump().values())
+            if key in seen:
+                raise ValueError(f"configs[{i}] duplicates configs[{seen[key]}]")
+            seen[key] = i
+        return v
 
     @field_validator("document_ids")
     @classmethod
