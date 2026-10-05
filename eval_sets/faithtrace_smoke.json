@@ -1,0 +1,93 @@
+[
+  {
+    "id": "ft_001",
+    "question": "Under the Creative Commons Attribution (CC BY) license, if a licensee's rights terminate because they breached the license, can those rights be reinstated, and how?",
+    "ground_truth": "Version 3.0 has no cure or automatic reinstatement provision: the license terminates automatically upon any breach. A party that previously violated the terms can only exercise rights again with express permission from the Licensor (definition of \"You\").",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "This License and the rights granted hereunder will terminate automatically upon any breach by You of the terms of this License.",
+      "location": "Section 7(a) Termination"
+    },
+    "temporal_pair_id": "tp_01"
+  },
+  {
+    "id": "ft_002",
+    "question": "Under the Creative Commons Attribution (CC BY) license, if a licensee's rights terminate because they breached the license, can those rights be reinstated, and how?",
+    "ground_truth": "Yes. Under version 4.0 the rights reinstate automatically as of the date the violation is cured, provided it is cured within 30 days of discovering the violation, or upon express reinstatement by the Licensor.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "automatically as of the date the violation is cured, provided it is cured within 30 days of Your discovery of the violation; or upon express reinstatement by the Licensor.",
+      "location": "Section 6(b) Term and Termination"
+    },
+    "temporal_pair_id": "tp_01"
+  },
+  {
+    "id": "ft_039",
+    "question": "In the CNCF TOC Survey 2020 H1, what was the weighted average score for the statement \"CNCF TOC processes are clear\"?",
+    "ground_truth": "2.69 (28 responses: 6 strongly disagree, 6 disagree, 6 neutral, 6 agree, 2 strongly agree, 2 N/A).",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "processes are clear 6 6 6 6 2 2 28 2.69",
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_055",
+    "question": "In the 2023 CNCF Ambassador mid-year survey, what was the most common answer to how often Ambassadors want the CNCF team to communicate with them?",
+    "ground_truth": "About once a week (43.75%).",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "43.75%",
+      "location": "page 4, pie chart 'How often would you like the CNCF team to communicate with you?' (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_077",
+    "question": "What changes does version 5.0 of the Creative Commons Attribution license introduce?",
+    "ground_truth": "The corpus does not contain this information.",
+    "source_docs": [],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": false,
+    "failure_type": "UNANSWERABLE",
+    "evidence": {
+      "quote": null,
+      "location": null,
+      "checked": "Corpus contains only CC BY / BY-SA 3.0 and 4.0; no 5.0 exists in the corpus."
+    }
+  }
+]
