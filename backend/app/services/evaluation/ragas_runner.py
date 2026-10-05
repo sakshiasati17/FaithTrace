@@ -72,6 +72,25 @@ def build_ragas_dataset(results: list[QueryResult], eval_set: list[dict]) -> dic
     return Dataset.from_dict(data)
 
 
+def build_run_config():
+    """
+    Ragas RunConfig bounded by the RAGAS_* settings.
+
+    Ragas' default (16 workers) bursts judge calls into OpenAI rate limits;
+    429s then burn the time in retry waits and failed calls leave metrics
+    unscored.
+    """
+    from ragas.run_config import RunConfig
+    from app.core.config import settings
+
+    return RunConfig(
+        max_workers=settings.RAGAS_MAX_WORKERS,
+        max_retries=settings.RAGAS_MAX_RETRIES,
+        max_wait=settings.RAGAS_MAX_WAIT,
+        timeout=settings.RAGAS_TIMEOUT,
+    )
+
+
 def run_ragas_evaluation(results: list[QueryResult], eval_set: list[dict]) -> list[dict]:
     """
     Run all Ragas metrics on a completed pipeline run.
@@ -105,6 +124,13 @@ def run_ragas_evaluation(results: list[QueryResult], eval_set: list[dict]) -> li
         openai_api_key=settings.OPENAI_API_KEY,
     )
 
+    run_config = build_run_config()
+    logger.info(
+        "Ragas evaluation of %d queries: max_workers=%d max_retries=%d max_wait=%ds timeout=%ds",
+        len(results), run_config.max_workers, run_config.max_retries,
+        run_config.max_wait, run_config.timeout,
+    )
+
     try:
         result = evaluate(
             dataset,
@@ -118,6 +144,7 @@ def run_ragas_evaluation(results: list[QueryResult], eval_set: list[dict]) -> li
             llm=llm,
             embeddings=embeddings,
             raise_exceptions=False,
+            run_config=run_config,
         )
 
         # Convert to per-query list of dicts

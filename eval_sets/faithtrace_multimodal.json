@@ -1,0 +1,760 @@
+[
+  {
+    "id": "ft_039",
+    "question": "In the CNCF TOC Survey 2020 H1, what was the weighted average score for the statement \"CNCF TOC processes are clear\"?",
+    "ground_truth": "2.69 (28 responses: 6 strongly disagree, 6 disagree, 6 neutral, 6 agree, 2 strongly agree, 2 N/A).",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "processes are clear 6 6 6 6 2 2 28 2.69",
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_040",
+    "question": "In the CNCF TOC Survey 2020 H1, how many respondents strongly agreed that \"CNCF SIGs are a good initiative\"?",
+    "ground_truth": "10 respondents (35.71%) strongly agreed.",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "CNCF SIGs are a 3.57% 3.57% 14.29% 42.86% 35.71% 0.00%",
+        "good initiative 1 1 4 12 10 0 28 4.04"
+      ],
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_041",
+    "question": "Which statement in the CNCF TOC Survey 2020 H1 had the highest weighted average agreement, and what was it?",
+    "ground_truth": "\"I agree with the CNCF TOC definition of Cloud Native\", with a weighted average of 4.37.",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "CNCF TOC definition 0 0 2 13 12 1 28 4.37",
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_042",
+    "question": "In the CNCF TOC Survey 2020 H1, what percentage of respondents agreed (not strongly) that \"CNCF TOC acts transparently\"?",
+    "ground_truth": "50.00% (14 of 28 respondents).",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "CNCF TOC acts 17.86% 17.86% 3.57% 50.00% 7.14% 3.57%",
+        "transparently 5 5 1 14 2 1 28 3.11"
+      ],
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_043",
+    "question": "In the CNCF TOC Survey 2020 H1, what share of respondents answered N/A to \"CNCF TOC is too slow to assess projects\"?",
+    "ground_truth": "14.29% (4 of 28 respondents).",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "CNCF TOC is too 0.00% 7.14% 28.57% 25.00% 25.00% 14.29%",
+        "slow to assess 0 2 8 7 7 4 28 3.79"
+      ],
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_044",
+    "question": "What was the weighted average for \"CNCF TOC accepts too many projects into the CNCF\" in the TOC Survey 2020 H1?",
+    "ground_truth": "2.79.",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "too many projects 3 9 10 3 3 0 28 2.79",
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_045",
+    "question": "How many respondents to the CNCF TOC Survey 2020 H1 strongly disagreed that the TOC exercises good judgement when assessing projects?",
+    "ground_truth": "3 respondents (10.71%).",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "CNCF TOC 10.71% 10.71% 25.00% 42.86% 10.71% 0.00%",
+        "exercises good 3 3 7 12 3 0 28 3.32"
+      ],
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_046",
+    "question": "What weighted average did \"CNCF TOC takes initiative to encourage diversity\" receive in the TOC Survey 2020 H1?",
+    "ground_truth": "3.62.",
+    "source_docs": [
+      "cncf_toc_survey_2020_h1_matrix.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "initiative to 2 2 7 8 7 2 28 3.62",
+      "location": "page 4, results table"
+    }
+  },
+  {
+    "id": "ft_047",
+    "question": "In the 2022 CNCF survey reference model, which answers to Q2 \"Please indicate what best describes who you are\" disqualify a respondent?",
+    "ground_truth": "\"I'm just lines of code\" (1), \"I am a bot\" (3), \"I just want to mess with the researchers\" (4) and \"Don't know or not sure\" (5); only \"I am a real person\" (2) is not disqualified.",
+    "source_docs": [
+      "cncf_2022_survey_reference_model.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "1 I'm just lines of code Disqualify",
+        "3 I am a bot Disqualify",
+        "4 I just want to mess with the researchers Disqualify",
+        "5 Don't know or not sure Disqualify"
+      ],
+      "location": "page 1, Q2"
+    }
+  },
+  {
+    "id": "ft_048",
+    "question": "In the 2022 CNCF survey reference model, what happens if a respondent answers \"No\" to Q16 \"Does your organization use Kubernetes?\"",
+    "ground_truth": "Page 6 (the Kubernetes follow-up page) is hidden.",
+    "source_docs": [
+      "cncf_2022_survey_reference_model.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "3 No Hide Page 6",
+      "location": "page 3, Q16"
+    }
+  },
+  {
+    "id": "ft_049",
+    "question": "Which response option was mistakenly excluded from Q42 (use of CI/CD tools) of the 2022 CNCF survey?",
+    "ground_truth": "\"Used in production for most or all productions applications and business segments throughout the organization\" was mistakenly excluded from the survey.",
+    "source_docs": [
+      "cncf_2022_survey_reference_model.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "this option was mistakenly",
+      "location": "page 7, Q42 coding notes"
+    }
+  },
+  {
+    "id": "ft_050",
+    "question": "How many graduated CNCF projects are listed in Q23 of the 2022 survey reference model, and what number is Kubernetes?",
+    "ground_truth": "16 graduated projects are listed (containerd through Vitess); Kubernetes is number 9.",
+    "source_docs": [
+      "cncf_2022_survey_reference_model.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "9 Kubernetes",
+        "16 Vitess"
+      ],
+      "location": "page 4, Q23"
+    }
+  },
+  {
+    "id": "ft_051",
+    "question": "In the 2022 CNCF survey filtering criteria, how were respondents whose role was Teacher/Student handled?",
+    "ground_truth": "They were filtered out.",
+    "source_docs": [
+      "cncf_2022_survey_csv_guide.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "Teacher/Student Filter out",
+      "location": "page 3, Disqualify and Filter Criteria"
+    }
+  },
+  {
+    "id": "ft_052",
+    "question": "In the 2022 CNCF survey filtering criteria, how were respondents with 20,000 or more employees handled, and how were those not employed or affiliated with an organization handled?",
+    "ground_truth": "Organizations with 20,000 or more employees were kept; respondents not currently employed or affiliated with an organization were filtered out.",
+    "source_docs": [
+      "cncf_2022_survey_csv_guide.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "20,000 or more Keep",
+        "I am not currently employed or affiliated with an"
+      ],
+      "location": "page 2, Disqualify and Filter Criteria"
+    }
+  },
+  {
+    "id": "ft_053",
+    "question": "When did CNCF plan to implement a weekly newsletter for Ambassadors after the 2023 mid-year survey?",
+    "ground_truth": "November 2023.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": "Implement Weekly Newsletter November 2023",
+      "location": "page 17, Post-Survey Initiatives"
+    }
+  },
+  {
+    "id": "ft_054",
+    "question": "Which CNCF Ambassador post-survey initiatives were scheduled for Q1 2024?",
+    "ground_truth": "Create Template + Resources for Ambassadors, Create Subgroups Based on Interest, and Ambassador Introductions via Podcast/Videos.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "table",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "TABLE_RETRIEVAL_MISS",
+    "evidence": {
+      "quote": [
+        "Create Template + Resources for Q1 - 2024",
+        "Create Subgroups Based on Interest Q1 - 2024",
+        "Ambassador Introductions via Q1 - 2024"
+      ],
+      "location": "page 17, Post-Survey Initiatives"
+    }
+  },
+  {
+    "id": "ft_055",
+    "question": "In the 2023 CNCF Ambassador mid-year survey, what was the most common answer to how often Ambassadors want the CNCF team to communicate with them?",
+    "ground_truth": "About once a week (43.75%).",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "43.75%",
+      "location": "page 4, pie chart 'How often would you like the CNCF team to communicate with you?' (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_056",
+    "question": "What percentage of CNCF Ambassadors in the 2023 mid-year survey wanted the CNCF team to communicate every day?",
+    "ground_truth": "2.5%.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "2.5%",
+      "location": "page 4, pie chart (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_057",
+    "question": "What percentage of Ambassadors rated communication from the CNCF team as \"5 - Great\" in the 2023 mid-year survey?",
+    "ground_truth": "57.5%.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "57.5 %",
+      "location": "page 5, pie chart 'I would rate the communication from the CNCF team as the following' (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_058",
+    "question": "What share of Ambassadors rated the monthly check-in surveys \"1 - Needs improvement\" in the 2023 mid-year survey?",
+    "ground_truth": "3.75%.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "3.75%",
+      "location": "page 6, pie chart 'I would rate the monthly check in surveys as the following' (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_059",
+    "question": "What percentage of Ambassadors rated the monthly check-in surveys \"5 - Helpful\"?",
+    "ground_truth": "33.75%.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "33.75%",
+      "location": "page 6, pie chart (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_060",
+    "question": "Which rating was the second most common for the monthly check-in surveys in the 2023 Ambassador survey?",
+    "ground_truth": "Rating 4 (28.75%), after \"5 - Helpful\" (33.75%).",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "28.75%",
+      "location": "page 6, pie chart (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_061",
+    "question": "What percentage of Ambassadors would highly recommend (5) the CNCF Ambassador program to other people in the community?",
+    "ground_truth": "71.25%.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "71.25%",
+      "location": "page 7, pie chart 'I would recommend the CNCF Ambassador program to other people in the community' (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_062",
+    "question": "What percentage of Ambassadors said the CNCF team is \"Somewhat helpful but delayed in responses\" when they need help?",
+    "ground_truth": "12.5% (the other 87.5% said always helpful and able to support their requests).",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "12.5%",
+      "location": "page 8, pie chart 'When I need help or have a question the CNCF team is' (category label is only in the chart image; the text layer holds the percentage)"
+    }
+  },
+  {
+    "id": "ft_063",
+    "question": "How many Ambassadors answered, and how many skipped, the question rating communication from the CNCF team?",
+    "ground_truth": "80 answered and 0 skipped.",
+    "source_docs": [
+      "cncf_ambassador_midyear_survey_2023.pdf"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "chart",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "CHART_LAYOUT_BLINDNESS",
+    "evidence": {
+      "quote": "Answered: 80 Skipped: 0",
+      "location": "page 5, chart header (rendered only in the chart image, not in the text layer)"
+    }
+  },
+  {
+    "id": "ft_064",
+    "question": "In the CNCF Cloud Native Survey 2021 (Part 1), what share of respondents said they use Kubernetes in production?",
+    "ground_truth": "59.77% (1,294 of 2,165 who answered).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Yes, in production",
+      "location": "sheet 'Question 16'",
+      "cells": {
+        "B3": "Yes, in production",
+        "B10": 0.5977,
+        "C10": 1294,
+        "M11": 2165
+      }
+    }
+  },
+  {
+    "id": "ft_065",
+    "question": "How many respondents to the CNCF Cloud Native Survey 2021 (Part 1) were located in Europe, and what share of the total was that?",
+    "ground_truth": "654 respondents, 28.41% of 2,302.",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Europe",
+      "location": "sheet 'Question 1'",
+      "cells": {
+        "H3": "Europe",
+        "I10": 654,
+        "H10": 0.2841,
+        "O10": 2302
+      }
+    }
+  },
+  {
+    "id": "ft_066",
+    "question": "What was the most preferred method for packaging Kubernetes applications in the 2021 Cloud Native Survey (Part 1), and what share chose it?",
+    "ground_truth": "Helm, chosen by 42.17% (786 of 1,864).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Helm",
+      "location": "sheet 'Question 21'",
+      "cells": {
+        "B3": "Helm",
+        "B10": 0.4217,
+        "C10": 786,
+        "Q10": 1864
+      }
+    }
+  },
+  {
+    "id": "ft_067",
+    "question": "In the 2021 Cloud Native Survey (Part 1), what share of respondents in Australia and Oceania preferred Helm for packaging Kubernetes applications?",
+    "ground_truth": "2.96% (6 of 203).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Q1: Australia and Oceania",
+      "location": "sheet 'Question 21'",
+      "cells": {
+        "A6": "Q1: Australia and Oceania",
+        "B6": 0.0296,
+        "C6": 6,
+        "Q6": 203
+      }
+    }
+  },
+  {
+    "id": "ft_068",
+    "question": "What share of 2021 Cloud Native Survey (Part 1) respondents use a hybrid cloud (both private and public)?",
+    "ground_truth": "46.06% (1,034 of 2,245).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Hybrid Cloud (i.e. both)",
+      "location": "sheet 'Question 10'",
+      "cells": {
+        "F3": "Hybrid Cloud (i.e. both)",
+        "F10": 0.4606,
+        "G10": 1034,
+        "M10": 2245
+      }
+    }
+  },
+  {
+    "id": "ft_069",
+    "question": "Among Kubernetes users in the 2021 Cloud Native Survey (Part 1), what was the most common number of production clusters?",
+    "ground_truth": "2-5 clusters (28.92%, 539 of 1,864).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "2-5",
+      "location": "sheet 'Question 17'",
+      "cells": {
+        "D3": "2-5",
+        "D10": 0.2892,
+        "E10": 539,
+        "Q10": 1864
+      }
+    }
+  },
+  {
+    "id": "ft_070",
+    "question": "How many respondents skipped the question \"Are you using Kubernetes?\" in the 2021 Cloud Native Survey (Part 1)?",
+    "ground_truth": "137 skipped (2,165 answered).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Skipped",
+      "location": "sheet 'Question 16'",
+      "cells": {
+        "L12": "Skipped",
+        "M12": 137,
+        "M11": 2165
+      }
+    }
+  },
+  {
+    "id": "ft_071",
+    "question": "In the 2021 Cloud Native Survey (Part 1), what share of respondents said their release cycles are automated?",
+    "ground_truth": "34.69% (782 of 2,254).",
+    "source_docs": [
+      "cncf_cloud_native_survey_2021_part1.xlsx"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Automated",
+      "location": "sheet 'Question 9'",
+      "cells": {
+        "D3": "Automated",
+        "D10": 0.3469,
+        "E10": 782,
+        "K10": 2254
+      }
+    }
+  },
+  {
+    "id": "ft_072",
+    "question": "In the CNCF Maintainers Survey 2020 H2, what share of maintainers said CNCF reached out and their needs were generally met?",
+    "ground_truth": "87.63% (85 of 97).",
+    "source_docs": [
+      "cncf_maintainers_survey_2020_h2_summary.csv"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "\"Yes, and my needs were generally met\",87.63%,85",
+      "location": "Q5 block"
+    }
+  },
+  {
+    "id": "ft_073",
+    "question": "What was the weighted average score for \"Did you feel that the CNCF staff responded quickly to your requests?\" in the CNCF Maintainers Survey 2020 H2?",
+    "ground_truth": "9.23 on a 1-10 scale (57 of 97 respondents chose 10).",
+    "source_docs": [
+      "cncf_maintainers_survey_2020_h2_summary.csv"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "star,1,0,1,0,0,0,5,13,11,57,9,97,9.23",
+      "location": "Q7 block"
+    }
+  },
+  {
+    "id": "ft_074",
+    "question": "Which CNCF tool received the lowest weighted average value rating in the CNCF Maintainers Survey 2020 H2: DevStats, the Cloud Native Landscape, or the End User Tech Radar?",
+    "ground_truth": "The End User Tech Radar, with a weighted average of 6.41 (DevStats 8, Cloud Native Landscape 7.02).",
+    "source_docs": [
+      "cncf_maintainers_survey_2020_h2_summary.csv"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "star,11,3,0,5,18,8,11,17,6,18,97,6.41",
+      "location": "Q18 block (compare Q16 and Q17)"
+    }
+  },
+  {
+    "id": "ft_075",
+    "question": "Which CNCF project had the most maintainer respondents in the CNCF Maintainers Survey 2020 H2?",
+    "ground_truth": "KubeVirt, with 8 respondents (8.25%).",
+    "source_docs": [
+      "cncf_maintainers_survey_2020_h2_summary.csv"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "KubeVirt,8.25%,8",
+      "location": "Q4 block"
+    }
+  },
+  {
+    "id": "ft_076",
+    "question": "How many maintainers answered the optional \"Any other feedback\" question (Q22) in the CNCF Maintainers Survey 2020 H2?",
+    "ground_truth": "33 answered and 64 skipped.",
+    "source_docs": [
+      "cncf_maintainers_survey_2020_h2_summary.csv"
+    ],
+    "valid_from": null,
+    "valid_to": null,
+    "modality": "spreadsheet",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": null,
+    "evidence": {
+      "quote": "Answered,33",
+      "location": "Q22 block"
+    }
+  }
+]
