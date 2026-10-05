@@ -73,7 +73,7 @@ async def create_experiment(
     db: AsyncSession = Depends(get_db),
 ):
     """Create and enqueue a new RAG pipeline experiment."""
-    from app.services.experiment.config_matrix import build_mvp_matrix, build_matrix
+    from app.services.experiment.config_matrix import build_configs, build_mvp_matrix, build_matrix
 
     eval_set_id, eval_set_path = await _resolve_eval_set(payload, db)
     await _validate_document_ids(payload.document_ids, db)
@@ -91,8 +91,11 @@ async def create_experiment(
     db.add(experiment)
     await db.flush()
 
-    # Build configs
-    configs = build_mvp_matrix() if payload.config_preset == "mvp" else build_matrix()
+    # Build configs: an explicit list wins over the preset.
+    if payload.configs is not None:
+        configs = build_configs(spec.model_dump() for spec in payload.configs)
+    else:
+        configs = build_mvp_matrix() if payload.config_preset == "mvp" else build_matrix()
 
     runs = []
     for config in configs:
