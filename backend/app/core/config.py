@@ -1,5 +1,6 @@
 from typing import Optional
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -47,6 +48,15 @@ class Settings(BaseSettings):
     # remaining queries are skipped ("budget exceeded") and the run is failed.
     # <= 0 disables the limit.
     MAX_COST_PER_RUN_USD: float = 5.0
+
+    # Ragas judge concurrency and retries (ragas RunConfig). The defaults aim to keep
+    # an OpenAI Tier 1 account under its rate limits with two runs evaluating
+    # in parallel; lower RAGAS_MAX_WORKERS if evaluation still hits 429s.
+    # Each must be >= 1; an invalid value fails at startup.
+    RAGAS_MAX_WORKERS: int = Field(default=4, ge=1)   # concurrent judge calls per evaluation
+    RAGAS_MAX_RETRIES: int = Field(default=10, ge=1)  # retry attempts per judge call
+    RAGAS_MAX_WAIT: int = Field(default=60, ge=1)     # max seconds between retries
+    RAGAS_TIMEOUT: int = Field(default=180, ge=1)     # max seconds per judge call
 
     # Celery / Redis
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
