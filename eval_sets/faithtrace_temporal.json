@@ -1,0 +1,572 @@
+[
+  {
+    "id": "ft_001",
+    "question": "Under the Creative Commons Attribution (CC BY) license, if a licensee's rights terminate because they breached the license, can those rights be reinstated, and how?",
+    "ground_truth": "Version 3.0 has no cure or automatic reinstatement provision: the license terminates automatically upon any breach. A party that previously violated the terms can only exercise rights again with express permission from the Licensor (definition of \"You\").",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "This License and the rights granted hereunder will terminate automatically upon any breach by You of the terms of this License.",
+      "location": "Section 7(a) Termination"
+    },
+    "temporal_pair_id": "tp_01"
+  },
+  {
+    "id": "ft_002",
+    "question": "Under the Creative Commons Attribution (CC BY) license, if a licensee's rights terminate because they breached the license, can those rights be reinstated, and how?",
+    "ground_truth": "Yes. Under version 4.0 the rights reinstate automatically as of the date the violation is cured, provided it is cured within 30 days of discovering the violation, or upon express reinstatement by the Licensor.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "automatically as of the date the violation is cured, provided it is cured within 30 days of Your discovery of the violation; or upon express reinstatement by the Licensor.",
+      "location": "Section 6(b) Term and Termination"
+    },
+    "temporal_pair_id": "tp_01"
+  },
+  {
+    "id": "ft_003",
+    "question": "Under the Creative Commons Attribution-ShareAlike (CC BY-SA) license, if a licensee's rights terminate because they breached the license, can those rights be reinstated, and how?",
+    "ground_truth": "Version 3.0 has no cure or automatic reinstatement provision: the license terminates automatically upon any breach. A party that previously violated the terms can only exercise rights again with express permission from the Licensor (definition of \"You\").",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "This License and the rights granted hereunder will terminate automatically upon any breach by You of the terms of this License.",
+      "location": "Section 7(a) Termination"
+    },
+    "temporal_pair_id": "tp_02"
+  },
+  {
+    "id": "ft_004",
+    "question": "Under the Creative Commons Attribution-ShareAlike (CC BY-SA) license, if a licensee's rights terminate because they breached the license, can those rights be reinstated, and how?",
+    "ground_truth": "Yes. Under version 4.0 the rights reinstate automatically as of the date the violation is cured, provided it is cured within 30 days of discovering the violation, or upon express reinstatement by the Licensor.",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "automatically as of the date the violation is cured, provided it is cured within 30 days of Your discovery of the violation; or upon express reinstatement by the Licensor.",
+      "location": "Section 6(b) Term and Termination"
+    },
+    "temporal_pair_id": "tp_02"
+  },
+  {
+    "id": "ft_005",
+    "question": "Does the Creative Commons Attribution (CC BY) license contain a dedicated provision on Sui Generis Database Rights?",
+    "ground_truth": "No. Version 3.0 has no Sui Generis Database Rights section; databases are covered only as part of the definition of \"Work\" (\"a compilation of data to the extent it is protected as a copyrightable work\").",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "a compilation of data to the extent it is protected as a copyrightable work",
+      "location": "Section 1 Definitions, \"Work\""
+    },
+    "temporal_pair_id": "tp_03"
+  },
+  {
+    "id": "ft_006",
+    "question": "Does the Creative Commons Attribution (CC BY) license contain a dedicated provision on Sui Generis Database Rights?",
+    "ground_truth": "Yes. Version 4.0 has Section 4 – Sui Generis Database Rights: Section 2(a)(1) grants the right to extract, reuse, reproduce and Share all or a substantial portion of the database contents, and the licensee must comply with Section 3(a) if they Share all or a substantial portion of the database contents.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Section 2(a)(1) grants You the right to extract, reuse, reproduce, and Share all or a substantial portion of the contents of the database",
+      "location": "Section 4 – Sui Generis Database Rights"
+    },
+    "temporal_pair_id": "tp_03"
+  },
+  {
+    "id": "ft_007",
+    "question": "Does the Creative Commons Attribution-ShareAlike (CC BY-SA) license contain a dedicated provision on Sui Generis Database Rights?",
+    "ground_truth": "No. Version 3.0 has no Sui Generis Database Rights section; databases are covered only as part of the definition of \"Work\" (\"a compilation of data to the extent it is protected as a copyrightable work\").",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "a compilation of data to the extent it is protected as a copyrightable work",
+      "location": "Section 1 Definitions, \"Work\""
+    },
+    "temporal_pair_id": "tp_04"
+  },
+  {
+    "id": "ft_008",
+    "question": "Does the Creative Commons Attribution-ShareAlike (CC BY-SA) license contain a dedicated provision on Sui Generis Database Rights?",
+    "ground_truth": "Yes. Version 4.0 has Section 4 – Sui Generis Database Rights: Section 2(a)(1) grants the right to extract, reuse, reproduce and Share all or a substantial portion of the database contents, and the licensee must comply with Section 3(a) if they Share all or a substantial portion of the database contents.",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Section 2(a)(1) grants You the right to extract, reuse, reproduce, and Share all or a substantial portion of the contents of the database",
+      "location": "Section 4 – Sui Generis Database Rights"
+    },
+    "temporal_pair_id": "tp_04"
+  },
+  {
+    "id": "ft_009",
+    "question": "What is the full title of the Creative Commons Attribution (CC BY) license legal code version that applies?",
+    "ground_truth": "Attribution 3.0 Unported.",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Attribution 3.0 Unported",
+      "location": "Page title / license heading"
+    },
+    "temporal_pair_id": "tp_05"
+  },
+  {
+    "id": "ft_010",
+    "question": "What is the full title of the Creative Commons Attribution (CC BY) license legal code version that applies?",
+    "ground_truth": "Attribution 4.0 International (Creative Commons Attribution 4.0 International Public License).",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Creative Commons Attribution 4.0 International Public License",
+      "location": "License preamble"
+    },
+    "temporal_pair_id": "tp_05"
+  },
+  {
+    "id": "ft_011",
+    "question": "What is the full title of the Creative Commons Attribution-ShareAlike (CC BY-SA) license legal code version that applies?",
+    "ground_truth": "Attribution-ShareAlike 3.0 Unported.",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Attribution-ShareAlike 3.0 Unported",
+      "location": "Page title / license heading"
+    },
+    "temporal_pair_id": "tp_06"
+  },
+  {
+    "id": "ft_012",
+    "question": "What is the full title of the Creative Commons Attribution-ShareAlike (CC BY-SA) license legal code version that applies?",
+    "ground_truth": "Attribution-ShareAlike 4.0 International (Creative Commons Attribution-ShareAlike 4.0 International Public License).",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "easy",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Attribution-ShareAlike 4.0 International",
+      "location": "License heading"
+    },
+    "temporal_pair_id": "tp_06"
+  },
+  {
+    "id": "ft_013",
+    "question": "Which numbered sections of the Creative Commons Attribution (CC BY) license survive termination of the license?",
+    "ground_truth": "Sections 1, 2, 5, 6, 7, and 8 survive termination (version 3.0).",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Sections 1, 2, 5, 6, 7, and 8 will survive any termination of this License.",
+      "location": "Section 7(a) Termination"
+    },
+    "temporal_pair_id": "tp_07"
+  },
+  {
+    "id": "ft_014",
+    "question": "Which numbered sections of the Creative Commons Attribution (CC BY) license survive termination of the license?",
+    "ground_truth": "Sections 1, 5, 6, 7, and 8 survive termination (version 4.0).",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Sections 1, 5, 6, 7, and 8 survive termination of this Public License.",
+      "location": "Section 6(e) Term and Termination"
+    },
+    "temporal_pair_id": "tp_07"
+  },
+  {
+    "id": "ft_015",
+    "question": "Which numbered sections of the Creative Commons Attribution-ShareAlike (CC BY-SA) license survive termination of the license?",
+    "ground_truth": "Sections 1, 2, 5, 6, 7, and 8 survive termination (version 3.0).",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Sections 1, 2, 5, 6, 7, and 8 will survive any termination of this License.",
+      "location": "Section 7(a) Termination"
+    },
+    "temporal_pair_id": "tp_08"
+  },
+  {
+    "id": "ft_016",
+    "question": "Which numbered sections of the Creative Commons Attribution-ShareAlike (CC BY-SA) license survive termination of the license?",
+    "ground_truth": "Sections 1, 5, 6, 7, and 8 survive termination (version 4.0).",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "Sections 1, 5, 6, 7, and 8 survive termination of this Public License.",
+      "location": "Section 6(e) Term and Termination"
+    },
+    "temporal_pair_id": "tp_08"
+  },
+  {
+    "id": "ft_017",
+    "question": "Under the Creative Commons Attribution (CC BY) license, what must a licensee do to show that they changed the licensed work?",
+    "ground_truth": "For an Adaptation, the licensee must take reasonable steps to clearly label, demarcate or otherwise identify that changes were made to the original Work (e.g. \"The original work was translated from English to Spanish\"), and the credit must identify the use of the Work in the Adaptation.",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "takes reasonable steps to clearly label, demarcate or otherwise identify that changes were made to the original Work.",
+      "location": "Section 3(b) License Grant"
+    },
+    "temporal_pair_id": "tp_09"
+  },
+  {
+    "id": "ft_018",
+    "question": "Under the Creative Commons Attribution (CC BY) license, what must a licensee do to show that they changed the licensed work?",
+    "ground_truth": "When sharing the Licensed Material (including in modified form), the licensee must indicate if they modified it and retain an indication of any previous modifications.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "indicate if You modified the Licensed Material and retain an indication of any previous modifications",
+      "location": "Section 3(a)(1)(B) Attribution"
+    },
+    "temporal_pair_id": "tp_09"
+  },
+  {
+    "id": "ft_019",
+    "question": "In the Creative Commons Attribution (CC BY) license, what defined term is used for a work derived from the licensed material, and how is it defined?",
+    "ground_truth": "\"Adaptation\": a work based upon the Work, or upon the Work and other pre-existing works, such as a translation, adaptation, derivative work, arrangement of music or other alterations of a literary or artistic work; a Collection is not considered an Adaptation.",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "means a work based upon the Work, or upon the Work and other pre-existing works, such as a translation, adaptation, derivative work, arrangement of music or other alterations of a literary or artistic work",
+      "location": "Section 1(a) Definitions, \"Adaptation\""
+    },
+    "temporal_pair_id": "tp_10"
+  },
+  {
+    "id": "ft_020",
+    "question": "In the Creative Commons Attribution (CC BY) license, what defined term is used for a work derived from the licensed material, and how is it defined?",
+    "ground_truth": "\"Adapted Material\": material subject to Copyright and Similar Rights that is derived from or based upon the Licensed Material and in which the Licensed Material is translated, altered, arranged, transformed, or otherwise modified in a manner requiring permission under the Copyright and Similar Rights held by the Licensor.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "means material subject to Copyright and Similar Rights that is derived from or based upon the Licensed Material and in which the Licensed Material is translated, altered, arranged, transformed, or otherwise modified in a manner requiring permission",
+      "location": "Section 1(a) Definitions, \"Adapted Material\""
+    },
+    "temporal_pair_id": "tp_10"
+  },
+  {
+    "id": "ft_021",
+    "question": "In the Creative Commons Attribution-ShareAlike (CC BY-SA) license, what defined term is used for a work derived from the licensed material, and how is it defined?",
+    "ground_truth": "\"Adaptation\": a work based upon the Work, or upon the Work and other pre-existing works, such as a translation, adaptation, derivative work, arrangement of music or other alterations of a literary or artistic work; a Collection is not considered an Adaptation.",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "means a work based upon the Work, or upon the Work and other pre-existing works, such as a translation, adaptation, derivative work, arrangement of music or other alterations of a literary or artistic work",
+      "location": "Section 1(a) Definitions, \"Adaptation\""
+    },
+    "temporal_pair_id": "tp_11"
+  },
+  {
+    "id": "ft_022",
+    "question": "In the Creative Commons Attribution-ShareAlike (CC BY-SA) license, what defined term is used for a work derived from the licensed material, and how is it defined?",
+    "ground_truth": "\"Adapted Material\": material subject to Copyright and Similar Rights that is derived from or based upon the Licensed Material and in which the Licensed Material is translated, altered, arranged, transformed, or otherwise modified in a manner requiring permission under the Copyright and Similar Rights held by the Licensor.",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "means material subject to Copyright and Similar Rights that is derived from or based upon the Licensed Material and in which the Licensed Material is translated, altered, arranged, transformed, or otherwise modified in a manner requiring permission",
+      "location": "Section 1(a) Definitions, \"Adapted Material\""
+    },
+    "temporal_pair_id": "tp_11"
+  },
+  {
+    "id": "ft_023",
+    "question": "Under the Creative Commons Attribution (CC BY) license's limitation of liability, for which kinds of damages is the Licensor not liable?",
+    "ground_truth": "Version 3.0 (Section 6) excludes liability for special, incidental, consequential, punitive or exemplary damages (except to the extent required by applicable law); direct damages are not listed.",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "IN NO EVENT WILL LICENSOR BE LIABLE TO YOU ON ANY LEGAL THEORY FOR ANY SPECIAL, INCIDENTAL, CONSEQUENTIAL, PUNITIVE OR EXEMPLARY DAMAGES",
+      "location": "Section 6 Limitation on Liability"
+    },
+    "temporal_pair_id": "tp_12"
+  },
+  {
+    "id": "ft_024",
+    "question": "Under the Creative Commons Attribution (CC BY) license's limitation of liability, for which kinds of damages is the Licensor not liable?",
+    "ground_truth": "Version 4.0 (Section 5(b)) excludes, to the extent possible, liability for any direct, special, indirect, incidental, consequential, punitive, exemplary, or other losses, costs, expenses, or damages, on any legal theory including negligence.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "for any direct, special, indirect, incidental, consequential, punitive, exemplary, or other losses, costs, expenses, or damages",
+      "location": "Section 5(b) Disclaimer of Warranties and Limitation of Liability"
+    },
+    "temporal_pair_id": "tp_12"
+  },
+  {
+    "id": "ft_025",
+    "question": "Under the Creative Commons Attribution-ShareAlike (CC BY-SA) license's limitation of liability, for which kinds of damages is the Licensor not liable?",
+    "ground_truth": "Version 3.0 (Section 6) excludes liability for special, incidental, consequential, punitive or exemplary damages (except to the extent required by applicable law); direct damages are not listed.",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "IN NO EVENT WILL LICENSOR BE LIABLE TO YOU ON ANY LEGAL THEORY FOR ANY SPECIAL, INCIDENTAL, CONSEQUENTIAL, PUNITIVE OR EXEMPLARY DAMAGES",
+      "location": "Section 6 Limitation on Liability"
+    },
+    "temporal_pair_id": "tp_13"
+  },
+  {
+    "id": "ft_026",
+    "question": "Under the Creative Commons Attribution-ShareAlike (CC BY-SA) license's limitation of liability, for which kinds of damages is the Licensor not liable?",
+    "ground_truth": "Version 4.0 (Section 5(b)) excludes, to the extent possible, liability for any direct, special, indirect, incidental, consequential, punitive, exemplary, or other losses, costs, expenses, or damages, on any legal theory including negligence.",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "for any direct, special, indirect, incidental, consequential, punitive, exemplary, or other losses, costs, expenses, or damages",
+      "location": "Section 5(b) Disclaimer of Warranties and Limitation of Liability"
+    },
+    "temporal_pair_id": "tp_13"
+  },
+  {
+    "id": "ft_027",
+    "question": "Under the Creative Commons Attribution-ShareAlike (CC BY-SA) license, which licenses may you apply when you share an adaptation of the licensed work?",
+    "ground_truth": "Version 3.0 allows only: (i) the terms of this License; (ii) a later version of this License with the same License Elements; or (iii) a Creative Commons jurisdiction license (this or a later version) that contains the same License Elements (e.g. Attribution-ShareAlike 3.0 Unported).",
+    "source_docs": [
+      "cc_by_sa_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "You may Distribute or Publicly Perform an Adaptation only under: (i) the terms of this License; (ii) a later version of this License with the same License Elements as this License;",
+      "location": "Section 4(b) Restrictions"
+    },
+    "temporal_pair_id": "tp_14"
+  },
+  {
+    "id": "ft_028",
+    "question": "Under the Creative Commons Attribution-ShareAlike (CC BY-SA) license, which licenses may you apply when you share an adaptation of the licensed work?",
+    "ground_truth": "Version 4.0 requires the Adapter's License to be a Creative Commons license with the same License Elements (this version or later) or a BY-SA Compatible License (a license listed at creativecommons.org/compatiblelicenses).",
+    "source_docs": [
+      "cc_by_sa_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "hard",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "The Adapter’s License You apply must be a Creative Commons license with the same License Elements, this version or later, or a BY-SA Compatible License.",
+      "location": "Section 3(b)(1) ShareAlike"
+    },
+    "temporal_pair_id": "tp_14"
+  },
+  {
+    "id": "ft_029",
+    "question": "Under the Creative Commons Attribution (CC BY) license, when must a licensee remove attribution credit at the Licensor's request?",
+    "ground_truth": "Under 3.0, upon notice from any Licensor, a licensee who creates a Collection or an Adaptation must, to the extent practicable, remove the Section 4(b) credit from that Collection or Adaptation, as requested.",
+    "source_docs": [
+      "cc_by_3.0_legalcode.html"
+    ],
+    "valid_from": "2007-02-23",
+    "valid_to": "2013-11-24",
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "If You create a Collection, upon notice from any Licensor You must, to the extent practicable, remove from the Collection any credit as required by Section 4(b), as requested.",
+      "location": "Section 4(a) Restrictions"
+    },
+    "temporal_pair_id": "tp_15"
+  },
+  {
+    "id": "ft_030",
+    "question": "Under the Creative Commons Attribution (CC BY) license, when must a licensee remove attribution credit at the Licensor's request?",
+    "ground_truth": "Under 4.0, if requested by the Licensor, the licensee must remove any of the attribution information required by Section 3(a)(1)(A) to the extent reasonably practicable.",
+    "source_docs": [
+      "cc_by_4.0_legalcode.html"
+    ],
+    "valid_from": "2013-11-25",
+    "valid_to": null,
+    "modality": "text",
+    "difficulty": "medium",
+    "answerable": true,
+    "failure_type": "WRONG_VERSION",
+    "evidence": {
+      "quote": "If requested by the Licensor, You must remove any of the information required by Section 3(a)(1)(A) to the extent reasonably practicable.",
+      "location": "Section 3(a)(3) Attribution"
+    },
+    "temporal_pair_id": "tp_15"
+  }
+]
