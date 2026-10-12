@@ -9,7 +9,7 @@ import { MetricCard } from "@/components/ui/MetricCard";
 import { ArrowLeft, ChevronRight, Clock } from "lucide-react";
 import { clsx } from "clsx";
 import { experimentRefetchInterval } from "@/lib/status";
-import type { Experiment, Run } from "@/types";
+import type { Experiment, PipelineConfig, Run } from "@/types";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -20,6 +20,48 @@ function ConfigPill({ label, value }: { label: string; value: string }) {
     <span className="text-[10px] bg-zinc-800 border border-zinc-700 text-zinc-400 rounded px-1.5 py-0.5 font-mono">
       {label}: {value}
     </span>
+  );
+}
+
+function RunConfigPills({ cfg }: { cfg?: Partial<PipelineConfig> | null }) {
+  return (
+    <div className="flex flex-wrap gap-1 max-w-xs">
+      <ConfigPill label="ret" value={cfg?.retrieval_strategy ?? "—"} />
+      <ConfigPill label="chunk" value={cfg?.chunking_strategy ?? "—"} />
+      <ConfigPill label="parse" value={cfg?.parsing_strategy ?? "—"} />
+      <ConfigPill label="fresh" value={cfg?.freshness_policy ?? "—"} />
+    </div>
+  );
+}
+
+// The leaderboard API's default sort_by (backend evaluation.get_leaderboard).
+const LEADERBOARD_SORT_LABEL = "faithfulness";
+
+/** "38 answered · 2 errored · 1 unscored"; null when the API sent no counts. */
+function QueryCounts({ run }: { run: Run }) {
+  if (run.n_queries == null) return null;
+  const parts: { text: string; warn: boolean }[] = [];
+  if (run.n_errored != null) {
+    parts.push({ text: `${run.n_queries - run.n_errored} answered`, warn: false });
+    parts.push({ text: `${run.n_errored} errored`, warn: run.n_errored > 0 });
+  } else {
+    parts.push({ text: `${run.n_queries} queries`, warn: false });
+  }
+  if (run.n_unscored != null) {
+    parts.push({ text: `${run.n_unscored} unscored`, warn: run.n_unscored > 0 });
+  }
+  if (run.n_undiagnosed != null) {
+    parts.push({ text: `${run.n_undiagnosed} undiagnosed`, warn: run.n_undiagnosed > 0 });
+  }
+  return (
+    <p className="mt-1 text-[10px] font-mono text-zinc-500 whitespace-nowrap" data-testid="query-counts">
+      {parts.map((p, i) => (
+        <span key={p.text}>
+          {i > 0 && " · "}
+          <span className={clsx(p.warn && "text-amber-400")}>{p.text}</span>
+        </span>
+      ))}
+    </p>
   );
 }
 
@@ -107,7 +149,14 @@ export default function ExperimentDetailPage({ params }: { params: { id: string 
       {/* Top metrics from leaderboard */}
       {leaderboard && leaderboard.length > 0 && (
         <div className="mb-8">
-          <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-3">Best Run Metrics</p>
+          <div className="flex flex-wrap items-center gap-3 mb-3">
+            <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">
+              {leaderboard.length === 1
+                ? "Run Metrics"
+                : `Top Run by ${LEADERBOARD_SORT_LABEL} (of ${leaderboard.length} completed runs)`}
+            </p>
+            <RunConfigPills cfg={leaderboard[0].config} />
+          </div>
           <div className="grid grid-cols-5 gap-3 stagger-in">
             <MetricCard label="Faithfulness" value={leaderboard[0].metrics?.faithfulness} />
             <MetricCard label="Context Recall" value={leaderboard[0].metrics?.context_recall} />
@@ -158,14 +207,11 @@ export default function ExperimentDetailPage({ params }: { params: { id: string 
                   )}
                 >
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1 max-w-xs">
-                      <ConfigPill label="ret" value={cfg?.retrieval_strategy ?? "—"} />
-                      <ConfigPill label="chunk" value={cfg?.chunking_strategy ?? "—"} />
-                      <ConfigPill label="parse" value={cfg?.parsing_strategy ?? "—"} />
-                    </div>
+                    <RunConfigPills cfg={cfg} />
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={run.status} />
+                    <QueryCounts run={run} />
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-zinc-300">
                     {metrics?.faithfulness != null ? metrics.faithfulness.toFixed(3) : "—"}
