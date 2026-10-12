@@ -8,6 +8,7 @@ Run these from the repo root.
 | `make_eval_subset.py` | Builds the focused subsets below from `eval_sets/faithtrace_v1.json`. Items are copied unchanged and kept in v1 order, and temporal pairs are never split. With `--check` it regenerates them in memory and exits 1 if a committed file differs (the backend tests run this). | stdlib |
 | `seed.py` | Uploads every file in `corpus/manifest.json` to a running API (`POST /api/v1/corpus/upload` with `version_label`, `effective_from`, `effective_to`). Then it polls each document until parsing and indexing finish or fail, and prints a summary. Exits non-zero if any document fails or times out. Behind nginx (docker compose) uploads are limited to 5/min with a burst of 3, so uploads are spaced by `--delay` seconds (default 13; not before the first upload or between status polls) and an HTTP 429 is retried up to `--max-retries` times (default 5), waiting `Retry-After` seconds when it is an integer, otherwise 15 s × attempt. A 429 left after the last retry counts as a failure. | stdlib |
 | `export_results.py` | Exports one experiment from a running API into reproducible files: `raw/experiment.json` and `raw/traces/<run_id>.json` (exactly as fetched), `runs.csv`, `by_modality.csv`, `failures.csv`, `temporal.csv`, `summary.md` and `manifest.json` (eval set path + sha256, item count, UTC time, API URL, `complete` flag, script version). Query results are joined to eval items by `query_id` == `id`; an unmatched or duplicate id is an error. It refuses incomplete data (runs not `done`, errored queries, ok queries without an `answer_correctness` score or a `failure_category`, eval items with no result): it prints the report, writes nothing and exits 2, unless `--allow-incomplete`, which writes everything with an INCOMPLETE banner and `"complete": false`. Missing values are empty CSV cells / `—`, never 0; means use non-null values only and come with their n. | stdlib |
+| `rediagnose.py` | Re-runs only diagnosis (no new scoring) for every run of each `--experiment ID` (repeatable) via `POST /api/v1/diagnostics/experiment/{id}/rediagnose`, e.g. after a classifier change. Diagnosis reuses the per-query Ragas scores stored at evaluation; if any ok query of a run lacks them, the worker re-scores that run's ok queries, and the summary's `rescore` column shows how many (the OpenAI cost). Runs not `done` or not evaluated are listed as skipped with the reason. Exits 1 on an HTTP or connection error, or a run that could not be enqueued. `API_URL` and `API_KEY` work as for `seed.py`. | stdlib |
 
 ```bash
 python scripts/validate_eval_set.py eval_sets/faithtrace_v1.json --check-evidence
@@ -21,6 +22,9 @@ API_URL=http://localhost:8000 python scripts/seed.py --delay 0   # straight to t
 
 # after an experiment finishes (status done):
 python scripts/export_results.py --experiment <experiment-id> --eval-set eval_sets/faithtrace_v1.json --out results/<name>
+
+# after a classifier change: re-diagnose stored runs without re-scoring them
+python scripts/rediagnose.py --experiment <experiment-id>
 ```
 
 `export_results.py` exit codes: 0 written, 1 error (API unreachable or HTTP error, bad eval set, unmatched query id, `--out` not empty), 2 incomplete and nothing written. `--out` must not exist or be empty; files are written to a temporary directory first and moved into place, so a failed export leaves no partial output. The trace endpoint returns all of a run's query results in one response (no pagination). `API_URL` and `API_KEY` work as for `seed.py`.

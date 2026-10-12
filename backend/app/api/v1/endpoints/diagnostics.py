@@ -2,7 +2,8 @@
 Diagnostics endpoints.
 
 Exposes root-cause failure classification results per run and per query,
-and triggers XGBoost classifier training.
+triggers XGBoost classifier training, and re-runs diagnosis (only) for runs
+that were already evaluated.
 """
 
 import logging
@@ -247,4 +248,167 @@ async def train_classifier(
             "XGBoost classifier training started. "
             "Call GET /diagnostics/classifier/status to check if training completed."
         ),
+    }
+
+
+# ─── Re-diagnosis (no re-scoring) ────────────────────────────────────────────
+
+def _rediagnose_skip_reason(run: Run) -> str | None:
+    """Why a run cannot be re-diagnosed, or None when it can."""
+    if run.status != "done":
+        return f"run status is '{run.status}', must be 'done'"
+    if run.evaluated_at is None:
+        return "run has not been evaluated (evaluated_at is not set); evaluate it first"
+    return None
+
+
+async def _score_coverage(db: AsyncSession, run_ids: list[str]) -> dict[str, dict]:
+    """
+    Per run: total query results, ok (non-errored) queries, and ok queries
+    without stored per-query Ragas scores (diagnosis_evidence["scores"]).
+    """
+    coverage = {rid: {"queries": 0, "ok_queries": 0, "queries_missing_scores": 0} for rid in run_ids}
+    if not run_ids:
+        return coverage
+    rows = await db.execute(
+        select(QueryResult.run_id, QueryResult.status, QueryResult.diagnosis_evidence)
+        .where(QueryResult.run_id.in_(run_ids))
+    )
+    for run_id, status, evidence in rows.all():
+        entry = coverage.get(run_id)
+        if entry is None:
+            continue
+        entry["queries"] += 1
+        if status == "error":
+            continue
+        entry["ok_queries"] += 1
+        if not isinstance((evidence or {}).get("scores"), dict):
+            entry["queries_missing_scores"] += 1
+    return coverage
+
+
+def _rescore_counts(entry: dict) -> dict:
+    """
+    diagnose_run reuses stored scores only when every ok query has them;
+    otherwise it re-scores all of the run's ok queries with Ragas (OpenAI cost).
+    """
+    missing = entry["queries_missing_scores"]
+    return {
+        "ok_queries": entry["ok_queries"],
+        "queries_missing_scores": missing,
+        "will_rescore_queries": entry["ok_queries"] if missing else 0,
+    }
+
+
+def _experiment_eval_set(experiment: Experiment | None) -> tuple[str | None, str | None]:
+    # Same resolution as POST /evaluation/run/{run_id}: the worker loads the
+    # uploaded set (eval_set_id) or the stored built-in path.
+    if experiment is None:
+        return None, None
+    return experiment.eval_set_id, experiment.eval_set_path
+
+
+@router.post("/run/{run_id}/rediagnose")
+async def rediagnose_run(run_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Re-run only diagnosis for an evaluated run (e.g. after a classifier change).
+
+    Unlike POST /evaluation/run/{run_id}, this does not re-score the run:
+    diagnose_run reuses the per-query Ragas scores evaluate_run stored. If any
+    ok query lacks stored scores, diagnose_run re-scores the run's ok queries;
+    will_rescore_queries reports how many (0 means no scoring cost).
+    """
+    result = await db.execute(select(Run).where(Run.id == run_id))
+    run = result.scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    reason = _rediagnose_skip_reason(run)
+    if reason:
+        raise HTTPException(status_code=400, detail=reason)
+
+    coverage = (await _score_coverage(db, [run_id]))[run_id]
+    if coverage["queries"] == 0:
+        raise HTTPException(status_code=400, detail="run has no query results to diagnose")
+
+    experiment = await db.get(Experiment, run.experiment_id)
+    eval_set_id, eval_set_path = _experiment_eval_set(experiment)
+
+    from app.workers.tasks import diagnose_run
+    try:
+        diagnose_run.delay(run_id, eval_set_path)
+    except Exception as exc:
+        logger.exception("Could not enqueue diagnosis for run %s", run_id)
+        raise HTTPException(status_code=503, detail=f"Could not enqueue diagnosis: {exc}")
+
+    counts = _rescore_counts(coverage)
+    if counts["will_rescore_queries"]:
+        logger.warning(
+            "Re-diagnosing run %s: %d ok queries lack stored scores; %d will be re-scored",
+            run_id, counts["queries_missing_scores"], counts["will_rescore_queries"],
+        )
+    return {
+        "run_id": run_id,
+        "status": "enqueued",
+        "message": f"Diagnosis enqueued for run {run_id}",
+        "eval_set_id": eval_set_id,
+        "eval_set_path": eval_set_path,
+        **counts,
+    }
+
+
+@router.post("/experiment/{experiment_id}/rediagnose")
+async def rediagnose_experiment(experiment_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Re-run only diagnosis for every eligible run of an experiment (status
+    "done" and evaluated). Ineligible runs are reported as skipped with the
+    reason; a run whose task could not be enqueued is reported as "error".
+    """
+    experiment = await db.get(Experiment, experiment_id)
+    if not experiment:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    eval_set_id, eval_set_path = _experiment_eval_set(experiment)
+
+    runs_result = await db.execute(
+        select(Run).where(Run.experiment_id == experiment_id).order_by(Run.created_at, Run.id)
+    )
+    runs = runs_result.scalars().all()
+
+    reasons = {run.id: _rediagnose_skip_reason(run) for run in runs}
+    coverage = await _score_coverage(db, [run.id for run in runs if reasons[run.id] is None])
+
+    from app.workers.tasks import diagnose_run
+
+    per_run = []
+    for run in runs:
+        entry = {"run_id": run.id, "run_status": run.status}
+        reason = reasons[run.id]
+        if reason is None and coverage[run.id]["queries"] == 0:
+            reason = "run has no query results to diagnose"
+        if reason:
+            per_run.append({**entry, "status": "skipped", "reason": reason})
+            continue
+        counts = _rescore_counts(coverage[run.id])
+        try:
+            diagnose_run.delay(run.id, eval_set_path)
+        except Exception as exc:
+            logger.exception("Could not enqueue diagnosis for run %s", run.id)
+            per_run.append({**entry, "status": "error", "reason": f"could not enqueue diagnosis: {exc}"})
+            continue
+        per_run.append({**entry, "status": "enqueued", **counts})
+
+    will_rescore = sum(r.get("will_rescore_queries", 0) for r in per_run)
+    if will_rescore:
+        logger.warning(
+            "Re-diagnosing experiment %s: %d ok queries will be re-scored (missing stored scores)",
+            experiment_id, will_rescore,
+        )
+    return {
+        "experiment_id": experiment_id,
+        "eval_set_id": eval_set_id,
+        "eval_set_path": eval_set_path,
+        "enqueued": sum(1 for r in per_run if r["status"] == "enqueued"),
+        "skipped": sum(1 for r in per_run if r["status"] == "skipped"),
+        "errors": sum(1 for r in per_run if r["status"] == "error"),
+        "will_rescore_queries": will_rescore,
+        "runs": per_run,
     }
