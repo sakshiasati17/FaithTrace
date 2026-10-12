@@ -57,6 +57,8 @@ New DB columns/tables need an Alembic migration in `backend/alembic/versions` (n
 - Do not edit `eval_sets/golden_regression_set.json` (tests assert 5 items). Add new eval sets as new files.
 - New behaviour that costs money (vision parsing, multi-strategy indexing, reranker) must be opt-in or bounded.
 - Never swallow exceptions silently (`except: pass`). Log and record them.
+- No silent defaults for missing data. A value that is missing, failed or not applicable stays `None` (shown as "—"), never 0, 1.0, "" or `NO_FAILURE`. Do not write `x or 0`, `.get(k, 0)`, `float(x or 1.0)`, `filtered or everything` or similar for scores, metrics, counts, labels or filter results. Means use only real values and report their n. If a default is genuinely correct, comment why at that line.
+- Unknown is not success: unscored, errored or undiagnosed items are counted and shown separately, never folded into "ok" or "no failure".
 - Don't claim results that aren't reproducible from data in the repo.
 
 ## Known issues (fix in this order)
