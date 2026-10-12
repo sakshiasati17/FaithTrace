@@ -95,14 +95,14 @@ def test_bm25_excludes_expired_chunk_under_effective_date_filter():
 
 def test_bm25_expired_chunk_does_not_crowd_out_current_one():
     # top_k=1 and the question favours the v1 wording: unfiltered BM25 ranks
-    # the expired chunk first, and the effective_to post-filter falls back to it.
+    # the expired chunk first.
     question = dict(QUESTION_2024, question="threshold v1 expired")
     results, _ = _run(_config(parsing="text_only", top_k=1), [question])
     assert _contents(results[0]) == {"threshold v2 text current"}
 
 
 def test_bm25_excludes_not_yet_effective_chunk():
-    # The effective_to post-filter cannot catch this: only effective_from fails.
+    # Only effective_from fails here; effective_to alone would let it through.
     q_2022 = {"id": "q_2022", "question": "threshold v2 current", "valid_from": "2022-06-01"}
     results, _ = _run(_config(parsing="text_only"), [q_2022])
     assert _contents(results[0]) == {"threshold v1 text expired"}
