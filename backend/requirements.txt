@@ -26,6 +26,8 @@ sentence-transformers==6.1.0  # cross-encoder reranker (hybrid_reranker)
 # Evaluation
 ragas==0.1.14
 datasets==2.20.0
+# pyarrow (pulled in by datasets) 26+ requires NumPy 2, but the resolved stack installs NumPy 1.26.
+pyarrow==25.0.1
 
 # ML classifier
 xgboost==2.0.3
