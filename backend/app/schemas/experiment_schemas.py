@@ -74,6 +74,12 @@ class RunResponse(BaseModel):
     evaluated_at: Optional[datetime] = None
     diagnosed_at: Optional[datetime] = None
     metrics: Optional[RunMetricsResponse] = None
+    # Query counts, set by the experiment detail endpoints; None = not computed.
+    # n_unscored is None until the run is evaluated, n_undiagnosed until diagnosed.
+    n_queries: Optional[int] = None
+    n_errored: Optional[int] = None
+    n_unscored: Optional[int] = None
+    n_undiagnosed: Optional[int] = None
 
     class Config:
         from_attributes = True

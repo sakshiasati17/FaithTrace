@@ -54,6 +54,12 @@ export interface Run {
   evaluated_at?: string | null;
   diagnosed_at?: string | null;
   metrics?: RunMetrics;
+  // Query counts from the experiment detail endpoints; null/absent = not computed.
+  // n_unscored is null until the run is evaluated, n_undiagnosed until diagnosed.
+  n_queries?: number | null;
+  n_errored?: number | null;
+  n_unscored?: number | null;
+  n_undiagnosed?: number | null;
 }
 
 export interface Experiment {

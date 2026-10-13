@@ -10,7 +10,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
@@ -21,6 +21,58 @@ from app.schemas.experiment_schemas import (
 from app.services.evaluation import eval_sets as es
 
 router = APIRouter()
+
+
+def query_counts_stmt(run_ids: list[str]):
+    """
+    One aggregate over query_results: per run, the total, errored, unscored and
+    undiagnosed query counts. Rows with a NULL status predate the column and
+    count as "ok".
+    """
+    qr = QueryResultModel
+    is_error = qr.status == "error"
+    is_ok = or_(qr.status.is_(None), qr.status != "error")
+    # ->> / json_extract yields SQL NULL for a missing key and for a JSON null.
+    correctness = qr.diagnosis_evidence[("scores", "answer_correctness")].as_float()
+    return (
+        select(
+            qr.run_id,
+            func.count(qr.id),
+            func.sum(case((is_error, 1), else_=0)),
+            func.sum(case((is_ok & correctness.is_(None), 1), else_=0)),
+            func.sum(case((is_ok & qr.failure_category.is_(None), 1), else_=0)),
+        )
+        .where(qr.run_id.in_(run_ids))
+        .group_by(qr.run_id)
+    )
+
+
+def apply_query_counts(runs: list[RunResponse], rows, evaluated: dict, diagnosed: dict) -> None:
+    """
+    Set n_queries/n_errored/n_unscored/n_undiagnosed on each run from the
+    aggregate rows. A run with no query rows has 0 queries. Unscored is None
+    until the run was evaluated, undiagnosed None until it was diagnosed:
+    before that every answered query would count, which says nothing.
+    """
+    by_run = {row[0]: row[1:] for row in rows}
+    for run in runs:
+        total, errored, unscored, undiagnosed = by_run.get(run.id, (0, 0, 0, 0))
+        run.n_queries = int(total)
+        run.n_errored = int(errored or 0)
+        run.n_unscored = int(unscored or 0) if evaluated.get(run.id) else None
+        run.n_undiagnosed = int(undiagnosed or 0) if diagnosed.get(run.id) else None
+
+
+async def _with_query_counts(db: AsyncSession, orm_runs, responses: list[RunResponse]) -> None:
+    if not orm_runs:
+        return
+    rows = (await db.execute(query_counts_stmt([r.id for r in orm_runs]))).all()
+    apply_query_counts(
+        responses,
+        rows,
+        evaluated={r.id: r.evaluated_at is not None for r in orm_runs},
+        diagnosed={r.id: r.diagnosed_at is not None for r in orm_runs},
+    )
 
 
 async def _resolve_eval_set(
@@ -152,7 +204,9 @@ async def get_experiment(experiment_id: str, db: AsyncSession = Depends(get_db))
     exp = result.scalar_one_or_none()
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
-    return ExperimentResponse.model_validate(exp)
+    response = ExperimentResponse.model_validate(exp)
+    await _with_query_counts(db, exp.runs, response.runs)
+    return response
 
 
 @router.get("/{experiment_id}/runs", response_model=list[RunResponse])
@@ -165,7 +219,9 @@ async def list_runs(experiment_id: str, db: AsyncSession = Depends(get_db)):
         .order_by(Run.created_at.asc())
     )
     runs = result.scalars().all()
-    return [RunResponse.model_validate(r) for r in runs]
+    responses = [RunResponse.model_validate(r) for r in runs]
+    await _with_query_counts(db, runs, responses)
+    return responses
 
 
 @router.get("/{experiment_id}/runs/{run_id}/trace", response_model=list[QueryResultResponse])
