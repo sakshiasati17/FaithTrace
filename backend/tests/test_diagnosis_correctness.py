@@ -204,6 +204,9 @@ class TestDiagnoseRunTask:
         # chart + table correct, text labelled STALE_ANSWER but diagnosed NO_FAILURE
         assert rm.root_cause_diagnostic_accuracy == pytest.approx(2 / 3)
         assert out["root_cause_diagnostic_accuracy"] == pytest.approx(2 / 3)
+        # No STALE_ANSWER/WRONG_VERSION prediction here, so the family accuracy matches.
+        assert rm.temporal_family_diagnostic_accuracy == pytest.approx(2 / 3)
+        assert out["temporal_family_diagnostic_accuracy"] == pytest.approx(2 / 3)
         assert out["diagnoses_written"] == 3
 
     def test_accuracy_is_none_when_eval_set_unlabelled(self):
@@ -215,6 +218,8 @@ class TestDiagnoseRunTask:
 
         assert rm.root_cause_diagnostic_accuracy is None
         assert out["root_cause_diagnostic_accuracy"] is None
+        assert rm.temporal_family_diagnostic_accuracy is None
+        assert out["temporal_family_diagnostic_accuracy"] is None
 
     def test_missing_metrics_row_is_not_created(self):
         rows = [_qr_row("q_chart")]
