@@ -443,29 +443,6 @@ def _build_freshness_filter(freshness_policy: str, eval_item: dict):
     )
 
 
-def _post_filter_by_effective_to(chunks: list[dict], eval_item: dict, freshness_policy: str) -> list[dict]:
-    """Post-filter chunks that have expired before the query date."""
-    if freshness_policy not in ("effective_date_filter", "version_aware"):
-        return chunks
-
-    valid_from_str = eval_item.get("valid_from")
-    if not valid_from_str:
-        return chunks
-
-    try:
-        query_date = datetime.fromisoformat(valid_from_str)
-        query_epoch = int(query_date.timestamp())
-    except (ValueError, TypeError):
-        return chunks
-
-    filtered = []
-    for chunk in chunks:
-        eff_to = chunk.get("effective_to")
-        if eff_to is None or eff_to >= query_epoch:
-            filtered.append(chunk)
-    return filtered or chunks  # fallback to all if nothing passes
-
-
 def _sort_by_recency(chunks: list[dict]) -> list[dict]:
     """Sort chunks by effective_from descending (most recent first)."""
     return sorted(chunks, key=lambda c: c.get("effective_from") or 0, reverse=True)
@@ -653,11 +630,6 @@ def run_pipeline(
                 chunk = {"content": doc.page_content or ""}
                 chunk.update(doc.metadata)
                 retrieved_chunks.append(chunk)
-
-            # Apply post-filtering for date range
-            retrieved_chunks = _post_filter_by_effective_to(
-                retrieved_chunks, eval_item, config.freshness_policy
-            )
 
             # Recency bias: re-sort by effective_from
             if config.freshness_policy == "recency_biased":
