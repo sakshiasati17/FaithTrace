@@ -43,11 +43,43 @@ class DiagnosisResult:
     evidence: dict = field(default_factory=dict)
 
 
-def _has_temporal_violation(result: QueryResult, eval_item: dict) -> bool:
-    """Check if retrieved chunks contain temporally invalid content."""
+# A temporal failure is only reported when the answer was not judged correct:
+# answer_correctness below this (or unscored). Wrong-period chunks next to a
+# correct answer are recorded as evidence, not as a failure.
+TEMPORAL_ANSWER_CORRECT = 0.5
+
+# Chunk position relative to the question date (eval item valid_from).
+IN_PERIOD = "in_period"
+EXPIRED = "expired"              # effective_to < question date: an older, superseded version
+NOT_YET_VALID = "not_yet_valid"  # effective_from > question date: a newer version
+
+
+def _chunk_period(chunk: dict, query_epoch: int) -> str | None:
+    """IN_PERIOD / EXPIRED / NOT_YET_VALID, or None for an undated chunk."""
+    eff_from = chunk.get("effective_from")
+    if eff_from is None:
+        return None
+    if eff_from > query_epoch:
+        return NOT_YET_VALID
+    eff_to = chunk.get("effective_to")
+    if eff_to is not None and eff_to < query_epoch:
+        return EXPIRED
+    return IN_PERIOD
+
+
+def _temporal_evidence(result: QueryResult, eval_item: dict) -> dict | None:
+    """
+    Where the retrieved chunks sit relative to the question date, in rank order.
+
+    Returns None when the item has no usable valid_from (no temporal rule).
+    Otherwise: counts per period, whether the top-ranked chunk is out of
+    period, the direction of the highest-ranked out-of-period chunk, and
+    whether out-of-period evidence is dominant (the top chunk is out of period,
+    or more than half of the dated chunks are).
+    """
     valid_from_str = eval_item.get("valid_from")
     if not valid_from_str:
-        return False
+        return None
     try:
         query_epoch = int(datetime.fromisoformat(valid_from_str).timestamp())
     except (ValueError, TypeError):
@@ -55,18 +87,30 @@ def _has_temporal_violation(result: QueryResult, eval_item: dict) -> bool:
             "Query %s: unparseable valid_from %r; temporal rule not checked",
             result.query_id, valid_from_str,
         )
-        return False
+        return None
 
-    for chunk in result.retrieved_chunks:
-        eff_from = chunk.get("effective_from")
-        if eff_from is None:
-            continue
-        eff_to = chunk.get("effective_to")
-        from_ok = eff_from <= query_epoch
-        to_ok = (eff_to is None) or (eff_to >= query_epoch)
-        if not (from_ok and to_ok):
-            return True
-    return False
+    periods = [_chunk_period(c, query_epoch) for c in result.retrieved_chunks]
+    counts = {p: periods.count(p) for p in (IN_PERIOD, EXPIRED, NOT_YET_VALID)}
+    dated = sum(counts.values())
+    out_of_period = counts[EXPIRED] + counts[NOT_YET_VALID]
+    top_out = bool(periods) and periods[0] in (EXPIRED, NOT_YET_VALID)
+    first_out = next((p for p in periods if p in (EXPIRED, NOT_YET_VALID)), None)
+    return {
+        "in_period_chunks": counts[IN_PERIOD],
+        "expired_chunks": counts[EXPIRED],
+        "not_yet_valid_chunks": counts[NOT_YET_VALID],
+        "dated_chunks": dated,
+        "out_of_period_chunks": out_of_period,
+        "top_chunk_out_of_period": top_out,
+        "out_of_period_direction": first_out,
+        "dominant": top_out or (dated > 0 and out_of_period * 2 > dated),
+    }
+
+
+def _has_temporal_violation(result: QueryResult, eval_item: dict) -> bool:
+    """Whether any retrieved chunk is outside the question's validity period."""
+    temporal = _temporal_evidence(result, eval_item)
+    return bool(temporal and temporal["out_of_period_chunks"])
 
 
 def _has_nontext_chunk(result: QueryResult) -> bool:
@@ -155,7 +199,22 @@ def _heuristic_diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> 
         "modality": modality,
     }
 
-    temporal_violation = _has_temporal_violation(result, eval_item)
+    temporal = _temporal_evidence(result, eval_item)
+    if temporal is not None:
+        evidence["temporal"] = temporal
+    # Temporal failure: wrong-period evidence dominates the retrieved context
+    # and the answer was not judged correct (unscored counts as not correct,
+    # since this rule needs no metrics). The direction names it: an expired
+    # version is a stale answer; a version not yet in effect is a wrong version.
+    temporal_failure = None
+    if temporal and temporal["dominant"] and (
+        answer_correctness is None or answer_correctness < TEMPORAL_ANSWER_CORRECT
+    ):
+        temporal_failure = (
+            FailureCategory.STALE_ANSWER
+            if temporal["out_of_period_direction"] == EXPIRED
+            else FailureCategory.WRONG_VERSION
+        )
     version_mismatch = _has_version_mismatch(result, eval_item)
     has_nontext = _has_nontext_chunk(result)
     has_vision = _has_vision_chunk(result)
@@ -164,9 +223,15 @@ def _heuristic_diagnose(result: QueryResult, eval_item: dict, metrics: dict) -> 
 
     # Priority order: temporal > version > modality > recall > precision/synthesis
 
-    if temporal_violation and eval_item.get("valid_from"):
-        primary = FailureCategory.STALE_ANSWER
+    if temporal_failure is not None:
+        primary = temporal_failure
         evidence["temporal_violation"] = True
+        evidence["temporal_rule"] = (
+            "top_chunk_out_of_period" if temporal["top_chunk_out_of_period"]
+            else "majority_out_of_period"
+        )
+        if answer_correctness is None:
+            evidence["answer_not_scored"] = True
 
     elif version_mismatch:
         primary = FailureCategory.WRONG_VERSION
@@ -351,6 +416,39 @@ def compute_diagnostic_accuracy(
             continue
         labelled += 1
         if predicted == gt_label:
+            correct += 1
+    if labelled == 0:
+        return None
+    return correct / labelled
+
+
+# STALE_ANSWER (expired version) and WRONG_VERSION (version not yet in effect)
+# are two directions of one failure: evidence from the wrong document version.
+TEMPORAL_FAMILY = frozenset({FailureCategory.STALE_ANSWER.value, FailureCategory.WRONG_VERSION.value})
+
+
+def _family(label: str | None) -> str | None:
+    return "TEMPORAL" if label in TEMPORAL_FAMILY else label
+
+
+def compute_temporal_family_diagnostic_accuracy(
+    predictions: dict[str, str | None],
+    eval_set: list[dict],
+) -> float | None:
+    """
+    Like compute_diagnostic_accuracy, over the same labelled items, but
+    STALE_ANSWER and WRONG_VERSION count as one category. The strict
+    per-label accuracy is unchanged; this is reported alongside it.
+    """
+    eval_by_id = index_eval_set(eval_set)
+    labelled = 0
+    correct = 0
+    for query_id, predicted in predictions.items():
+        gt_label = eval_by_id.get(query_id, {}).get("failure_type")
+        if not gt_label:
+            continue
+        labelled += 1
+        if _family(predicted) == _family(gt_label):
             correct += 1
     if labelled == 0:
         return None

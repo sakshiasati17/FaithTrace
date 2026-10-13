@@ -104,6 +104,8 @@ class RunMetrics(Base):
     temporal_citation_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
     multimodal_grounding_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
     root_cause_diagnostic_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Like root_cause_diagnostic_accuracy, with STALE_ANSWER and WRONG_VERSION as one category.
+    temporal_family_diagnostic_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     run: Mapped["Run"] = relationship("Run", back_populates="metrics")
 

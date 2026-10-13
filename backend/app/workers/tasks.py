@@ -743,6 +743,7 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
     from app.db.models import Run, QueryResult as QueryResultModel, RunMetrics as RunMetricsModel
     from app.services.diagnostics.classifier import (
         compute_diagnostic_accuracy,
+        compute_temporal_family_diagnostic_accuracy,
         diagnose_run as classifier_diagnose_run,
     )
     from app.services.evaluation.ragas_runner import run_ragas_evaluation
@@ -848,10 +849,12 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
         # Root-cause diagnostic accuracy: stored diagnoses vs ground-truth
         # failure_type labels (None when no item is labelled). Undiagnosed
         # queries are left out, like errored ones.
-        diag_accuracy = compute_diagnostic_accuracy(
-            {qr.query_id: qr.failure_category for qr in ok_rows if qr.failure_category is not None},
-            eval_set,
-        )
+        predictions = {
+            qr.query_id: qr.failure_category for qr in ok_rows if qr.failure_category is not None
+        }
+        diag_accuracy = compute_diagnostic_accuracy(predictions, eval_set)
+        # Same items, with STALE_ANSWER and WRONG_VERSION counted as one category.
+        family_accuracy = compute_temporal_family_diagnostic_accuracy(predictions, eval_set)
         rm = db.execute(
             select(RunMetricsModel).where(RunMetricsModel.run_id == run_id)
         ).scalar_one_or_none()
@@ -862,6 +865,7 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
             )
         else:
             rm.root_cause_diagnostic_accuracy = diag_accuracy
+            rm.temporal_family_diagnostic_accuracy = family_accuracy
 
         run.diagnosed_at = datetime.utcnow()
         db.commit()
@@ -874,6 +878,7 @@ def diagnose_run(self, run_id: str, eval_set_path: str | None = None):
             "queries_errored": error_count,
             "queries_undiagnosed": unscored_count,
             "root_cause_diagnostic_accuracy": diag_accuracy,
+            "temporal_family_diagnostic_accuracy": family_accuracy,
         }
 
     except Exception as exc:

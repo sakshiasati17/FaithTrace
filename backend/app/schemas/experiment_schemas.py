@@ -39,6 +39,7 @@ class RunMetricsResponse(BaseModel):
     temporal_citation_accuracy: Optional[float] = None
     multimodal_grounding_rate: Optional[float] = None
     root_cause_diagnostic_accuracy: Optional[float] = None
+    temporal_family_diagnostic_accuracy: Optional[float] = None
 
     class Config:
         from_attributes = True
